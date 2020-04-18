@@ -17,6 +17,7 @@
 package org.drools.examples.state;
 
 import org.kie.api.KieServices;
+import org.kie.api.logger.KieRuntimeLogger;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 
@@ -40,21 +41,22 @@ public class StateExampleUsingAgendaGroup {
         KieSession ksession = kc.newKieSession("StateAgendaGroupKS");
 
         // To setup a file based audit logger, uncomment the next line
-        // KieRuntimeLogger logger = ks.getLoggers().newFileLogger( ksession, "./state" );
+        KieServices ks = KieServices.Factory.get();
+        KieRuntimeLogger logger = ks.getLoggers().newFileLogger( ksession, "./state" );
 
         final State a = new State( "A" );
         final State b = new State( "B" );
         final State c = new State( "C" );
         final State d = new State( "D" );
 
-        ksession.insert( a );
-        ksession.insert( b );
-        ksession.insert( c );
         ksession.insert( d );
+        ksession.insert( c );
+        ksession.insert( b );
+        ksession.insert( a );
 
         ksession.fireAllRules();
 
-        // logger.close();
+        logger.close();
 
         ksession.dispose(); // Stateful rule session must always be disposed when finished
     }

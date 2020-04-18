@@ -38,7 +38,7 @@ public class TraitExample {
 
         Collection c =  kSession.getObjects();
         System.out.println( "------------------------- " + c.size() + " ----------------------" );
-        for ( Object o : c ) {
+        for ( Object o : c ) {	
             System.out.println( " \t --- " + o );
         }
         System.out.println( "-----------------------------------------------------------------" );

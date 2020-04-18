@@ -23,7 +23,7 @@ import java.util.ArrayList;
 
 public class PerformanceExample {
     public static void main(final String[] args) throws Exception {
-        final long numberOfRulesToBuild = 10;
+        final long numberOfRulesToBuild = 10000;
         boolean useAccumulate = true;
         String dialect = "mvel"; //noticed performance difference between java and mvel dialects
         boolean usekjars = false;
