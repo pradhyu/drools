@@ -18,6 +18,7 @@ package org.drools.examples.fire.logical;
 import org.drools.examples.fire.Fire;
 import org.drools.examples.fire.Alarm;
 import org.drools.examples.fire.Room;
+import java.util.ArrayList;
 import org.drools.examples.fire.Sprinkler;
 
 rule RaiseAlarm when
@@ -28,7 +29,8 @@ then
 end
 
 rule ThereIsAnAlarm when
-     Alarm()
+    a: Alarm($alrm: this)
+    b: Alarm(this==$alrm)
 then
     System.out.println( "there is an Alarm " );
 end
@@ -50,9 +52,12 @@ end
 rule TurnSprinklerOff when
     s : Sprinkler( on == true )
     not Fire( room == s.room )
+
 then
     modify( s ) { setOn( false ) }
+
     System.out.println( "Turn off the sprinkler for room " + s.getRoom().getName() );
+
 end
 
 rule OK when

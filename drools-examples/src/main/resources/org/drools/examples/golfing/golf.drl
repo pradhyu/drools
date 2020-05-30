@@ -61,7 +61,7 @@ rule "find solution"
                       this in ( $joe, $bob, $tom ) )
 
     then
-        System.out.println( "Fred " + $fred.getPosition() + " " + $fred.getColor() );
+        System.out.println( "Fred " + $fred.position + " " + $fred.getColor() );
         System.out.println( "Joe " + $joe.getPosition() + " " + $joe.getColor() );
         System.out.println( "Bob " + $bob.getPosition() + " " + $bob.getColor() );
         System.out.println( "Tom " + $tom.getPosition() + " " + $tom.getColor() );

@@ -18,6 +18,12 @@ package org.drools.examples.honestpolitician
  
 import org.drools.examples.honestpolitician.Politician;
 import org.drools.examples.honestpolitician.Hope;
+
+function Integer testing(){
+    String testing="testing";
+    testing.toCharArray();
+   return 1;
+}
  
 rule "We have an honest Politician"
     salience 10
@@ -27,12 +33,16 @@ rule "We have an honest Politician"
         insertLogical( new Hope() );
 end
 
+
+
+ end
 rule "Hope Lives"
     salience 10
     when
         exists( Hope() )
     then
         System.out.println("Hurrah!!! Democracy Lives");
+
 end
 
 rule "Hope is Dead"

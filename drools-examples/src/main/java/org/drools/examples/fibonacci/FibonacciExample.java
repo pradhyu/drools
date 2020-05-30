@@ -30,7 +30,7 @@ public class FibonacciExample {
     public static void execute( KieContainer kc ) {
         KieSession ksession = kc.newKieSession("FibonacciKS");
 
-        ksession.insert( new Fibonacci( 50 ) );
+        ksession.insert( new Fibonacci( 5000 ) );
         ksession.fireAllRules();
 
         ksession.dispose(); // Stateful rule session must always be disposed when finished

@@ -22,6 +22,7 @@ dialect "mvel"
 
 rule Recurse
     salience 10
+    no-loop
     when
         f : Fibonacci ( value == -1 )
         not ( Fibonacci ( sequence == 1 ) )    

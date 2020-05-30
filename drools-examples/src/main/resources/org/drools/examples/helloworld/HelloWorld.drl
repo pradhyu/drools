@@ -32,6 +32,7 @@ rule "Hello World"
                    status = Message.GOODBYE };
 end
 
+
 rule "Good Bye"
     dialect "java"
     when

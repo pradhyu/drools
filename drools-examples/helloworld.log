@@ -5,32 +5,32 @@
     <org.drools.core.audit.event.ObjectLogEvent>
       <type>1</type>
       <factId>1</factId>
-      <objectToString>org.drools.examples.helloworld.HelloWorldExample$Message@659feb22</objectToString>
+      <objectToString>org.drools.examples.helloworld.HelloWorldExample$Message@21eb8645</objectToString>
     </org.drools.core.audit.event.ObjectLogEvent>
     <org.drools.core.audit.event.ActivationLogEvent>
       <type>4</type>
       <activationId>Hello World [1]</activationId>
       <rule>Hello World</rule>
-      <declarations>message=Hello World; m=org.drools.examples.helloworld.HelloWorldExample$Message@659feb22</declarations>
+      <declarations>message=Hello World; m=org.drools.examples.helloworld.HelloWorldExample$Message@21eb8645</declarations>
       <factHandleIds>1</factHandleIds>
     </org.drools.core.audit.event.ActivationLogEvent>
     <org.drools.core.audit.event.ActivationLogEvent>
       <type>6</type>
       <activationId>Hello World [1]</activationId>
       <rule>Hello World</rule>
-      <declarations>message=Hello World; m=org.drools.examples.helloworld.HelloWorldExample$Message@659feb22</declarations>
+      <declarations>message=Hello World; m=org.drools.examples.helloworld.HelloWorldExample$Message@21eb8645</declarations>
       <factHandleIds>1</factHandleIds>
     </org.drools.core.audit.event.ActivationLogEvent>
     <org.drools.core.audit.event.ObjectLogEvent>
       <type>2</type>
       <factId>1</factId>
-      <objectToString>org.drools.examples.helloworld.HelloWorldExample$Message@659feb22</objectToString>
+      <objectToString>org.drools.examples.helloworld.HelloWorldExample$Message@21eb8645</objectToString>
     </org.drools.core.audit.event.ObjectLogEvent>
     <org.drools.core.audit.event.ActivationLogEvent>
       <type>7</type>
       <activationId>Hello World [1]</activationId>
       <rule>Hello World</rule>
-      <declarations>message=Goodbye cruel world; m=org.drools.examples.helloworld.HelloWorldExample$Message@659feb22</declarations>
+      <declarations>message=Goodbye cruel world; m=org.drools.examples.helloworld.HelloWorldExample$Message@21eb8645</declarations>
       <factHandleIds>1</factHandleIds>
     </org.drools.core.audit.event.ActivationLogEvent>
     <org.drools.core.audit.event.ActivationLogEvent>
