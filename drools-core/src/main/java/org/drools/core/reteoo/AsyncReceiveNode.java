@@ -1,44 +1,44 @@
-/*
- * Copyright 2005 JBoss Inc
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import org.drools.base.common.NetworkNode;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.AsyncReceive;
+import org.drools.base.rule.Pattern;
+import org.drools.base.rule.constraint.AlphaNodeFieldConstraint;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.BetaConstraints;
 import org.drools.core.common.EmptyBetaConstraints;
-import org.drools.core.common.InternalAgenda;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.phreak.PropagationEntry;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.rule.AsyncReceive;
-import org.drools.core.rule.Pattern;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.util.AbstractBaseLinkedListNode;
+import org.drools.core.util.AbstractLinkedListNode;
 import org.drools.core.util.index.TupleList;
 
 public class AsyncReceiveNode extends LeftTupleSource
@@ -76,6 +76,7 @@ public class AsyncReceiveNode extends LeftTupleSource
         this.receive = receive;
         this.tupleMemoryEnabled = context.isTupleMemoryEnabled();
         setLeftTupleSource( tupleSource );
+        this.setObjectCount(leftInput.getObjectCount() + 1); // 'async receive' node increases the object count
         this.alphaConstraints = constraints;
         this.betaConstraints = (binder == null) ? EmptyBetaConstraints.getInstance() : binder;
         this.betaConstraints.init(context, getType());
@@ -85,26 +86,10 @@ public class AsyncReceiveNode extends LeftTupleSource
         hashcode = calculateHashCode();
     }
 
-    public void readExternal( ObjectInput in ) throws IOException,
-            ClassNotFoundException {
-        super.readExternal( in );
-        messageId = ( String ) in.readObject();
-        tupleMemoryEnabled = in.readBoolean();
-        alphaConstraints = (AlphaNodeFieldConstraint[]) in.readObject();
-        betaConstraints = (BetaConstraints) in.readObject();
-    }
-
-    public void writeExternal( ObjectOutput out ) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( messageId );
-        out.writeBoolean(tupleMemoryEnabled);
-        out.writeObject( alphaConstraints );
-        out.writeObject( betaConstraints );
-    }
-
-    public void attach( BuildContext context ) {
+    public void doAttach( BuildContext context ) {
+        super.doAttach(context);
         this.leftInput.addTupleSink( this, context );
-        context.getKnowledgeBase().addReceiveNode(this);
+        context.getRuleBase().addReceiveNode(this);
     }
 
     public AlphaNodeFieldConstraint[] getAlphaConstraints() {
@@ -119,10 +104,10 @@ public class AsyncReceiveNode extends LeftTupleSource
         return receive.getResultClass();
     }
 
-    public ObjectTypeConf getObjectTypeConf( InternalWorkingMemory workingMemory ) {
+    public ObjectTypeConf getObjectTypeConf( ReteEvaluator reteEvaluator ) {
         if ( objectTypeConf == null ) {
             // use default entry point and object class. Notice that at this point object is assignable to resultClass
-            objectTypeConf = new ClassObjectTypeConf( workingMemory.getEntryPoint(), getResultClass(), workingMemory.getKnowledgeBase() );
+            objectTypeConf = new ClassObjectTypeConf( reteEvaluator.getDefaultEntryPointId(), getResultClass(), reteEvaluator.getKnowledgeBase() );
         }
         return objectTypeConf;
     }
@@ -138,18 +123,17 @@ public class AsyncReceiveNode extends LeftTupleSource
         }
 
         @Override
-        public void execute( final InternalWorkingMemory wm ) {
-            AsyncReceiveMemory memory = wm.getNodeMemory( asyncReceiveNode );
+        public void internalExecute(final ReteEvaluator reteEvaluator ) {
+            AsyncReceiveMemory memory = reteEvaluator.getNodeMemory( asyncReceiveNode );
             memory.addMessage( object );
             memory.setNodeDirtyWithoutNotify();
 
             for (final PathMemory pmem : memory.getSegmentMemory().getPathMemories()) {
-                if (pmem.getPathEndNode().getAssociatedRuleSize() == 0) {
+                if (pmem.getPathEndNode().getAssociatedTerminalsSize() == 0) {
                     // if the corresponding rule has been removed avoid to link and notify this pmem
                     continue;
                 }
-                InternalAgenda agenda = pmem.getActualAgenda( wm );
-                pmem.doLinkRule( agenda );
+                pmem.doLinkRule( reteEvaluator );
             }
         }
     }
@@ -177,7 +161,7 @@ public class AsyncReceiveNode extends LeftTupleSource
             return true;
         }
 
-        if ( !(object instanceof AsyncReceiveNode) || this.hashCode() != object.hashCode() ) {
+        if (((NetworkNode)object).getType() != NodeTypeEnums.AsyncReceiveNode || this.hashCode() != object.hashCode() ) {
             return false;
         }
 
@@ -185,16 +169,8 @@ public class AsyncReceiveNode extends LeftTupleSource
         return this.leftInput.getId() != other.leftInput.getId() && this.messageId.equals( other.messageId );
     }
 
-    public AsyncReceiveMemory createMemory( final RuleBaseConfiguration config, InternalWorkingMemory wm ) {
-        return new AsyncReceiveMemory(this, wm);
-    }
-
-    @Override
-    public LeftTuple createPeer( LeftTuple original ) {
-        EvalNodeLeftTuple peer = new EvalNodeLeftTuple();
-        peer.initPeer( ( BaseLeftTuple ) original, this );
-        original.setPeer( peer );
-        return peer;
+    public AsyncReceiveMemory createMemory( final RuleBaseConfiguration config, ReteEvaluator reteEvaluator ) {
+        return new AsyncReceiveMemory(this, reteEvaluator);
     }
 
     protected boolean doRemove( final RuleRemovalContext context,
@@ -208,10 +184,6 @@ public class AsyncReceiveNode extends LeftTupleSource
 
     public boolean isLeftTupleMemoryEnabled() {
         return tupleMemoryEnabled;
-    }
-
-    public void setLeftTupleMemoryEnabled( boolean tupleMemoryEnabled ) {
-        this.tupleMemoryEnabled = tupleMemoryEnabled;
     }
 
     /**
@@ -250,40 +222,8 @@ public class AsyncReceiveNode extends LeftTupleSource
         this.previousTupleSinkNode = previous;
     }
 
-    public short getType() {
+    public int getType() {
         return NodeTypeEnums.AsyncReceiveNode;
-    }
-
-    public LeftTuple createLeftTuple( InternalFactHandle factHandle,
-                                      Sink sink,
-                                      boolean leftTupleMemoryEnabled ) {
-        return new EvalNodeLeftTuple( factHandle, sink, leftTupleMemoryEnabled );
-    }
-
-    public LeftTuple createLeftTuple( final InternalFactHandle factHandle,
-                                      final LeftTuple leftTuple,
-                                      final Sink sink ) {
-        return new EvalNodeLeftTuple( factHandle, leftTuple, sink );
-    }
-
-    @Override
-    public LeftTuple createLeftTuple( LeftTuple leftTuple, Sink sink, PropagationContext pctx, boolean leftTupleMemoryEnabled ) {
-        return new EvalNodeLeftTuple(leftTuple, sink, pctx, leftTupleMemoryEnabled);
-    }
-
-    public LeftTuple createLeftTuple( LeftTuple leftTuple,
-                                      RightTuple rightTuple,
-                                      Sink sink ) {
-        return new EvalNodeLeftTuple( leftTuple, rightTuple, sink );
-    }
-
-    public LeftTuple createLeftTuple( LeftTuple leftTuple,
-                                      RightTuple rightTuple,
-                                      LeftTuple currentLeftChild,
-                                      LeftTuple currentRightChild,
-                                      Sink sink,
-                                      boolean leftTupleMemoryEnabled ) {
-        return new EvalNodeLeftTuple( leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );
     }
 
     @Override
@@ -291,7 +231,7 @@ public class AsyncReceiveNode extends LeftTupleSource
         return leftInput.getObjectTypeNode();
     }
 
-    public static class AsyncReceiveMemory extends AbstractBaseLinkedListNode<Memory>
+    public static class AsyncReceiveMemory extends AbstractLinkedListNode<Memory>
             implements
             SegmentNodeMemory {
 
@@ -306,9 +246,9 @@ public class AsyncReceiveNode extends LeftTupleSource
         private SegmentMemory memory;
         private long nodePosMaskBit;
 
-        public AsyncReceiveMemory(AsyncReceiveNode node, InternalWorkingMemory wm) {
+        public AsyncReceiveMemory(AsyncReceiveNode node, ReteEvaluator reteEvaluator) {
             this.messageId = node.messageId;
-            this.receiver = asyncMessage -> wm.addPropagation( new AsyncReceiveAction( node, asyncMessage.getObject() ) );
+            this.receiver = asyncMessage -> reteEvaluator.addPropagation( new AsyncReceiveAction( node, asyncMessage.getObject() ) );
             AsyncMessagesCoordinator.get().registerReceiver( node.messageId, receiver );
         }
 
@@ -324,11 +264,11 @@ public class AsyncReceiveNode extends LeftTupleSource
             return insertOrUpdateLeftTuples;
         }
 
-        public void addInsertOrUpdateLeftTuple(LeftTuple leftTuple) {
+        public void addInsertOrUpdateLeftTuple(TupleImpl leftTuple) {
             insertOrUpdateLeftTuples.add( leftTuple );
         }
 
-        public short getNodeType() {
+        public int getNodeType() {
             return NodeTypeEnums.AsyncReceiveNode;
         }
 

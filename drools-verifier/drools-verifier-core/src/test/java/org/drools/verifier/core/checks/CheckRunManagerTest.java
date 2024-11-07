@@ -1,25 +1,26 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.core.checks;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Set;
 
 import org.drools.verifier.api.reporting.CheckType;
 import org.drools.verifier.api.reporting.Issue;
@@ -35,20 +36,17 @@ import org.drools.verifier.core.checks.base.JavaCheckRunner;
 import org.drools.verifier.core.checks.base.SingleCheck;
 import org.drools.verifier.core.configuration.AnalyzerConfiguration;
 import org.drools.verifier.core.index.model.Rule;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class CheckRunManagerTest {
 
     @Spy
@@ -65,9 +63,8 @@ public class CheckRunManagerTest {
 
     private AnalyzerConfiguration configuration;
 
-    @Before
-    public void setUp() throws
-            Exception {
+    @BeforeEach
+    public void setUp() throws Exception {
         configuration = new AnalyzerConfigurationMock();
 
         checkStorage = new CheckStorage(
@@ -81,8 +78,6 @@ public class CheckRunManagerTest {
                 });
 
         ruleInspectors = new ArrayList<>();
-        when(cache.all()).thenReturn(ruleInspectors);
-
         ruleInspector1 = mockRowInspector(1);
         ruleInspectors.add(ruleInspector1);
         ruleInspector2 = mockRowInspector(2);
@@ -96,101 +91,64 @@ public class CheckRunManagerTest {
     }
 
     @Test
-    public void testChecksGetGenerated() throws
-            Exception {
-        assertEquals(5,
-                     ruleInspector1.getChecks()
-                             .size());
-        assertEquals(5,
-                     ruleInspector2.getChecks()
-                             .size());
-        assertEquals(5,
-                     ruleInspector3.getChecks()
-                             .size());
+    void testChecksGetGenerated() throws Exception {
+        assertThat(ruleInspector1.getChecks()).hasSize(5);
+        assertThat(ruleInspector2.getChecks()).hasSize(5);
+        assertThat(ruleInspector3.getChecks()).hasSize(5);
     }
 
     @Test
-    public void testRemove() throws
-            Exception {
+    void testRemove() throws Exception {
+        checkRunManager.remove(ruleInspector2);
 
-        this.checkRunManager.remove(ruleInspector2);
-
-        final Set<Check> checks = ruleInspector1.getChecks();
-        assertEquals(3,
-                     checks.size());
-        assertTrue(ruleInspector2.getChecks()
-                           .isEmpty());
-        assertEquals(3,
-                     ruleInspector3.getChecks()
-                             .size());
+        assertThat(ruleInspector1.getChecks()).hasSize(3);
+        assertThat(ruleInspector2.getChecks()).isEmpty();
+        assertThat(ruleInspector3.getChecks()).hasSize(3);
     }
 
     @Test
-    public void testRunTests() throws
-            Exception {
+    void testRunTests() throws Exception {
 
         for (RuleInspector ruleInspector : cache.all()) {
-            assertNoIssues(ruleInspector);
+            assertThat(ruleInspector.getChecks()).noneMatch(check -> check.hasIssues());
         }
 
-        this.checkRunManager.run(null,
-                                 null);
+        checkRunManager.run(null, null);
 
         for (RuleInspector ruleInspector : cache.all()) {
-            assertHasIssues(ruleInspector);
+            assertThat(ruleInspector.getChecks()).allMatch(check -> check.hasIssues());
         }
     }
 
     @Test
-    public void testOnlyTestChanges() throws
-            Exception {
+    void testOnlyTestChanges() throws Exception {
         // First run
-        this.checkRunManager.run(null,
-                                 null);
+        checkRunManager.run(null, null);
 
         RuleInspector newRuleInspector = mockRowInspector(3);
         ruleInspectors.add(newRuleInspector);
 
-        this.checkRunManager.addChecks(newRuleInspector.getChecks());
-
-        assertNoIssues(newRuleInspector);
+        checkRunManager.addChecks(newRuleInspector.getChecks());
+		assertThat(newRuleInspector.getChecks()).noneMatch(check1 -> check1.hasIssues());
 
         // Second run
-        this.checkRunManager.run(null,
-                                 null);
+        checkRunManager.run(null, null);
+		final RuleInspector ruleInspector = newRuleInspector;
 
-        assertHasIssues(newRuleInspector);
+        assertThat(ruleInspector.getChecks()).allMatch(check -> check.hasIssues());
 
-        assertEquals(7,
-                     ruleInspector1.getChecks()
-                             .size());
-        assertEquals(7,
-                     newRuleInspector.getChecks()
-                             .size());
+        assertThat(ruleInspector1.getChecks()).hasSize(7);
+        assertThat(newRuleInspector.getChecks()).hasSize(7);
     }
 
     private RuleInspector mockRowInspector(final int rowNumber) {
-        return new RuleInspector(new Rule(rowNumber,
-                                          configuration),
+        return new RuleInspector(new Rule(rowNumber, configuration),
                                  checkStorage,
                                  cache,
                                  mock(AnalyzerConfiguration.class));
     }
 
-    private void assertHasIssues(final RuleInspector ruleInspector) {
-        for (final Check check : ruleInspector.getChecks()) {
-            assertTrue(check.hasIssues());
-        }
-    }
-
-    private void assertNoIssues(final RuleInspector ruleInspector) {
-        for (final Check check : (ruleInspector.getChecks())) {
-            assertFalse(check.hasIssues());
-        }
-    }
-
-    private class MockSingleCheck
-            extends SingleCheck {
+    private class MockSingleCheck extends SingleCheck {
 
         public MockSingleCheck(RuleInspector ruleInspector) {
             super(ruleInspector,
@@ -209,11 +167,8 @@ public class CheckRunManagerTest {
         }
 
         @Override
-        protected Issue makeIssue(final Severity severity,
-                                  final CheckType checkType) {
-            return new Issue(severity,
-                             checkType,
-                             Collections.emptySet());
+        protected Issue makeIssue(final Severity severity, final CheckType checkType) {
+            return new Issue(severity, checkType, Collections.emptySet());
         }
     }
 }

@@ -1,32 +1,38 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.testcoverage.common.util;
 
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.assertj.core.api.Assertions;
 import org.drools.compiler.kie.builder.impl.DrlProject;
-import org.drools.core.base.ClassObjectType;
-import org.drools.core.impl.KnowledgeBaseImpl;
+import org.drools.base.base.ClassObjectType;
+import org.drools.core.common.BaseNode;
+import org.drools.base.common.NetworkNode;
+import org.drools.core.reteoo.EntryPointNode;
+import org.drools.core.reteoo.JoinNode;
+import org.drools.core.impl.InternalRuleBase;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.kie.api.KieBase;
 import org.kie.api.KieServices;
@@ -41,8 +47,11 @@ import org.kie.api.command.KieCommands;
 import org.kie.api.io.KieResources;
 import org.kie.api.io.Resource;
 import org.kie.api.runtime.KieContainer;
+import org.kie.internal.builder.conf.AlphaNetworkCompilerOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Util class that provides various methods related to Kie API.
@@ -76,7 +85,7 @@ public final class KieUtil {
         final KieServices kieServices = KieServices.Factory.get();
         final KieModuleModel kieModuleModel = kieServices.newKieModuleModel();
         if (alphaNetworkEnabled) {
-            kieModuleModel.setConfigurationProperty("drools.alphaNetworkCompiler", "true");
+            kieModuleModel.setConfigurationProperty("drools.alphaNetworkCompiler", AlphaNetworkCompilerOption.INMEMORY.getMode());
         }
         return kieModuleModel;
     }
@@ -98,17 +107,41 @@ public final class KieUtil {
         return getKieBuilderFromResources(kieBaseTestConfiguration, failIfBuildError, resources.toArray(new Resource[]{}));
     }
 
+    public static KieBuilder getKieBuilderFromDrls(final KieBaseTestConfiguration kieBaseTestConfiguration,final Map<String, String> kieModuleConfigurationProperties,
+                                                   final boolean failIfBuildError, final String... drls) {
+        final List<Resource> resources = getResourcesFromDrls(drls);
+        return getKieBuilderFromResources(kieBaseTestConfiguration, kieModuleConfigurationProperties, failIfBuildError, resources.toArray(new Resource[]{}));
+    }
+
     public static KieBuilder getKieBuilderFromResources(final KieBaseTestConfiguration kieBaseTestConfiguration,
                                                         final boolean failIfBuildError, final Resource... resources) {
-        final KieModuleModel kieModuleModel = createKieModuleModel(kieBaseTestConfiguration.useAlphaNetworkCompiler());
+        final KieModuleModel kieModuleModel =
+                getKieModuleModel(kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_REALTIME, new HashMap<>());
+        final KieFileSystem kieFileSystem = getKieFileSystemWithKieModule(kieModuleModel, KieServices.get().getRepository().getDefaultReleaseId(), resources);
+        return getKieBuilderFromKieFileSystem(kieBaseTestConfiguration, kieFileSystem, failIfBuildError);
+    }
+
+    public static KieBuilder getKieBuilderFromResources(final KieBaseTestConfiguration kieBaseTestConfiguration, final Map<String, String> kieModuleConfigurationProperties,
+                                                        final boolean failIfBuildError, final Resource... resources) {
+        final KieModuleModel kieModuleModel =
+                getKieModuleModel(kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_REALTIME, kieModuleConfigurationProperties);
         final KieFileSystem kieFileSystem = getKieFileSystemWithKieModule(kieModuleModel, KieServices.get().getRepository().getDefaultReleaseId(), resources);
         return getKieBuilderFromKieFileSystem(kieBaseTestConfiguration, kieFileSystem, failIfBuildError);
     }
 
     public static KieBuilder getKieBuilderFromKieFileSystem(final KieBaseTestConfiguration kieBaseTestConfiguration,
-                                                          final KieFileSystem kfs, final boolean failIfBuildError) {
+                                                            final KieFileSystem kfs, final boolean failIfBuildError) {
+        return getKieBuilderFromKieFileSystem(kieBaseTestConfiguration, kfs, failIfBuildError, null);
+    }
 
-        final KieBuilder kbuilder = KieServices.Factory.get().newKieBuilder(kfs);
+    public static KieBuilder getKieBuilderFromKieFileSystem(final KieBaseTestConfiguration kieBaseTestConfiguration,
+                                                          final KieFileSystem kfs, final boolean failIfBuildError, ClassLoader classLoader) {
+        KieBuilder kbuilder;
+        if (classLoader == null) {
+            kbuilder = KieServices.Factory.get().newKieBuilder(kfs);
+        } else {
+            kbuilder = KieServices.Factory.get().newKieBuilder(kfs, classLoader);
+        }
 
         if (kieBaseTestConfiguration.getExecutableModelProjectClass().isPresent()) {
             kbuilder.buildAll(kieBaseTestConfiguration.getExecutableModelProjectClass().get());
@@ -133,7 +166,7 @@ public final class KieUtil {
         }
 
         if (failIfBuildError) {
-            Assertions.assertThat(msgs).as(msgs.toString()).isEmpty();
+            assertThat(msgs).as(msgs.toString()).isEmpty();
         }
 
         return kbuilder;
@@ -216,6 +249,27 @@ public final class KieUtil {
         return buildAndInstallKieModuleIntoRepo(kieBaseTestConfiguration, releaseId, kieModuleModel, resources);
     }
 
+    public static KieModule getKieModuleFromClasspathResources(final String moduleGroupId, Class<?> classLoaderFromClass,
+                                                      final KieBaseTestConfiguration kieBaseTestConfiguration, final String... resources) {
+        final List<Resource> result = new ArrayList<>();
+        for (final String resource : resources) {
+            result.add(KieServices.Factory.get().getResources().newClassPathResource(resource, classLoaderFromClass));
+        }
+        return getKieModuleFromResources(generateReleaseId(moduleGroupId), kieBaseTestConfiguration, result.toArray(new Resource[]{}));
+    }
+
+    public static KieModule getKieModuleFromResourcesWithClassLoaderForKieBuilder(final String moduleGroupId,
+                                                                                  final ClassLoader classLoaderForKieBuilder,
+                                                                                  final KieBaseTestConfiguration kieBaseTestConfiguration,
+                                                                                  final Resource... resources) {
+        KieModuleModel kieModuleModel = KieUtil.getKieModuleModel(kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_REALTIME, new HashMap<>());
+        KieFileSystem kfs = KieUtil.getKieFileSystemWithKieModule(kieModuleModel, KieUtil.generateReleaseId(moduleGroupId), resources);
+        KieBuilder kieBuilder = KieUtil.getKieBuilderFromKieFileSystem(kieBaseTestConfiguration, kfs, false, classLoaderForKieBuilder);
+        final KieModule kieModule = kieBuilder.getKieModule();
+        KieServices.Factory.get().getRepository().addKieModule(kieModule);
+        return kieModule;
+    }
+
     public static KieModuleModel getKieModuleModel(final KieBaseTestConfiguration kieBaseTestConfiguration,
                                                    final KieSessionTestConfiguration kieSessionTestConfiguration,
                                                    final Map<String, String> kieModuleConfigurationProperties) {
@@ -250,6 +304,17 @@ public final class KieUtil {
         return resources;
     }
 
+    public static List<Resource> getClasspathResources(final Class<?> classLoaderFromClass, final String... classpathResources) {
+        final List<Resource> resources = new ArrayList<>();
+        for (final String classpathResource : classpathResources) {
+            // This null check can be used to skip unwanted filenames.
+            if (classpathResource != null) {
+                resources.add(KieServices.Factory.get().getResources().newClassPathResource(classpathResource, classLoaderFromClass));
+            }
+        }
+        return resources;
+    }
+
     public static KieCommands getCommands() {
         return getServices().getCommands();
     }
@@ -270,13 +335,43 @@ public final class KieUtil {
     }
 
     public static ObjectTypeNode getObjectTypeNode(final KieBase kbase, final Class<?> nodeClass) {
-        final List<ObjectTypeNode> nodes = ((KnowledgeBaseImpl) kbase).getRete().getObjectTypeNodes();
+        return getObjectTypeNode((InternalRuleBase) kbase, nodeClass);
+    }
+
+    public static ObjectTypeNode getObjectTypeNode(final InternalRuleBase kbase, final Class<?> nodeClass) {
+        final List<ObjectTypeNode> nodes = kbase.getRete().getObjectTypeNodes();
         for (final ObjectTypeNode n : nodes) {
             if (((ClassObjectType) n.getObjectType()).getClassType() == nodeClass) {
                 return n;
             }
         }
         return null;
+    }
+
+    // This method returns the first JoinNode found which meets the factClass
+    public static JoinNode getJoinNode(final KieBase kbase, final Class<?> factClass) {
+        Collection<EntryPointNode> entryPointNodes = ((InternalRuleBase) kbase).getRete().getEntryPointNodes().values();
+        for (EntryPointNode entryPointNode : entryPointNodes) {
+            JoinNode joinNode = findNode(entryPointNode, JoinNode.class);
+            if (((ClassObjectType)joinNode.getObjectTypeNode().getObjectType()).getClassType().equals(factClass)) {
+                return joinNode;
+            }
+        }
+        return null;
+    }
+
+    private static <T> T findNode(BaseNode node, Class<T> nodeClass) {
+        if (node.getClass().equals(nodeClass)) {
+            return (T)node;
+        } else {
+            NetworkNode[] sinks = node.getSinks();
+            for (NetworkNode sink : sinks) {
+                if (sink instanceof BaseNode) {
+                    return findNode((BaseNode)sink, nodeClass);
+                }
+            }
+            return null;
+        }
     }
 
     private KieUtil() {

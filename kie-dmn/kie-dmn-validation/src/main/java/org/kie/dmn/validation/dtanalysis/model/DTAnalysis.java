@@ -1,19 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.validation.dtanalysis.model;
 
 import java.util.ArrayList;
@@ -22,6 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,14 +35,14 @@ import org.kie.dmn.api.core.DMNMessage.Severity;
 import org.kie.dmn.core.util.Msg;
 import org.kie.dmn.core.util.MsgUtil;
 import org.kie.dmn.feel.lang.ast.DashNode;
-import org.kie.dmn.model.api.DMNModelInstrumentedBase;
+import org.kie.dmn.feel.runtime.Range.RangeBoundary;
 import org.kie.dmn.model.api.DecisionTable;
-import org.kie.dmn.model.api.FunctionDefinition;
 import org.kie.dmn.model.api.HitPolicy;
 import org.kie.dmn.model.api.InputClause;
 import org.kie.dmn.model.api.LiteralExpression;
-import org.kie.dmn.model.api.NamedElement;
+import org.kie.dmn.validation.ValidatorUtil;
 import org.kie.dmn.validation.dtanalysis.DMNDTAnalysisMessage;
+import org.kie.dmn.validation.dtanalysis.mcdc.MCDCAnalyser.PosNegBlock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,19 +53,19 @@ public class DTAnalysis {
     private final List<Hyperrectangle> gaps = new ArrayList<>();
     private final List<Overlap> overlaps = new ArrayList<>();
     private final List<MaskedRule> maskedRules = new ArrayList<>();
-    private final List<MisleadingRule> misleadingRules = new ArrayList<>();
+    private final Set<MisleadingRule> misleadingRules = new HashSet<>();
     private final List<Subsumption> subsumptions = new ArrayList<>();
     private final List<Contraction> contractions = new ArrayList<>();
     private final Map<Integer, Collection<Integer>> cacheNonContractingRules = new HashMap<>();
     private boolean c1stNFViolation = false;
     private Collection<Collection<Integer>> cOfDuplicateRules = Collections.emptyList();
     private Collection<Contraction> contractionsViolating2ndNF = new ArrayList<>();
+    private Collection<RuleColumnCoordinate> cellsViolating2ndNF = new ArrayList<>();
     private final DecisionTable sourceDT;
     private final Throwable error;
     private final DDTATable ddtaTable;
     private final Collection<DMNMessage> passThruMessages = new ArrayList<>();
-
-
+    private List<PosNegBlock> selectedBlocks;
 
     public DTAnalysis(DecisionTable sourceDT, DDTATable ddtaTable) {
         this.sourceDT = sourceDT;
@@ -96,7 +99,7 @@ public class DTAnalysis {
         this.gaps.add(gap);
     }
 
-    public DMNModelInstrumentedBase getSource() {
+    public DecisionTable getSource() {
         return sourceDT;
     }
 
@@ -166,7 +169,6 @@ public class DTAnalysis {
         results.addAll(passThruMessages());
         results.addAll(gapsAsMessages());
         results.addAll(overlapsAsMessages());
-        warnAboutHitPolicyFirst(results);
         results.addAll(maskedAndMisleadingRulesAsMessagesIfPriority());
         results.addAll(subsumptionsAsMessages());
         results.addAll(contractionsAsMessages());
@@ -200,12 +202,17 @@ public class DTAnalysis {
                                                  Msg.DTANALYSIS_HITPOLICY_PRIORITY_MASKED_RULE.getType(), Collections.singletonList(masked.maskedRule)));
         }
         for (MisleadingRule misleading : misleadingRules) {
-            results.add(new DMNDTAnalysisMessage(this,
-                                                 Severity.WARN,
-                                                 MsgUtil.createMessage(Msg.DTANALYSIS_HITPOLICY_PRIORITY_MISLEADING_RULE,
-                                                                       misleading.misleadingRule,
-                                                                       misleading.misleadRule),
-                                                 Msg.DTANALYSIS_HITPOLICY_PRIORITY_MISLEADING_RULE.getType(), Collections.singletonList(misleading.misleadingRule)));
+            boolean duplicatesAMasked = maskedRules.stream().anyMatch(masked -> masked.maskedBy == misleading.misleadingRule && masked.maskedRule == misleading.misleadRule);
+            if (!duplicatesAMasked) {
+                results.add(new DMNDTAnalysisMessage(this,
+                                                     Severity.WARN,
+                                                     MsgUtil.createMessage(Msg.DTANALYSIS_HITPOLICY_PRIORITY_MISLEADING_RULE,
+                                                                           misleading.misleadingRule,
+                                                                           misleading.misleadRule),
+                                                     Msg.DTANALYSIS_HITPOLICY_PRIORITY_MISLEADING_RULE.getType(), Collections.singletonList(misleading.misleadingRule)));
+            } else {
+                LOG.debug("Misleading record is not displayed as message because it is redundant to a Masked rule message: {}", misleading);
+            }
         }
         return results;
     }
@@ -213,14 +220,21 @@ public class DTAnalysis {
     private Collection<? extends DMNMessage> subsumptionsAsMessages() {
         List<DMNDTAnalysisMessage> results = new ArrayList<>();
         for (Subsumption s : subsumptions) {
-            results.add(new DMNDTAnalysisMessage(this,
-                                                 Severity.WARN,
-                                                 MsgUtil.createMessage(Msg.DTANALYSIS_SUBSUMPTION_RULE,
-                                                                       s.rule,
-                                                                       s.includedRule,
-                                                                       s.rule,
-                                                                       s.includedRule),
-                                                 Msg.DTANALYSIS_SUBSUMPTION_RULE.getType(), Collections.singletonList(s.rule)));
+            List<Integer> inNaturalOrder = Arrays.asList(s.rule, s.includedRule);
+            List<Integer> inReversedOrder = Arrays.asList(s.includedRule, s.rule);
+            boolean subsumptionIsA1NFdup = getDuplicateRulesTuples().stream().anyMatch(tuple -> tuple.equals(inNaturalOrder) || tuple.equals(inReversedOrder));
+            if (!subsumptionIsA1NFdup) {
+                results.add(new DMNDTAnalysisMessage(this,
+                                                     Severity.WARN,
+                                                     MsgUtil.createMessage(Msg.DTANALYSIS_SUBSUMPTION_RULE,
+                                                                           s.rule,
+                                                                           s.includedRule,
+                                                                           s.rule,
+                                                                           s.includedRule),
+                                                     Msg.DTANALYSIS_SUBSUMPTION_RULE.getType(), Collections.singletonList(s.rule)));
+            } else {
+                LOG.debug("skipping Subsumption message because it is actually redundant to the 1st NF duplicate rule ERROR: {}", s);
+            }
         }
         return results;
     }
@@ -257,7 +271,7 @@ public class DTAnalysis {
         }
         for (Collection<Integer> duplicateRulesTuple : getDuplicateRulesTuples()) {
             results.add(new DMNDTAnalysisMessage(this,
-                                                 Severity.WARN,
+                                                 sourceDT.getHitPolicy() == HitPolicy.COLLECT ? Severity.WARN : Severity.ERROR,
                                                  MsgUtil.createMessage(Msg.DTANALYSIS_1STNFVIOLATION_DUPLICATE_RULES,
                                                                        duplicateRulesTuple),
                                                  Msg.DTANALYSIS_1STNFVIOLATION_DUPLICATE_RULES.getType(), duplicateRulesTuple));
@@ -278,17 +292,16 @@ public class DTAnalysis {
                                                                        c.impactedRules()),
                                                  Msg.DTANALYSIS_2NDNFVIOLATION.getType(), c.impactedRules()));
         }
-        return results;
-    }
-
-    private void warnAboutHitPolicyFirst(final List<DMNMessage> results) {
-        if (sourceDT.getHitPolicy() == HitPolicy.FIRST) {
+        for (RuleColumnCoordinate c : getCellsViolating2ndNF()) {
             results.add(new DMNDTAnalysisMessage(this,
                                                  Severity.WARN,
-                                                 MsgUtil.createMessage(Msg.DTANALYSIS_HITPOLICY_FIRST,
-                                                                       sourceDT.getOutputLabel()),
-                                                 Msg.DTANALYSIS_HITPOLICY_FIRST.getType()));
+                                                 MsgUtil.createMessage(Msg.DTANALYSIS_2NDNFVIOLATION_WAS_DASH,
+                                                                       c.feelText,
+                                                                       c.rule,
+                                                                       c.column),
+                                                 Msg.DTANALYSIS_2NDNFVIOLATION.getType(), List.of(c.rule)));
         }
+        return results;
     }
 
     private Collection passThruMessages() {
@@ -323,20 +336,14 @@ public class DTAnalysis {
                         }
                     }
                     break;
+                case PRIORITY:
+                case FIRST:
                 default:
-                    results.add(overlapToStandardDMNMessage(overlap));
+                    LOG.debug("In case of any other HitPolicy no overalps is reported, DROOLS-5363: {}", overlap);
                     break;
             }
         }
         return results;
-    }
-
-    private DMNDTAnalysisMessage overlapToStandardDMNMessage(Overlap overlap) {
-        return new DMNDTAnalysisMessage(this,
-                                        Severity.INFO,
-                                        MsgUtil.createMessage(Msg.DTANALYSIS_OVERLAP,
-                                                              overlap.asHumanFriendly(ddtaTable)),
-                                        Msg.DTANALYSIS_OVERLAP.getType(), overlap.getRules());
     }
 
     private Collection gapsAsMessages() {
@@ -457,14 +464,18 @@ public class DTAnalysis {
                     boolean isOutputLowestPriority = curOutputIdx == curOutputClause.getOutputOrder().size() - 1;
                     if (!isOutputLowestPriority) {
                         List<DDTAInputEntry> inputEntry = ddtaTable.getRule().get(ruleId - 1).getInputEntry();
-                        boolean isRuleContainsHypen = inputEntry.stream().flatMap(ie -> ie.getUts().stream()).anyMatch(DashNode.class::isInstance);
-                        if (isRuleContainsHypen) {
-                            List<Integer> otherRules = listWithoutElement(overlap.getRules(), ruleId);
-                            for (Integer otherRuleID : otherRules) {
-                                List<Comparable<?>> otherRuleValues = ddtaTable.getRule().get(otherRuleID - 1).getOutputEntry();
-                                int otherOutputIdx = curOutputClause.getOutputOrder().indexOf(otherRuleValues.get(jOutputIdx));
-                                if (otherOutputIdx > curOutputIdx) {
-                                    misleadingRules.add(new MisleadingRule(ruleId, otherRuleID));
+                        for (int col = 0; col < inputEntry.size(); col++) {
+                            boolean thisColIsHypen = inputEntry.get(col).getUts().stream().anyMatch(DashNode.class::isInstance);
+                            if (thisColIsHypen) {
+                                List<Integer> otherRules = listWithoutElement(overlap.getRules(), ruleId);
+                                for (Integer otherRuleID : otherRules) {
+                                    List<Comparable<?>> otherRuleValues = ddtaTable.getRule().get(otherRuleID - 1).getOutputEntry();
+                                    int otherOutputIdx = curOutputClause.getOutputOrder().indexOf(otherRuleValues.get(jOutputIdx));
+                                    List<DDTAInputEntry> otherRuleInputEntry = ddtaTable.getRule().get(otherRuleID - 1).getInputEntry();
+                                    boolean thatColIsHypen = otherRuleInputEntry.get(col).getUts().stream().anyMatch(DashNode.class::isInstance);
+                                    if (otherOutputIdx > curOutputIdx && !thatColIsHypen) {
+                                        misleadingRules.add(new MisleadingRule(ruleId, otherRuleID));
+                                    }
                                 }
                             }
                         }
@@ -474,14 +485,14 @@ public class DTAnalysis {
         }
     }
 
-    private static <T> List<T> listWithoutElement(List<T> coll, T elem) {
+    private static <T> List<T> listWithoutElement(Collection<T> coll, T elem) {
         List<T> others = new ArrayList<>(coll);
         others.remove(elem);
         return others;
     }
 
-    public List<MisleadingRule> getMisleadingRules() {
-        return Collections.unmodifiableList(misleadingRules);
+    public Collection<MisleadingRule> getMisleadingRules() {
+        return Collections.unmodifiableSet(misleadingRules);
     }
 
     public void computeSubsumptions() {
@@ -497,7 +508,7 @@ public class DTAnalysis {
             outputEntries.add(curValues);
         }
         for (List<Comparable<?>> curOutputEntry : outputEntries) {
-            List<Integer> rulesWithGivenOutputEntry = new ArrayList<>();
+            Set<Integer> rulesWithGivenOutputEntry = new LinkedHashSet<>();
             for (Integer ruleId : overlap.getRules()) {
                 List<Comparable<?>> curValues = ddtaTable.getRule().get(ruleId - 1).getOutputEntry();
                 if (curValues.equals(curOutputEntry)) {
@@ -572,7 +583,7 @@ public class DTAnalysis {
                         if (ddtaInputClause.isDiscreteDomain()) {
                             flatten = Interval.normalizeDiscrete(flatten, ddtaInputClause.getDiscreteValues());
                         }
-                        Contraction contraction = new Contraction(ruleId, Arrays.asList(otherRuleId), detectedAdjacentOrOverlap, flatten);
+                        Contraction contraction = new Contraction(ruleId, List.of(otherRuleId), detectedAdjacentOrOverlap, flatten);
                         LOG.debug("NEW CONTRACTION: {}", contraction);
                         contractions.add(contraction);
                     } else {
@@ -673,7 +684,7 @@ public class DTAnalysis {
             LOG.debug("Violated already at 1st NF.");
             return;
         }
-        for (Contraction c : contractions) {
+        for (Contraction c : contractions) { // is a contraction resulting in a 2NF violation?
             if (c.dimensionAsContracted.size() == 1) {
                 Interval domainMinMax = ddtaTable.getInputs().get(c.adjacentDimension - 1).getDomainMinMax();
                 if (domainMinMax.equals(c.dimensionAsContracted.get(0))) {
@@ -682,16 +693,40 @@ public class DTAnalysis {
                 }
             }
         }
-
+        for (int r = 0; r < ddtaTable.getRule().size(); r++) { // is a cell equivalent to a Dash `-` in DMN decision table?
+            DDTARule rule = ddtaTable.getRule().get(r);
+            for (int c = 0; c < ddtaTable.getInputs().size(); c++) {
+                if (rule.getInputEntry().get(c).getIntervals().size() != 1) {
+                    continue;
+                }
+                Interval int0 = rule.getInputEntry().get(c).getIntervals().get(0);
+                if (!(rule.getInputEntry().get(c).getUts().get(0) instanceof DashNode) &&
+                    int0.getLowerBound().getBoundaryType() == RangeBoundary.CLOSED &&
+                    int0.getUpperBound().getBoundaryType() == RangeBoundary.CLOSED &&
+                    !int0.getLowerBound().getValue().equals(int0.getUpperBound().getValue())) { // a normalized closed-interval, but not a `-`: but is it equivalent to it?
+                    DDTAInputClause col = ddtaTable.getInputs().get(c);
+                    boolean includes = int0.includes(col.getDomainMinMax());
+                    if (includes) {
+                        RuleColumnCoordinate rc = new RuleColumnCoordinate(r + 1, c + 1, sourceDT.getRule().get(r).getInputEntry().get(c).getText());
+                        LOG.debug("compute2ndNFViolations() Cell: {} violates 2NF", rc);
+                        cellsViolating2ndNF.add(rc);
+                    }
+                }
+            }
+        }
         LOG.debug("compute2ndNFViolations() c2ndNFViolation result: {}", is2ndNFViolation());
     }
 
     public boolean is2ndNFViolation() {
-        return !contractionsViolating2ndNF.isEmpty();
+        return !contractionsViolating2ndNF.isEmpty() || !cellsViolating2ndNF.isEmpty();
     }
 
     public Collection<Contraction> getContractionsViolating2ndNF() {
         return Collections.unmodifiableCollection(contractionsViolating2ndNF);
+    }
+
+    public Collection<RuleColumnCoordinate> getCellsViolating2ndNF() {
+        return Collections.unmodifiableCollection(cellsViolating2ndNF);
     }
 
     public void computeHitPolicyRecommender() {
@@ -734,16 +769,8 @@ public class DTAnalysis {
         return hp == HitPolicy.UNIQUE || hp == HitPolicy.ANY || hp == HitPolicy.PRIORITY || hp == HitPolicy.FIRST;
     }
 
-    private String nameOrIDOfTable() {
-        if (sourceDT.getOutputLabel() != null && !sourceDT.getOutputLabel().isEmpty()) {
-            return sourceDT.getOutputLabel();
-        } else if (sourceDT.getParent() instanceof NamedElement) { // DT is decision logic of Decision, and similar cases.
-            return ((NamedElement) sourceDT.getParent()).getName();
-        } else if (sourceDT.getParent() instanceof FunctionDefinition && sourceDT.getParent().getParent() instanceof NamedElement) { // DT is decision logic of BKM.
-            return ((NamedElement) sourceDT.getParent().getParent()).getName();
-        } else {
-            return new StringBuilder("[ID: ").append(sourceDT.getId()).append("]").toString();
-        }
+    public String nameOrIDOfTable() {
+        return ValidatorUtil.nameOrIDOfTable(sourceDT);
     }
 
     public void computeOutputInLOV() {
@@ -751,6 +778,9 @@ public class DTAnalysis {
             DDTARule rule = ddtaTable.getRule().get(ruleIdx);
             for (int outputIdx = 0; outputIdx < ddtaTable.getOutputs().size(); outputIdx++) {
                 Comparable<?> value = rule.getOutputEntry().get(outputIdx);
+                if (value instanceof DDTAOutputEntryExpression) {
+                    continue; // we can't say _statically_ if the output expression is in the output LoV; skipping
+                }
                 DDTAOutputClause outputClause = ddtaTable.getOutputs().get(outputIdx);
                 if (outputClause.isDiscreteDomain() && !outputClause.getDiscreteValues().contains(value)) {
                     passThruMessages.add(new DMNDTAnalysisMessage(this,
@@ -764,5 +794,13 @@ public class DTAnalysis {
                 }
             }
         }
+    }
+
+    public void setMCDCSelectedBlocks(List<PosNegBlock> selectedBlocks) {
+        this.selectedBlocks = selectedBlocks;
+    }
+
+    public List<PosNegBlock> getMCDCSelectedBlocks() {
+        return Collections.unmodifiableList(selectedBlocks);
     }
 }

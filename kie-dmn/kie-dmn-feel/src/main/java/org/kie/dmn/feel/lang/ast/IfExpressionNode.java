@@ -1,27 +1,27 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.feel.lang.ast;
 
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.kie.dmn.api.feel.runtime.events.FEELEvent.Severity;
 import org.kie.dmn.feel.lang.EvaluationContext;
 import org.kie.dmn.feel.lang.Type;
 import org.kie.dmn.feel.lang.types.BuiltInType;
-import org.kie.dmn.feel.util.Msg;
 
 public class IfExpressionNode
         extends BaseNode {
@@ -35,6 +35,13 @@ public class IfExpressionNode
         this.condition = condition;
         this.thenExpression = thenExpression;
         this.elseExpression = elseExpression;
+    }
+
+    public IfExpressionNode(BaseNode condition, BaseNode thenExpression, BaseNode elseExpression, String text) {
+        this.condition = condition;
+        this.thenExpression = thenExpression;
+        this.elseExpression = elseExpression;
+        this.setText(text);
     }
 
     public BaseNode getCondition() {
@@ -65,7 +72,7 @@ public class IfExpressionNode
     public Object evaluate(EvaluationContext ctx) {
         // spec says: if FEEL(e1) is true then FEEL(e2) else FEEL(e3)
         Object cond = this.condition.evaluate( ctx );
-        if ( cond != null && cond instanceof Boolean && cond == Boolean.TRUE ) {
+        if (cond == Boolean.TRUE) {
             return this.thenExpression.evaluate( ctx );
         } else {
             return this.elseExpression.evaluate( ctx );

@@ -1,58 +1,64 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.builder.impl;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.drools.base.factmodel.ClassDefinition;
+import org.drools.base.factmodel.FieldDefinition;
+import org.drools.base.factmodel.traits.Thing;
+import org.drools.base.rule.Annotated;
+import org.drools.base.rule.TypeDeclaration;
 import org.drools.compiler.compiler.PackageRegistry;
 import org.drools.compiler.compiler.TypeDeclarationError;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.core.factmodel.ClassDefinition;
-import org.drools.core.factmodel.FieldDefinition;
-import org.drools.core.factmodel.traits.Thing;
-import org.drools.core.rule.Annotated;
-import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.util.ClassUtils;
-import org.kie.api.definition.type.Modifies;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.util.ClassUtils;
 import org.kie.api.definition.type.Position;
 import org.kie.api.io.Resource;
 import org.kie.api.runtime.rule.Match;
+import org.kie.internal.builder.conf.PropertySpecificOption;
 
+import static org.drools.base.util.Drools.hasMvel;
 import static org.drools.compiler.builder.impl.ClassDefinitionFactory.createClassDefinition;
 import static org.drools.compiler.builder.impl.TypeDeclarationConfigurator.processMvelBasedAccessors;
-import static org.drools.core.util.BitMaskUtil.isSet;
+import static org.drools.util.bitmask.BitMaskUtil.isSet;
 
 public class TypeDeclarationCache {
 
-    private KnowledgeBuilderImpl kbuilder;
-    private Map<String, TypeDeclaration> cacheTypes = new HashMap<String, TypeDeclaration>();
+    private final TypeDeclarationContext context;
+    private final BuildResultCollector results;
+    private final Map<String, TypeDeclaration> cacheTypes = new HashMap<>();
 
-    TypeDeclarationCache( KnowledgeBuilderImpl kbuilder ) {
-        this.kbuilder = kbuilder;
-        initBuiltinTypeDeclarations();
+    TypeDeclarationCache(TypeDeclarationContext context, BuildResultCollector results) {
+        this.context = context;
+        this.results = results;
+        if ( hasMvel() ) {
+            initBuiltinTypeDeclarations();
+        }
     }
 
     private void initBuiltinTypeDeclarations() {
@@ -94,8 +100,9 @@ public class TypeDeclarationCache {
     }
 
     TypeDeclaration getTypeDeclaration( Class<?> cls ) {
-        if (cls.isPrimitive() || cls.isArray())
+        if (cls.isPrimitive() || cls.isArray()) {
             return null;
+        }
 
         // If this class has already been accessed, it'll be in the cache
         TypeDeclaration tdecl = getCachedTypeDeclaration(cls);
@@ -106,7 +113,7 @@ public class TypeDeclarationCache {
     private void registerTypeDeclaration( String packageName,
                                           TypeDeclaration typeDeclaration ) {
         if (typeDeclaration.getNature() == TypeDeclaration.Nature.DECLARATION || packageName.equals( typeDeclaration.getTypeClass().getPackage().getName() )) {
-            PackageRegistry packageRegistry = kbuilder.getOrCreatePackageRegistry(new PackageDescr(packageName, ""));
+            PackageRegistry packageRegistry = context.getOrCreatePackageRegistry(new PackageDescr(packageName, ""));
             packageRegistry.getPackage().addTypeDeclaration(typeDeclaration);
         }
     }
@@ -133,7 +140,7 @@ public class TypeDeclarationCache {
 
     private TypeDeclaration getExistingTypeDeclaration(Class<?> cls) {
         TypeDeclaration typeDeclaration = null;
-        PackageRegistry pkgReg = kbuilder.getPackageRegistry( ClassUtils.getPackage( cls ) );
+        PackageRegistry pkgReg = context.getPackageRegistry( ClassUtils.getPackage( cls ) );
         if (pkgReg != null) {
             String className = cls.getName();
             String typeName = className.substring(className.lastIndexOf( "." ) + 1 );
@@ -152,12 +159,12 @@ public class TypeDeclarationCache {
         }
 
         if (typeDeclaration.isPropertyReactive()) {
-            processModifiedProps(cls, clsDef);
+            TypeDeclarationUtils.processModifiedProps(cls, clsDef);
         }
 
 
         // build up a set of all the super classes and interfaces
-        Set<TypeDeclaration> tdecls = new LinkedHashSet<TypeDeclaration>();
+        Set<TypeDeclaration> tdecls = new LinkedHashSet<>();
 
         tdecls.add(typeDeclaration);
         buildTypeDeclarations(cls,
@@ -199,7 +206,7 @@ public class TypeDeclarationCache {
                                         ClassDefinition clsDef,
                                         TypeDeclaration typeDeclaration ) {
         // it's a new type declaration, so generate the @Position for it
-        Collection<Field> fields = new LinkedList<Field>();
+        Collection<Field> fields = new ArrayList<>();
         Class<?> tempKlass = cls;
         while (tempKlass != null && tempKlass != Object.class) {
             Collections.addAll( fields, tempKlass.getDeclaredFields() );
@@ -212,12 +219,12 @@ public class TypeDeclarationCache {
             Position pos = fld.getAnnotation(Position.class);
             if (pos != null) {
                 if (pos.value() < 0 || pos.value() >= fields.size()) {
-                    kbuilder.addBuilderResult(new TypeDeclarationError(typeDeclaration,
+                    results.addBuilderResult(new TypeDeclarationError(typeDeclaration,
                                                                        "Out of range position " + pos.value() + " for field '" + fld.getName() + "' on class " + cls.getName()));
                     continue;
                 }
                 if (orderedFields[pos.value()] != null) {
-                    kbuilder.addBuilderResult(new TypeDeclarationError(typeDeclaration,
+                    results.addBuilderResult(new TypeDeclarationError(typeDeclaration,
                                                                        "Duplicated position " + pos.value() + " for field '" + fld.getName() + "' on class " + cls.getName()));
                     continue;
                 }
@@ -237,30 +244,14 @@ public class TypeDeclarationCache {
         }
     }
 
-    private void processModifiedProps(Class<?> cls,
-                                      ClassDefinition clsDef) {
-        for (Method method : cls.getDeclaredMethods()) {
-            Modifies modifies = method.getAnnotation(Modifies.class);
-            if (modifies != null) {
-                String[] props = modifies.value();
-                List<String> properties = new ArrayList<String>(props.length);
-                for (String prop : props) {
-                    properties.add(prop.trim());
-                }
-                clsDef.addModifiedPropsByMethod(method,
-                                                properties);
-            }
-        }
-    }
-
     private TypeDeclaration createTypeDeclarationForBean(Class<?> cls) {
         Annotated annotated = new Annotated.ClassAdapter(cls);
-        TypeDeclaration typeDeclaration = TypeDeclaration.createTypeDeclarationForBean(cls, annotated, kbuilder.getBuilderConfiguration().getPropertySpecificOption());
+        TypeDeclaration typeDeclaration = TypeDeclaration.createTypeDeclarationForBean(cls, annotated, context.getBuilderConfiguration().getOption(PropertySpecificOption.KEY));
 
         String namespace = ClassUtils.getPackage( cls );
-        PackageRegistry pkgRegistry = kbuilder.getOrCreatePackageRegistry( new PackageDescr(namespace) );
+        PackageRegistry pkgRegistry = context.getOrCreatePackageRegistry( new PackageDescr(namespace) );
 
-        processMvelBasedAccessors( kbuilder, pkgRegistry, annotated, typeDeclaration );
+        processMvelBasedAccessors(context, results, pkgRegistry, annotated, typeDeclaration );
         return typeDeclaration;
     }
 
@@ -291,7 +282,7 @@ public class TypeDeclarationCache {
 
         TypeDeclaration tdecl = this.cacheTypes.get((cls.getName()));
         if (tdecl == null) {
-            pkgReg = kbuilder.getPackageRegistry(ClassUtils.getPackage(cls));
+            pkgReg = context.getPackageRegistry(ClassUtils.getPackage(cls));
             if (pkgReg != null) {
                 tdecl = pkgReg.getPackage().getTypeDeclaration(cls.getSimpleName());
             }
@@ -304,7 +295,7 @@ public class TypeDeclarationCache {
 
         Class<?>[] intfs = cls.getInterfaces();
         for (Class<?> intf : intfs) {
-            pkgReg = kbuilder.getPackageRegistry(ClassUtils.getPackage(intf));
+            pkgReg = context.getPackageRegistry(ClassUtils.getPackage(intf));
             if (pkgReg != null) {
                 tdecl = pkgReg.getPackage().getTypeDeclaration(intf.getSimpleName());
             }
@@ -326,18 +317,15 @@ public class TypeDeclarationCache {
 
 
     Collection<String> removeTypesGeneratedFromResource(Resource resource) {
-        if (cacheTypes != null) {
-            List<String> typesToBeRemoved = new ArrayList<String>();
-            for (Map.Entry<String, TypeDeclaration> type : cacheTypes.entrySet()) {
-                if (resource.equals(type.getValue().getResource())) {
-                    typesToBeRemoved.add(type.getKey());
-                }
+        List<String> typesToBeRemoved = new ArrayList<>();
+        for (Map.Entry<String, TypeDeclaration> type : cacheTypes.entrySet()) {
+            if (resource.equals(type.getValue().getResource())) {
+                typesToBeRemoved.add(type.getKey());
             }
-            for (String type : typesToBeRemoved) {
-                cacheTypes.remove(type);
-            }
-            return typesToBeRemoved;
         }
-        return Collections.emptyList();
+        for (String type : typesToBeRemoved) {
+            cacheTypes.remove(type);
+        }
+        return typesToBeRemoved;
     }
 }

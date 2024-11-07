@@ -1,39 +1,39 @@
-/*
- * Copyright 2006 Red Hat, Inc. and/or its affiliates.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.rule.builder;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.drools.base.definitions.InternalKnowledgePackage;
+import org.drools.base.rule.Dialectable;
 import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
-import org.drools.compiler.compiler.DescrBuildError;
+import org.drools.compiler.builder.impl.TypeDeclarationContext;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
-import org.drools.compiler.compiler.DroolsError;
 import org.drools.compiler.compiler.DroolsWarning;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.rule.builder.dialect.mvel.MVELDialect;
-import org.drools.compiler.builder.DroolsAssemblerContext;
-import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.rule.Dialectable;
-import org.drools.core.rule.MVELDialectRuntimeData;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.parser.DroolsError;
 
 /**
  * A context for the current build
@@ -43,7 +43,7 @@ public class PackageBuildContext {
     // current package
     private InternalKnowledgePackage    pkg;
 
-    private DroolsAssemblerContext kBuilder;
+    private TypeDeclarationContext      kBuilder;
 
     // the contianer descr
     private BaseDescr                   parentDescr;
@@ -80,7 +80,7 @@ public class PackageBuildContext {
     /**
      * Default constructor
      */
-    public void init(final DroolsAssemblerContext kBuilder,
+    public void initContext(final TypeDeclarationContext kBuilder,
                      final InternalKnowledgePackage pkg,
                      final BaseDescr parentDescr,
                      final DialectCompiletimeRegistry dialectRegistry,
@@ -91,16 +91,19 @@ public class PackageBuildContext {
         this.parentDescr = parentDescr;
         this.dialectRegistry = dialectRegistry;
         this.dialect = (component != null && component.getDialect() != null) ? this.dialectRegistry.getDialect( component.getDialect() ) : defaultDialect;
-        this.typesafe = ((MVELDialect) dialectRegistry.getDialect( "mvel" )).isStrictMode();
+        this.typesafe = isStrictMode( dialectRegistry );
 
         if ( dialect == null && (component != null && component.getDialect() != null) ) {
-            this.errors.add( new DescrBuildError( null,
-                                                  parentDescr,
-                                                  component,
-                                                  "Unable to load Dialect '" + component.getDialect() + "'" ) );
-            // dialect is null, but fall back to default dialect so we can attempt to compile rest of rule.
-            this.dialect = defaultDialect;
+            String errorMessage = "Unable to load Dialect '" + component.getDialect() + "'";
+            if (component.getDialect().equals("mvel")) {
+                errorMessage += ". Please add drools-mvel among your dependencies";
+            }
+            throw new RuntimeException( errorMessage );
         }
+    }
+
+        private boolean isStrictMode( DialectCompiletimeRegistry dialectRegistry ) {
+        return dialectRegistry.getDialect( "mvel" ) == null || dialectRegistry.getDialect( "mvel" ).isStrictMode();
     }
 
     public BaseDescr getParentDescr() {
@@ -123,7 +126,7 @@ public class PackageBuildContext {
     }
 
     public Dialect getDialect(String dialectName) {
-        return (Dialect) this.dialectRegistry.getDialect( dialectName );
+        return this.dialectRegistry.getDialect( dialectName );
     }
 
     public DialectCompiletimeRegistry getDialectRegistry() {
@@ -218,7 +221,7 @@ public class PackageBuildContext {
         return this.kBuilder.getBuilderConfiguration();
     }
     
-    public DroolsAssemblerContext getKnowledgeBuilder() {
+    public TypeDeclarationContext getKnowledgeBuilder() {
         return this.kBuilder;
     }
 
@@ -230,11 +233,7 @@ public class PackageBuildContext {
         this.typesafe = stricttype;
     }
 
-    public MVELDialectRuntimeData getMVELDialectRuntimeData() {
-        return ( MVELDialectRuntimeData) pkg.getDialectRuntimeRegistry().getDialectData( "mvel" );
-    }
-
-    public Class< ? > resolveVarType(String identifier) {
+    public Type resolveVarType(String identifier) {
         return getKnowledgeBuilder().getGlobals().get( identifier );
     }
 }

@@ -1,19 +1,21 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.core.index.query;
 
 import java.util.Collection;
@@ -27,19 +29,19 @@ import org.drools.verifier.core.index.model.ObjectTypes;
 import org.drools.verifier.core.index.model.Rule;
 import org.drools.verifier.core.index.model.Rules;
 import org.drools.verifier.core.index.select.QueryCallback;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class QueryableIndexTest {
 
     private QueryableIndex queryableIndex;
@@ -65,77 +67,61 @@ public class QueryableIndexTest {
     private AnalyzerConfiguration configuration;
     private Column firstColumn;
 
-    @Before
-    public void setUp() throws
-            Exception {
+    @BeforeEach
+    public void setUp() throws Exception {
         configuration = new AnalyzerConfigurationMock();
 
         final Rules rules = new Rules();
-        rules.add(new Rule(0,
-                           configuration));
-        rules.add(new Rule(1,
-                           configuration));
-        rules.add(new Rule(2,
-                           configuration));
+        rules.add(new Rule(0, configuration));
+        rules.add(new Rule(1, configuration));
+        rules.add(new Rule(2, configuration));
 
         final Columns columns = new Columns();
-        firstColumn = new Column(0,
-                                 configuration);
+        firstColumn = new Column(0, configuration);
         columns.add(firstColumn);
-        columns.add(new Column(1,
-                               configuration));
+        columns.add(new Column(1, configuration));
 
         final ObjectTypes objectTypes = new ObjectTypes();
-        objectTypes.add(new ObjectType("Person",
-                                       configuration));
-        objectTypes.add(new ObjectType("Address",
-                                       configuration));
+        objectTypes.add(new ObjectType("Person", configuration));
+        objectTypes.add(new ObjectType("Address", configuration));
 
-        queryableIndex = new QueryableIndex(rules,
-                                            columns,
-                                            objectTypes);
+        queryableIndex = new QueryableIndex(rules, columns, objectTypes);
     }
 
     @Test
-    public void queryAllRules() throws
-            Exception {
+    void queryAllRules() throws Exception {
 
         queryableIndex.getRules()
                 .where(Rule.index()
-                               .any())
+                        .any())
                 .select()
                 .all(rulesQueryCallback);
 
         verify(rulesQueryCallback).callback(rulesArgumentCaptor.capture());
 
-        assertEquals(3,
-                     rulesArgumentCaptor.getValue()
-                             .size());
+        assertThat(rulesArgumentCaptor.getValue()).hasSize(3);
     }
 
     @Test
-    public void queryFirstColumn() throws
-            Exception {
+    void queryFirstColumn() throws Exception {
 
         queryableIndex.getColumns()
                 .where(Column.index()
-                               .any())
+                        .any())
                 .select()
                 .first(firstColumnQueryCallback);
 
         verify(firstColumnQueryCallback).callback(firstColumnArgumentCaptor.capture());
 
-        assertEquals(firstColumn,
-                     firstColumnArgumentCaptor.getValue());
+        assertThat(firstColumnArgumentCaptor.getValue()).isEqualTo(firstColumn);
     }
 
     @Test
-    public void makeSureFirstAndLastObjectTypesAreTheSame() throws
-            Exception {
+    void makeSureFirstAndLastObjectTypesAreTheSame() throws Exception {
 
         queryableIndex.getObjectTypes()
                 .where(ObjectType.type()
-                               .is("Person"))
+                        .is("Person"))
                 .select()
                 .first(objectTypeQueryCallback);
 
@@ -147,7 +133,7 @@ public class QueryableIndexTest {
 
         queryableIndex.getObjectTypes()
                 .where(ObjectType.type()
-                               .is("Person"))
+                        .is("Person"))
                 .select()
                 .last(objectTypeQueryCallback);
 
@@ -155,9 +141,7 @@ public class QueryableIndexTest {
 
         final ObjectType last = objectTypeArgumentCaptor.getValue();
 
-        assertEquals("Person",
-                     first.getType());
-        assertEquals(first,
-                     last);
+        assertThat(first.getType()).isEqualTo("Person");
+        assertThat(last).isEqualTo(first);
     }
 }

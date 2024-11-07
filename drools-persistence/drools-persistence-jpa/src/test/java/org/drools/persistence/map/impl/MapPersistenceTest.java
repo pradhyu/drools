@@ -1,37 +1,41 @@
-/*
- * Copyright 2011 Red Hat Inc.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.persistence.map.impl;
 
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.io.impl.ByteArrayResource;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.io.ByteArrayResource;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.persistence.jpa.marshaller.JPAPlaceholderResolverStrategy;
-import org.junit.Assert;
 import org.junit.Test;
-import org.kie.internal.builder.KnowledgeBuilder;
-import org.kie.internal.builder.KnowledgeBuilderError;
-import org.kie.internal.builder.KnowledgeBuilderErrors;
-import org.kie.internal.builder.KnowledgeBuilderFactory;
-import org.kie.internal.runtime.StatefulKnowledgeSession;
 import org.kie.api.KieBase;
 import org.kie.api.io.ResourceType;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
+import org.kie.internal.builder.KnowledgeBuilder;
+import org.kie.internal.builder.KnowledgeBuilderError;
+import org.kie.internal.builder.KnowledgeBuilderErrors;
+import org.kie.internal.builder.KnowledgeBuilderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public abstract class MapPersistenceTest {
 
@@ -45,7 +49,7 @@ public abstract class MapPersistenceTest {
         crmPersistentSession.fireAllRules();
 
         crmPersistentSession = createSession( kbase );
-        Assert.assertNotNull( crmPersistentSession );
+        assertThat(crmPersistentSession).isNotNull();
     }
 
 
@@ -70,7 +74,7 @@ public abstract class MapPersistenceTest {
             for ( KnowledgeBuilderError error : errors ) {
                 logger.warn( "Error: " + error.getMessage() );
             }
-            Assert.fail( "KnowledgeBase did not build" );
+            fail( "KnowledgeBase did not build" );
         }
 
         InternalKnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
@@ -81,19 +85,16 @@ public abstract class MapPersistenceTest {
         FactHandle buddyFactHandle = ksession.insert( new Buddy() );
         ksession.fireAllRules();
 
-        Assert.assertEquals( 1,
-                             ksession.getObjects().size() );
+        assertThat(ksession.getObjects().size()).isEqualTo(1);
 
         ksession = disposeAndReloadSession( ksession,
                                             kbase );
 
-        Assert.assertNotNull( ksession );
+        assertThat(ksession).isNotNull();
 
-        Assert.assertEquals( 1,
-                             ksession.getObjects().size() );
+        assertThat(ksession.getObjects().size()).isEqualTo(1);
 
-        Assert.assertNull( "An object can't be retrieved with a FactHandle from a disposed session",
-                           ksession.getObject( buddyFactHandle ) );
+        assertThat(ksession.getObject( buddyFactHandle)).as( "An object can't be retrieved with a FactHandle from a disposed session").isNull();
 
     }
 
@@ -110,7 +111,7 @@ public abstract class MapPersistenceTest {
 
         crmPersistentSession = disposeAndReloadSession(crmPersistentSession, kbase);
 
-        Assert.assertEquals(ksessionId, crmPersistentSession.getIdentifier());
+        assertThat(crmPersistentSession.getIdentifier()).isEqualTo(ksessionId);
 
         ksessionId = crmPersistentSession.getIdentifier();
         crmPersistentSession.fireAllRules();
@@ -119,7 +120,7 @@ public abstract class MapPersistenceTest {
 
         crmPersistentSession.fireAllRules();
 
-        Assert.assertEquals(initialNumberOfSavedSessions + 1, getSavedSessionsCount());
+        assertThat(getSavedSessionsCount()).isEqualTo(initialNumberOfSavedSessions + 1);
         crmPersistentSession.dispose();
     }
 
@@ -135,8 +136,8 @@ public abstract class MapPersistenceTest {
         crmPersistentSession = disposeAndReloadSession(crmPersistentSession, kbase);
         Object obtainedBuddy = crmPersistentSession
                 .getObjects().iterator().next();
-        Assert.assertNotSame( bestBuddy, obtainedBuddy );
-        Assert.assertEquals(bestBuddy, obtainedBuddy);
+        assertThat(obtainedBuddy).isNotSameAs(bestBuddy);
+        assertThat(obtainedBuddy).isEqualTo(bestBuddy);
 
         crmPersistentSession.dispose();
     }

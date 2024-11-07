@@ -1,19 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.scenariosimulation.backend.runner.model;
 
 import java.util.ArrayList;
@@ -66,11 +68,22 @@ public class ScenarioResultMetadata {
     /**
      * Add an <code>AuditLogLine</code> to the end of {@link ScenarioResultMetadata#auditLogLines}
      * @param messageIndex
-     * @param message
-     * @param severity
+     * @param decisionOrRuleName
+     * @param result
      */
-    public void addAuditMessage(int messageIndex, String message, String severity) {
-        auditLogLines.add(new AuditLogLine(scenarioWithIndex.getIndex(), scenarioWithIndex.getScesimData().getDescription(), messageIndex, message, severity));
+    public void addAuditMessage(int messageIndex, String decisionOrRuleName, String result) {
+        auditLogLines.add(new AuditLogLine(scenarioWithIndex.getIndex(), scenarioWithIndex.getScesimData().getDescription(), messageIndex, decisionOrRuleName, result));
+    }
+
+    /**
+     * Add an <code>AuditLogLine</code> to the end of {@link ScenarioResultMetadata#auditLogLines}
+     * @param messageIndex
+     * @param decisionOrRuleName
+     * @param result
+     * @param message
+     */
+    public void addAuditMessage(int messageIndex, String decisionOrRuleName, String result, String message) {
+        auditLogLines.add(new AuditLogLine(scenarioWithIndex.getIndex(), scenarioWithIndex.getScesimData().getDescription(), messageIndex, decisionOrRuleName, result, message));
     }
 
     /**

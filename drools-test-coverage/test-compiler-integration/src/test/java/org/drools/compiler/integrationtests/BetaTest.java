@@ -1,56 +1,51 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.drools.testcoverage.common.model.FirstClass;
 import org.drools.testcoverage.common.model.SecondClass;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class BetaTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public BetaTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test
-    public void testDefaultBetaConstrains() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDefaultBetaConstrains(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler\n" +
                 "import " + FirstClass.class.getCanonicalName() + "\n" +
@@ -81,57 +76,59 @@ public class BetaTest {
             final FirstClass first = new FirstClass("1", "2", "3", "4", "5");
             final FactHandle handle = ksession.insert(first);
             ksession.fireAllRules();
-            assertEquals(1, results.size());
-            assertEquals("NOT", results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isEqualTo("NOT");
 
             ksession.insert(new SecondClass());
             ksession.update(handle, first);
             ksession.fireAllRules();
-            assertEquals(2, results.size());
-            assertEquals("NOT", results.get(1));
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(results.get(1)).isEqualTo("NOT");
 
             ksession.update(handle, first);
             ksession.insert(new SecondClass(null, "2", "3", "4", "5"));
             ksession.fireAllRules();
-            assertEquals(3, results.size());
-            assertEquals("NOT", results.get(2));
+            assertThat(results.size()).isEqualTo(3);
+            assertThat(results.get(2)).isEqualTo("NOT");
 
             ksession.update(handle, first);
             ksession.insert(new SecondClass("1", null, "3", "4", "5"));
             ksession.fireAllRules();
-            assertEquals(4, results.size());
-            assertEquals("NOT", results.get(3));
+            assertThat(results.size()).isEqualTo(4);
+            assertThat(results.get(3)).isEqualTo("NOT");
 
             ksession.update(handle, first);
             ksession.insert(new SecondClass("1", "2", null, "4", "5"));
             ksession.fireAllRules();
-            assertEquals(5, results.size());
-            assertEquals("NOT", results.get(4));
+            assertThat(results.size()).isEqualTo(5);
+            assertThat(results.get(4)).isEqualTo("NOT");
 
             ksession.update(handle, first);
             ksession.insert(new SecondClass("1", "2", "3", null, "5"));
             ksession.fireAllRules();
-            assertEquals(6, results.size());
-            assertEquals("NOT", results.get(5));
+            assertThat(results.size()).isEqualTo(6);
+            assertThat(results.get(5)).isEqualTo("NOT");
 
             ksession.update(handle, first);
             ksession.insert(new SecondClass("1", "2", "3", "4", null));
             ksession.fireAllRules();
-            assertEquals(7, results.size());
-            assertEquals("NOT", results.get(6));
+            assertThat(results.size()).isEqualTo(7);
+            assertThat(results.get(6)).isEqualTo("NOT");
 
             ksession.insert(new SecondClass("1", "2", "3", "4", "5"));
             ksession.update(handle, first);
             ksession.fireAllRules();
-            assertEquals(8, results.size());
-            assertEquals("EQUALS", results.get(7));
+            assertThat(results.size()).isEqualTo(8);
+            assertThat(results.get(7)).isEqualTo("EQUALS");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 5000)
-    public void testEfficientBetaNodeNetworkUpdate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    @Timeout(5000)
+    public void testEfficientBetaNodeNetworkUpdate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // [JBRULES-3372]
         final String drl =
                 "declare SimpleMembership\n" +

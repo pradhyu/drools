@@ -1,28 +1,22 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.time.impl;
-
-import org.drools.core.base.mvel.MVELObjectExpression;
-import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.rule.ConditionalElement;
-import org.drools.core.rule.Declaration;
-import org.drools.core.spi.Tuple;
-import org.drools.core.time.Trigger;
-import org.kie.api.runtime.Calendars;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -31,21 +25,31 @@ import java.io.ObjectOutput;
 import java.util.Date;
 import java.util.Map;
 
-import static org.drools.core.time.TimeUtils.evalDateExpression;
-import static org.drools.core.time.TimeUtils.evalTimeExpression;
+import org.drools.base.base.ValueResolver;
+import org.drools.base.reteoo.BaseTuple;
+import org.drools.base.rule.ConditionalElement;
+import org.drools.base.rule.Declaration;
+import org.drools.base.time.JobHandle;
+import org.drools.base.time.Trigger;
+import org.drools.base.time.impl.Timer;
+import org.drools.core.time.TimerExpression;
+import org.kie.api.runtime.Calendars;
+
+import static org.drools.core.time.TimerExpressionUtil.evalDateExpression;
+import static org.drools.core.time.TimerExpressionUtil.evalTimeExpression;
 
 public class ExpressionIntervalTimer  extends BaseTimer
     implements
-    Timer,
+        Timer,
     Externalizable {
 
-    private MVELObjectExpression startTime;
-    private MVELObjectExpression endTime;
+    private TimerExpression startTime;
+    private TimerExpression endTime;
 
     private int  repeatLimit;
 
-    private MVELObjectExpression delay;
-    private MVELObjectExpression period;
+    private TimerExpression delay;
+    private TimerExpression period;
 
     public ExpressionIntervalTimer() {
 
@@ -53,11 +57,11 @@ public class ExpressionIntervalTimer  extends BaseTimer
 
 
 
-    public ExpressionIntervalTimer(MVELObjectExpression startTime,
-                                   MVELObjectExpression endTime,
+    public ExpressionIntervalTimer(TimerExpression startTime,
+                                   TimerExpression endTime,
                                    int repeatLimit,
-                                   MVELObjectExpression delay,
-                                   MVELObjectExpression period) {
+                                   TimerExpression delay,
+                                   TimerExpression period) {
         this.startTime = startTime;
         this.endTime = endTime;
         this.repeatLimit = repeatLimit;
@@ -75,27 +79,27 @@ public class ExpressionIntervalTimer  extends BaseTimer
 
     public void readExternal(ObjectInput in) throws IOException,
                                             ClassNotFoundException {
-        this.startTime = (MVELObjectExpression) in.readObject();
-        this.endTime = (MVELObjectExpression) in.readObject();
+        this.startTime = (TimerExpression) in.readObject();
+        this.endTime = (TimerExpression) in.readObject();
         this.repeatLimit = in.readInt();
-        this.delay = (MVELObjectExpression) in.readObject();
-        this.period = (MVELObjectExpression) in.readObject();
+        this.delay = (TimerExpression) in.readObject();
+        this.period = (TimerExpression) in.readObject();
     }
     
     public Declaration[] getStartDeclarations() {
-        return this.startTime != null ? this.startTime.getMVELCompilationUnit().getPreviousDeclarations() : null;
+        return this.startTime != null ? this.startTime.getDeclarations() : null;
     }  
     
     public Declaration[] getEndDeclarations() {
-        return this.endTime != null ? this.endTime.getMVELCompilationUnit().getPreviousDeclarations() : null;
+        return this.endTime != null ? this.endTime.getDeclarations() : null;
     }
 
     public Declaration[] getDelayDeclarations() {
-        return this.delay.getMVELCompilationUnit().getPreviousDeclarations();
+        return this.delay.getDeclarations();
     }
 
     public Declaration[] getPeriodDeclarations() {
-        return this.period.getMVELCompilationUnit().getPreviousDeclarations();
+        return this.period.getDeclarations();
     }
 
     public Declaration[][] getTimerDeclarations(Map<String, Declaration> outerDeclrs) {
@@ -106,12 +110,12 @@ public class ExpressionIntervalTimer  extends BaseTimer
     }
 
     public Trigger createTrigger(long timestamp,
-                                 Tuple leftTuple,
-                                 DefaultJobHandle jh,
+                                 BaseTuple leftTuple,
+                                 JobHandle jh,
                                  String[] calendarNames,
                                  Calendars calendars,
                                  Declaration[][] declrs,
-                                 InternalWorkingMemory wm) {
+                                 ValueResolver valueResolver) {
         long timeSinceLastFire = 0;
 
         Declaration[] delayDeclarations = declrs[0];
@@ -121,20 +125,20 @@ public class ExpressionIntervalTimer  extends BaseTimer
 
         Date lastFireTime = null;
         Date createdTime = null;
-        long newDelay = 0;
+        long newDelay;
 
         if ( jh != null ) {
-            IntervalTrigger preTrig = (IntervalTrigger) jh.getTimerJobInstance().getTrigger();
+            IntervalTrigger preTrig = (IntervalTrigger) ((DefaultJobHandle)jh).getTimerJobInstance().getTrigger();
             lastFireTime = preTrig.getLastFireTime();
             createdTime = preTrig.getCreatedTime();
             if (lastFireTime != null) {
                 // it is already fired calculate the new delay using the period instead of the delay
-                newDelay = evalTimeExpression(this.period, leftTuple, delayDeclarations, wm) - timestamp + lastFireTime.getTime();
+                newDelay = evalTimeExpression(this.period, leftTuple, delayDeclarations, valueResolver) - timestamp + lastFireTime.getTime();
             } else {
-                newDelay = evalTimeExpression(this.delay, leftTuple, delayDeclarations, wm) - timestamp + createdTime.getTime();
+                newDelay = evalTimeExpression(this.delay, leftTuple, delayDeclarations, valueResolver) - timestamp + createdTime.getTime();
             }
         } else {
-            newDelay = evalTimeExpression(this.delay, leftTuple, delayDeclarations, wm);
+            newDelay = evalTimeExpression(this.delay, leftTuple, delayDeclarations, valueResolver);
         }
 
         if (newDelay < 0) {
@@ -142,11 +146,11 @@ public class ExpressionIntervalTimer  extends BaseTimer
         }
 
         return new IntervalTrigger(timestamp,
-                                   evalDateExpression( this.startTime, leftTuple, startDeclarations, wm ),
-                                   evalDateExpression( this.endTime, leftTuple, startDeclarations, wm ),
+                                   evalDateExpression( this.startTime, leftTuple, startDeclarations, valueResolver ),
+                                   evalDateExpression( this.endTime, leftTuple, startDeclarations, valueResolver ),
                                    this.repeatLimit,
                                    newDelay,
-                                   period != null ? evalTimeExpression(this.period, leftTuple, periodDeclarations, wm) : 0,
+                                   period != null ? evalTimeExpression(this.period, leftTuple, periodDeclarations, valueResolver) : 0,
                                    calendarNames,
                                    calendars,
                                    createdTime,
@@ -180,19 +184,39 @@ public class ExpressionIntervalTimer  extends BaseTimer
 
     @Override
     public boolean equals(Object obj) {
-        if ( this == obj ) return true;
-        if ( obj == null ) return false;
-        if ( getClass() != obj.getClass() ) return false;
+        if ( this == obj ) {
+            return true;
+        }
+        if ( obj == null ) {
+            return false;
+        }
+        if ( getClass() != obj.getClass() ) {
+            return false;
+        }
         ExpressionIntervalTimer other = (ExpressionIntervalTimer) obj;
-        if ( delay != other.delay ) return false;
-        if ( repeatLimit != other.repeatLimit ) return false;
+        if ( delay != other.delay ) {
+            return false;
+        }
+        if ( repeatLimit != other.repeatLimit ) {
+            return false;
+        }
         if ( endTime == null ) {
-            if ( other.endTime != null ) return false;
-        } else if ( !endTime.equals( other.endTime ) ) return false;
-        if ( period != other.period ) return false;
+            if ( other.endTime != null ) {
+                return false;
+            }
+        } else if ( !endTime.equals( other.endTime ) ) {
+            return false;
+        }
+        if ( period != other.period ) {
+            return false;
+        }
         if ( startTime == null ) {
-            if ( other.startTime != null ) return false;
-        } else if ( !startTime.equals( other.startTime ) ) return false;
+            if ( other.startTime != null ) {
+                return false;
+            }
+        } else if ( !startTime.equals( other.startTime ) ) {
+            return false;
+        }
         return true;
     }
 

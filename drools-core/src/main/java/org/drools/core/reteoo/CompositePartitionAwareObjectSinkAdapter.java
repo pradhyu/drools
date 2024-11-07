@@ -1,49 +1,54 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Stream;
 
+import org.drools.base.common.RuleBasePartitionId;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.IndexableConstraint;
+import org.drools.base.rule.accessor.ReadAccessor;
+import org.drools.core.common.ActivationsManager;
 import org.drools.core.common.BaseNode;
-import org.drools.core.common.CompositeDefaultAgenda;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.common.RuleBasePartitionId;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.phreak.PropagationEntry;
 import org.drools.core.reteoo.CompositeObjectSinkAdapter.FieldIndex;
-import org.drools.core.rule.IndexableConstraint;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.util.ObjectHashMap;
 
 public class CompositePartitionAwareObjectSinkAdapter implements ObjectSinkPropagator {
 
-    private final ObjectSinkPropagator[] partitionedPropagators = new ObjectSinkPropagator[RuleBasePartitionId.PARALLEL_PARTITIONS_NUMBER];
+    private final ObjectSinkPropagator[] partitionedPropagators;
 
     private boolean hashed = true;
     private CompositeObjectSinkAdapter.FieldIndex fieldIndex;
 
-    private ObjectHashMap hashedSinkMap;
+    private Map<CompositeObjectSinkAdapter.HashKey, AlphaNode> hashedSinkMap;
 
-    public CompositePartitionAwareObjectSinkAdapter() {
+    public CompositePartitionAwareObjectSinkAdapter(int parallelEvaluationSlotsCount) {
+        this.partitionedPropagators = new ObjectSinkPropagator[parallelEvaluationSlotsCount];
         Arrays.fill(partitionedPropagators, EmptyObjectSinkAdapter.getInstance());
     }
 
@@ -52,28 +57,27 @@ public class CompositePartitionAwareObjectSinkAdapter implements ObjectSinkPropa
     }
 
     @Override
-    public ObjectSinkPropagator addObjectSink( ObjectSink sink, int alphaNodeHashingThreshold ) {
+    public ObjectSinkPropagator addObjectSink( ObjectSink sink, int alphaNodeHashingThreshold, int alphaNodeRangeIndexThreshold ) {
         hashed &= hashSink( sink );
         int partition = sink.getPartitionId().getParallelEvaluationSlot();
-        partitionedPropagators[partition] = partitionedPropagators[partition].addObjectSink( sink, alphaNodeHashingThreshold );
+        partitionedPropagators[partition] = partitionedPropagators[partition].addObjectSink( sink, alphaNodeHashingThreshold, alphaNodeRangeIndexThreshold );
         return this;
     }
 
     private boolean hashSink( ObjectSink sink ) {
-        InternalReadAccessor readAccessor = getHashableAccessor( sink );
+        ReadAccessor readAccessor = getHashableAccessor( sink );
         if (readAccessor != null) {
             int index = readAccessor.getIndex();
             if ( fieldIndex == null ) {
                 this.fieldIndex = new CompositeObjectSinkAdapter.FieldIndex( index, readAccessor );
-                this.hashedSinkMap = new ObjectHashMap();
+                this.hashedSinkMap = new HashMap<>();
             }
             if (fieldIndex.getIndex() == index) {
                 AlphaNode alpha = (AlphaNode)sink;
                 this.hashedSinkMap.put( new CompositeObjectSinkAdapter.HashKey( index,
                                                                                 ((IndexableConstraint)alpha.getConstraint()).getField(),
                                                                                 fieldIndex.getFieldExtractor() ),
-                                        alpha,
-                                        false );
+                                        alpha );
                 return true;
             }
         }
@@ -82,7 +86,7 @@ public class CompositePartitionAwareObjectSinkAdapter implements ObjectSinkPropa
         return false;
     }
 
-    private InternalReadAccessor getHashableAccessor(ObjectSink sink) {
+    private ReadAccessor getHashableAccessor(ObjectSink sink) {
         if ( sink.getType() == NodeTypeEnums.AlphaNode ) {
             final AlphaNode alphaNode = (AlphaNode) sink;
             return CompositeObjectSinkAdapter.getHashableAccessor( alphaNode );
@@ -98,18 +102,18 @@ public class CompositePartitionAwareObjectSinkAdapter implements ObjectSinkPropa
     }
 
     @Override
-    public void changeSinkPartition( ObjectSink sink, RuleBasePartitionId oldPartition, RuleBasePartitionId newPartition, int alphaNodeHashingThreshold ) {
+    public void changeSinkPartition( ObjectSink sink, RuleBasePartitionId oldPartition, RuleBasePartitionId newPartition, int alphaNodeHashingThreshold, int alphaNodeRangeIndexThreshold ) {
         int oldP = oldPartition.getParallelEvaluationSlot();
         partitionedPropagators[oldP] = partitionedPropagators[oldP].removeObjectSink( sink );
         int newP = newPartition.getParallelEvaluationSlot();
-        partitionedPropagators[newP] = partitionedPropagators[newP].addObjectSink( sink, alphaNodeHashingThreshold );
+        partitionedPropagators[newP] = partitionedPropagators[newP].addObjectSink( sink, alphaNodeHashingThreshold, alphaNodeRangeIndexThreshold );
     }
 
     @Override
-    public void propagateAssertObject( InternalFactHandle factHandle, PropagationContext context, InternalWorkingMemory workingMemory ) {
-        CompositeDefaultAgenda compositeAgenda = (CompositeDefaultAgenda) workingMemory.getAgenda();
+    public void propagateAssertObject( InternalFactHandle factHandle, PropagationContext context, ReteEvaluator reteEvaluator ) {
+        ActivationsManager compositeAgenda = reteEvaluator.getActivationsManager();
         if (hashed) {
-            AlphaNode sink = (AlphaNode) this.hashedSinkMap.get( new CompositeObjectSinkAdapter.HashKey( fieldIndex, factHandle.getObject() ) );
+            AlphaNode sink = this.hashedSinkMap.get(new CompositeObjectSinkAdapter.HashKey(fieldIndex, factHandle.getObject() ));
             if ( sink != null ) {
                 compositeAgenda.getPartitionedAgenda( sink.getPartitionId().getParallelEvaluationSlot() )
                                .addPropagation( new HashedInsert( sink, factHandle, context ) );
@@ -137,8 +141,8 @@ public class CompositePartitionAwareObjectSinkAdapter implements ObjectSinkPropa
         }
 
         @Override
-        public void execute( InternalWorkingMemory wm ) {
-            propagator.propagateAssertObject( factHandle, context, wm );
+        public void internalExecute(ReteEvaluator reteEvaluator ) {
+            propagator.propagateAssertObject( factHandle, context, reteEvaluator );
         }
 
         @Override
@@ -160,8 +164,8 @@ public class CompositePartitionAwareObjectSinkAdapter implements ObjectSinkPropa
         }
 
         @Override
-        public void execute( InternalWorkingMemory wm ) {
-            sink.getObjectSinkPropagator().propagateAssertObject( factHandle, context, wm );
+        public void internalExecute(ReteEvaluator reteEvaluator ) {
+            sink.getObjectSinkPropagator().propagateAssertObject( factHandle, context, reteEvaluator );
         }
 
         @Override
@@ -202,27 +206,27 @@ public class CompositePartitionAwareObjectSinkAdapter implements ObjectSinkPropa
     }
 
     @Override
-    public void propagateModifyObject( InternalFactHandle factHandle, ModifyPreviousTuples modifyPreviousTuples, PropagationContext context, InternalWorkingMemory workingMemory ) {
+    public void propagateModifyObject( InternalFactHandle factHandle, ModifyPreviousTuples modifyPreviousTuples, PropagationContext context, ReteEvaluator reteEvaluator ) {
         throw new UnsupportedOperationException("propagateModifyObject has to be executed by partitions");
     }
 
-    public void propagateModifyObjectForPartition( InternalFactHandle handle, ModifyPreviousTuples modifyPreviousTuples, PropagationContext context, InternalWorkingMemory wm, int partition ) {
-        partitionedPropagators[partition].propagateModifyObject(handle, modifyPreviousTuples, context, wm);
+    public void propagateModifyObjectForPartition(InternalFactHandle handle, ModifyPreviousTuples modifyPreviousTuples, PropagationContext context, ReteEvaluator reteEvaluator, int partition ) {
+        partitionedPropagators[partition].propagateModifyObject(handle, modifyPreviousTuples, context, reteEvaluator);
     }
 
     @Override
-    public void byPassModifyToBetaNode( InternalFactHandle factHandle, ModifyPreviousTuples modifyPreviousTuples, PropagationContext context, InternalWorkingMemory workingMemory ) {
+    public void byPassModifyToBetaNode( InternalFactHandle factHandle, ModifyPreviousTuples modifyPreviousTuples, PropagationContext context, ReteEvaluator reteEvaluator ) {
         throw new UnsupportedOperationException("This sink is only used for OTNs, it cannot be the sink for a beta");
     }
 
     @Override
-    public void doLinkRiaNode( InternalWorkingMemory wm ) {
+    public void doLinkRiaNode( ReteEvaluator reteEvaluator ) {
         throw new UnsupportedOperationException("This sink is only used for OTNs, it cannot be the sink for a RIA");
 
     }
 
     @Override
-    public void doUnlinkRiaNode( InternalWorkingMemory wm ) {
+    public void doUnlinkRiaNode( ReteEvaluator reteEvaluator ) {
         throw new UnsupportedOperationException("This sink is only used for OTNs, it cannot be the sink for a RIA");
 
     }
@@ -241,17 +245,17 @@ public class CompositePartitionAwareObjectSinkAdapter implements ObjectSinkPropa
     public void readExternal( ObjectInput in ) throws IOException, ClassNotFoundException {
         hashed = in.readBoolean();
         fieldIndex = (FieldIndex) in.readObject();
-        hashedSinkMap = (ObjectHashMap) in.readObject();
+        hashedSinkMap = (Map<CompositeObjectSinkAdapter.HashKey, AlphaNode>) in.readObject();
         for (int i = 0; i < partitionedPropagators.length; i++) {
             partitionedPropagators[i] = (ObjectSinkPropagator) in.readObject();
         }
     }
 
-    public ObjectSinkPropagator asNonPartitionedSinkPropagator(int alphaNodeHashingThreshold) {
+    public ObjectSinkPropagator asNonPartitionedSinkPropagator(int alphaNodeHashingThreshold, int alphaNodeRangeIndexThreshold) {
         ObjectSinkPropagator sinkPropagator = new EmptyObjectSinkAdapter();
         for ( int i = 0; i < partitionedPropagators.length; i++ ) {
             for (ObjectSink sink : partitionedPropagators[i].getSinks()) {
-                sinkPropagator = sinkPropagator.addObjectSink( sink, alphaNodeHashingThreshold );
+                sinkPropagator = sinkPropagator.addObjectSink( sink, alphaNodeHashingThreshold, alphaNodeRangeIndexThreshold );
             }
         }
         return sinkPropagator;

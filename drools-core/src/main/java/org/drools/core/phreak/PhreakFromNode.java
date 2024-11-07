@@ -1,71 +1,66 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.phreak;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.drools.base.rule.accessor.DataProvider;
+import org.drools.base.rule.constraint.AlphaNodeFieldConstraint;
 import org.drools.core.common.BetaConstraints;
-import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.TupleSets;
+import org.drools.core.reteoo.TupleFactory;
+import org.drools.core.reteoo.TupleImpl;
 import org.drools.core.reteoo.BetaMemory;
 import org.drools.core.reteoo.FromNode;
 import org.drools.core.reteoo.FromNode.FromMemory;
-import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.LeftTupleSink;
 import org.drools.core.reteoo.RightTuple;
 import org.drools.core.reteoo.TupleMemory;
-import org.drools.core.rule.ContextEntry;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.DataProvider;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.Tuple;
 import org.drools.core.util.FastIterator;
 import org.drools.core.util.LinkedList;
+import org.kie.api.runtime.rule.FactHandle;
 
 import static org.drools.core.phreak.PhreakJoinNode.updateChildLeftTuple;
 
-/**
-* Created with IntelliJ IDEA.
-* User: mdproctor
-* Date: 03/05/2013
-* Time: 15:43
-* To change this template use File | Settings | File Templates.
-*/
 public class PhreakFromNode {
     public void doNode(FromNode fromNode,
                        FromMemory fm,
                        LeftTupleSink sink,
-                       InternalWorkingMemory wm,
-                       TupleSets<LeftTuple> srcLeftTuples,
-                       TupleSets<LeftTuple> trgLeftTuples,
-                       TupleSets<LeftTuple> stagedLeftTuples) {
+                       ReteEvaluator reteEvaluator,
+                       TupleSets srcLeftTuples,
+                       TupleSets trgLeftTuples,
+                       TupleSets stagedLeftTuples) {
 
         if (srcLeftTuples.getDeleteFirst() != null) {
             doLeftDeletes(fm, srcLeftTuples, trgLeftTuples, stagedLeftTuples);
         }
 
         if (srcLeftTuples.getUpdateFirst() != null) {
-            doLeftUpdates(fromNode, fm, sink, wm, srcLeftTuples, trgLeftTuples, stagedLeftTuples);
+            doLeftUpdates(fromNode, fm, sink, reteEvaluator, srcLeftTuples, trgLeftTuples, stagedLeftTuples);
         }
 
         if (srcLeftTuples.getInsertFirst() != null) {
-            doLeftInserts(fromNode, fm, sink, wm, srcLeftTuples, trgLeftTuples);
+            doLeftInserts(fromNode, fm, sink, reteEvaluator, srcLeftTuples, trgLeftTuples);
         }
 
         srcLeftTuples.resetAll();
@@ -74,50 +69,43 @@ public class PhreakFromNode {
     public void doLeftInserts(FromNode fromNode,
                               FromMemory fm,
                               LeftTupleSink sink,
-                              InternalWorkingMemory wm,
-                              TupleSets<LeftTuple> srcLeftTuples,
-                              TupleSets<LeftTuple> trgLeftTuples) {
+                              ReteEvaluator reteEvaluator,
+                              TupleSets srcLeftTuples,
+                              TupleSets trgLeftTuples) {
 
         BetaMemory bm = fm.getBetaMemory();
-        ContextEntry[] context = bm.getContext();
+        Object context = bm.getContext();
         BetaConstraints betaConstraints = fromNode.getBetaConstraints();
         AlphaNodeFieldConstraint[] alphaConstraints = fromNode.getAlphaConstraints();
         DataProvider dataProvider = fromNode.getDataProvider();
         Class<?> resultClass = fromNode.getResultClass();
 
-        for (LeftTuple leftTuple = srcLeftTuples.getInsertFirst(); leftTuple != null; ) {
-            LeftTuple next = leftTuple.getStagedNext();
+        for (TupleImpl leftTuple = srcLeftTuples.getInsertFirst(); leftTuple != null; ) {
+            TupleImpl next = leftTuple.getStagedNext();
 
             PropagationContext propagationContext = leftTuple.getPropagationContext();
 
-            Map<Object, RightTuple> matches = null;
-            boolean useLeftMemory = RuleNetworkEvaluator.useLeftMemory(fromNode, leftTuple);
+            Map<Object, RightTuple> matches       = null;
+            boolean                 useLeftMemory = RuleNetworkEvaluator.useLeftMemory(fromNode, leftTuple);
 
             if (useLeftMemory) {
                 fm.getBetaMemory().getLeftTupleMemory().add(leftTuple);
-                matches = new LinkedHashMap<Object, RightTuple>();
+                matches = new LinkedHashMap<>();
                 leftTuple.setContextObject( matches );
             }
 
-            betaConstraints.updateFromTuple(context,
-                                            wm,
-                                            leftTuple);
+            betaConstraints.updateFromTuple(context, reteEvaluator, leftTuple);
 
-            for (final java.util.Iterator<?> it = dataProvider.getResults(leftTuple,
-                                                                          wm,
-                                                                          propagationContext,
+            for (final java.util.Iterator<?> it = dataProvider.getResults(leftTuple, reteEvaluator,
                                                                           fm.providerContext); it.hasNext(); ) {
                 final Object object = it.next();
                 if ( (object == null) || !resultClass.isAssignableFrom( object.getClass() ) ) {
                     continue; // skip anything if it not assignable
                 }
 
-                RightTuple rightTuple = fromNode.createRightTuple(leftTuple,
-                                                                  propagationContext,
-                                                                  wm,
-                                                                  object);
+                RightTuple rightTuple = fromNode.createRightTuple(leftTuple, propagationContext, reteEvaluator, object);
 
-                if ( isAllowed( rightTuple.getFactHandle(), alphaConstraints, wm, fm ) ) {
+                if ( isAllowed( rightTuple.getFactHandle(), alphaConstraints, reteEvaluator, fm ) ) {
                     propagate( sink, leftTuple, rightTuple, betaConstraints, propagationContext, context, useLeftMemory, trgLeftTuples, null );
                 }
 
@@ -136,35 +124,30 @@ public class PhreakFromNode {
     public void doLeftUpdates(FromNode fromNode,
                               FromMemory fm,
                               LeftTupleSink sink,
-                              InternalWorkingMemory wm,
-                              TupleSets<LeftTuple> srcLeftTuples,
-                              TupleSets<LeftTuple> trgLeftTuples,
-                              TupleSets<LeftTuple> stagedLeftTuples) {
+                              ReteEvaluator reteEvaluator,
+                              TupleSets srcLeftTuples,
+                              TupleSets trgLeftTuples,
+                              TupleSets stagedLeftTuples) {
         BetaMemory bm = fm.getBetaMemory();
-        ContextEntry[] context = bm.getContext();
+        Object context = bm.getContext();
         BetaConstraints betaConstraints = fromNode.getBetaConstraints();
         AlphaNodeFieldConstraint[] alphaConstraints = fromNode.getAlphaConstraints();
         DataProvider dataProvider = fromNode.getDataProvider();
         Class<?> resultClass = fromNode.getResultClass();
 
-        for (LeftTuple leftTuple = srcLeftTuples.getUpdateFirst(); leftTuple != null; ) {
-            LeftTuple next = leftTuple.getStagedNext();
+        for (TupleImpl leftTuple = srcLeftTuples.getUpdateFirst(); leftTuple != null; ) {
+            TupleImpl next = leftTuple.getStagedNext();
 
             PropagationContext propagationContext = leftTuple.getPropagationContext();
 
             final Map<Object, RightTuple> previousMatches = (Map<Object, RightTuple>) leftTuple.getContextObject();
-            final Map<Object, RightTuple> newMatches = new HashMap<Object, RightTuple>();
+            final Map<Object, RightTuple> newMatches      = new HashMap<>();
             leftTuple.setContextObject( newMatches );
 
-            betaConstraints.updateFromTuple(context,
-                                            wm,
-                                            leftTuple);
+            betaConstraints.updateFromTuple(context, reteEvaluator, leftTuple);
 
-            FastIterator rightIt = LinkedList.fastIterator;
-            for (final java.util.Iterator<?> it = dataProvider.getResults(leftTuple,
-                                                                          wm,
-                                                                          propagationContext,
-                                                                          fm.providerContext); it.hasNext(); ) {
+            FastIterator<TupleImpl> rightIt = LinkedList.fastIterator;
+            for (final java.util.Iterator<?> it = dataProvider.getResults(leftTuple, reteEvaluator, fm.providerContext); it.hasNext(); ) {
                 final Object object = it.next();
                 if ( (object == null) || !resultClass.isAssignableFrom( object.getClass() ) ) {
                     continue; // skip anything if it not assignable
@@ -174,21 +157,17 @@ public class PhreakFromNode {
 
                 if (rightTuple == null) {
                     // new match, propagate assert
-                    rightTuple = fromNode.createRightTuple(leftTuple,
-                                                           propagationContext,
-                                                           wm,
-                                                           object);
+                    rightTuple = fromNode.createRightTuple(leftTuple, propagationContext, reteEvaluator, object);
                 } else {
                     // previous match, so reevaluate and propagate modify
                     if (rightIt.next(rightTuple) != null) {
                         // handle the odd case where more than one object has the same hashcode/equals value
-                        previousMatches.put(object,
-                                            (RightTuple) rightIt.next(rightTuple));
+                        previousMatches.put(object, (RightTuple) rightIt.next(rightTuple));
                         rightTuple.setNext(null);
                     }
                 }
 
-                if ( isAllowed( rightTuple.getFactHandle(), alphaConstraints, wm, fm ) ) {
+                if ( isAllowed( rightTuple.getFactHandle(), alphaConstraints, reteEvaluator, fm ) ) {
                     propagate( sink, leftTuple, rightTuple, betaConstraints, propagationContext, context, true, trgLeftTuples, stagedLeftTuples );
                     fromNode.addToCreatedHandlesMap(newMatches, rightTuple);
                 } else {
@@ -209,35 +188,26 @@ public class PhreakFromNode {
     }
 
     public void doLeftDeletes(FromMemory fm,
-                              TupleSets<LeftTuple> srcLeftTuples,
-                              TupleSets<LeftTuple> trgLeftTuples,
-                              TupleSets<LeftTuple> stagedLeftTuples) {
+                              TupleSets srcLeftTuples,
+                              TupleSets trgLeftTuples,
+                              TupleSets stagedLeftTuples) {
         BetaMemory bm = fm.getBetaMemory();
         TupleMemory ltm = bm.getLeftTupleMemory();
 
-        for (LeftTuple leftTuple = srcLeftTuples.getDeleteFirst(); leftTuple != null; ) {
-            LeftTuple next = leftTuple.getStagedNext();
+        for (TupleImpl leftTuple = srcLeftTuples.getDeleteFirst(); leftTuple != null; ) {
+            TupleImpl next = leftTuple.getStagedNext();
 
             ltm.remove(leftTuple);
 
-            Map<Object, RightTuple> matches = (Map<Object, RightTuple>) leftTuple.getContextObject();
-
             if (leftTuple.getFirstChild() != null) {
-                LeftTuple childLeftTuple = leftTuple.getFirstChild();
+                TupleImpl childLeftTuple = leftTuple.getFirstChild();
 
                 while (childLeftTuple != null) {
                     childLeftTuple.setPropagationContext( leftTuple.getPropagationContext());
-                    LeftTuple nextChild = childLeftTuple.getHandleNext();
+                    TupleImpl nextChild = childLeftTuple.getHandleNext();
                     RuleNetworkEvaluator.unlinkAndDeleteChildLeftTuple( childLeftTuple, trgLeftTuples, stagedLeftTuples );
                     childLeftTuple = nextChild;
                 }
-            }
-
-            // if matches == null, the deletion might be happening before the fact was even propagated. See BZ-1019473 for details.
-            if( matches != null ) {
-                
-                // @TODO (mdp) is this really necessary? won't the entire FH and RightTuple chaines just et GC'd?
-                unlinkCreatedHandles(leftTuple);
             }
 
             leftTuple.clearStaged();
@@ -245,25 +215,13 @@ public class PhreakFromNode {
         }
     }
 
-    public static void unlinkCreatedHandles(final LeftTuple leftTuple) {
-        Map<Object, RightTuple> matches = (Map<Object, RightTuple>) leftTuple.getContextObject();
-        FastIterator rightIt = LinkedList.fastIterator;
-        for (RightTuple rightTuple : matches.values()) {
-            for (RightTuple current = rightTuple; current != null; ) {
-                RightTuple next = (RightTuple) rightIt.next(current);
-                current.unlinkFromRightParent();
-                current = next;
-            }
-        }
-    }
-
-    public static boolean isAllowed( InternalFactHandle factHandle,
+    public static boolean isAllowed( FactHandle factHandle,
                                      AlphaNodeFieldConstraint[] alphaConstraints,
-                                     InternalWorkingMemory wm,
+                                     ReteEvaluator reteEvaluator,
                                      FromMemory fm ) {
         if (alphaConstraints != null) {
             for (int i = 0, length = alphaConstraints.length; i < length; i++) {
-                if (!alphaConstraints[i].isAllowed(factHandle, wm)) {
+                if (!alphaConstraints[i].isAllowed(factHandle, reteEvaluator)) {
                     return false;
                 }
             }
@@ -272,28 +230,28 @@ public class PhreakFromNode {
     }
 
     public static void propagate( LeftTupleSink sink,
-                                  Tuple leftTuple,
-                                  RightTuple rightTuple,
+                                  TupleImpl leftTuple,
+                                  TupleImpl rightTuple,
                                   BetaConstraints betaConstraints,
                                   PropagationContext propagationContext,
-                                  ContextEntry[] context,
+                                  Object context,
                                   boolean useLeftMemory,
-                                  TupleSets<LeftTuple> trgLeftTuples,
-                                  TupleSets<LeftTuple> stagedLeftTuples ) {
+                                  TupleSets trgLeftTuples,
+                                  TupleSets stagedLeftTuples ) {
         if (betaConstraints.isAllowedCachedLeft(context, rightTuple.getFactHandleForEvaluation())) {
 
             if (rightTuple.getFirstChild() == null) {
                 // this is a new match, so propagate as assert
-                LeftTuple childLeftTuple = sink.createLeftTuple((LeftTuple)leftTuple,
-                                                                rightTuple,
-                                                                null,
-                                                                null,
-                                                                sink,
-                                                                useLeftMemory);
+                TupleImpl childLeftTuple = TupleFactory.createLeftTuple(leftTuple,
+                                                                        rightTuple,
+                                                                        null,
+                                                                        null,
+                                                                        sink,
+                                                                        useLeftMemory);
                 childLeftTuple.setPropagationContext(propagationContext);
                 trgLeftTuples.addInsert(childLeftTuple);
             } else {
-                LeftTuple childLeftTuple = rightTuple.getFirstChild();
+                TupleImpl childLeftTuple = rightTuple.getFirstChild();
                 childLeftTuple.setPropagationContext(propagationContext);
                 updateChildLeftTuple(childLeftTuple, stagedLeftTuples, trgLeftTuples);
             }
@@ -303,9 +261,9 @@ public class PhreakFromNode {
     }
 
     public static void deleteChildLeftTuple(PropagationContext propagationContext,
-                                            TupleSets<LeftTuple> trgLeftTuples,
-                                            TupleSets<LeftTuple> stagedLeftTuples,
-                                            LeftTuple childLeftTuple) {
+                                            TupleSets trgLeftTuples,
+                                            TupleSets stagedLeftTuples,
+                                            TupleImpl childLeftTuple) {
         if (childLeftTuple != null) {
             childLeftTuple.setPropagationContext( propagationContext );
             RuleNetworkEvaluator.unlinkAndDeleteChildLeftTuple(childLeftTuple, trgLeftTuples, stagedLeftTuples);

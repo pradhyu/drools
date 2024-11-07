@@ -1,19 +1,25 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.example.api.kiemodulefrommultiplefiles;
+
+import java.io.File;
+import java.io.PrintStream;
 
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieModule;
@@ -21,12 +27,13 @@ import org.kie.api.builder.KieRepository;
 import org.kie.api.io.Resource;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
-
-import java.io.File;
-import java.io.PrintStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class KieModuleFromMultipleFilesExample {
+
+    private static final Logger LOG = LoggerFactory.getLogger(KieModuleFromMultipleFilesExample.class);
 
     public void go(PrintStream out) {
         KieServices ks = KieServices.Factory.get();
@@ -60,7 +67,7 @@ public class KieModuleFromMultipleFilesExample {
             Class cl = kContainer.getClassLoader().loadClass("org.drools.example.api.namedkiesession.Message");
             o = cl.getConstructor(new Class[]{String.class, String.class}).newInstance(name, text);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("Exception", e);
         }
         return o;
     }
@@ -69,8 +76,7 @@ public class KieModuleFromMultipleFilesExample {
         File folder = new File( KieModuleFromMultipleFilesExample.class.getProtectionDomain().getCodeSource().getLocation().getPath() );
         File exampleFolder = null;
         while (folder != null) {
-            exampleFolder = new File(folder,
-                                     exampleName);
+            exampleFolder = new File(folder, exampleName);
             if (exampleFolder.exists()) {
                 break;
             }
@@ -80,14 +86,13 @@ public class KieModuleFromMultipleFilesExample {
 
         if (exampleFolder != null) {
 
-            File targetFolder = new File(exampleFolder,
-                                         "target");
+            File targetFolder = new File(exampleFolder, "target");
             if (!targetFolder.exists()) {
                 throw new RuntimeException("The target folder does not exist, please build project " + exampleName + " first");
             }
 
             for (String str : targetFolder.list()) {
-                if (str.startsWith(exampleName) && !str.endsWith("-sources.jar") && !str.endsWith("-tests.jar") && !str.endsWith("-javadoc.jar")) {
+                if (str.startsWith(exampleName) && str.endsWith(".jar") && !str.endsWith("-sources.jar") && !str.endsWith("-tests.jar") && !str.endsWith("-javadoc.jar")) {
                     return new File(targetFolder, str);
                 }
             }

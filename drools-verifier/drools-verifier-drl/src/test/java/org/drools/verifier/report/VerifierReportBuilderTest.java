@@ -1,85 +1,85 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.report;
-
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-import org.drools.core.io.impl.ClassPathResource;
+import org.drools.io.ClassPathResource;
 import org.drools.verifier.Verifier;
 import org.drools.verifier.builder.VerifierBuilder;
 import org.drools.verifier.builder.VerifierBuilderFactory;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.kie.api.io.ResourceType;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class VerifierReportBuilderTest {
 
     @Test
-    public void testHtmlReportTest() throws IOException {
+    void testHtmlReportTest() throws IOException {
 
         // Create report
         VerifierBuilder vBuilder = VerifierBuilderFactory.newVerifierBuilder();
         Verifier verifier = vBuilder.newVerifier();
 
-        verifier.addResourcesToVerify( new ClassPathResource( "Misc3.drl",
-                                                              Verifier.class ),
-                                       ResourceType.DRL );
+        verifier.addResourcesToVerify(new ClassPathResource( "Misc3.drl",
+                        Verifier.class ),
+                ResourceType.DRL);
         VerifierReportWriter writer = VerifierReportWriterFactory.newHTMLReportWriter();
 
         // Write to disk
         FileOutputStream out = new FileOutputStream( "testReport.zip" );
 
-        writer.writeReport( out,
-                            verifier.getResult() );
+        writer.writeReport(out,
+                verifier.getResult());
 
         // Check the files on disk
         File file = new File( "testReport.zip" );
-        assertNotNull( file );
-        assertTrue( file.exists() );
+        assertThat(file).isNotNull();
+        assertThat(file.exists()).isTrue();
 
         // TODO: Check the file content
         
         // Remove the test file
         file.delete();
 
-        assertFalse( file.exists() );
+        assertThat(file.exists()).isFalse();
 
     }
 
     @Test
-    public void testPlainTextReportTest() throws IOException {
+    void testPlainTextReportTest() throws IOException {
         //TODO:
-        assertTrue( true );
+        assertThat(true).isTrue();
     }
 
     @Test
-    public void testXMLReportTest() throws IOException {
+    void testXMLReportTest() throws IOException {
         //TODO:
-        assertTrue( true );
+        assertThat(true).isTrue();
     }
 
     @Test
-    public void testPDFReportTest() throws IOException {
+    void testPDFReportTest() throws IOException {
         //TODO:
-        assertTrue( true );
+        assertThat(true).isTrue();
     }
 }

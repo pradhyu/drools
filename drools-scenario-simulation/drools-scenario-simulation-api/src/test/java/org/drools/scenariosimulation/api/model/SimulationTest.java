@@ -1,32 +1,30 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.scenariosimulation.api.model;
 
 import java.util.List;
-import java.util.stream.IntStream;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
 
 public class SimulationTest {
 
@@ -46,85 +44,79 @@ public class SimulationTest {
     }
 
     @Test
-    public void addData() {
+    public void addData_failsOutsideBoundaries() {
         simulation.addData(1);
 
-        assertThatThrownBy(() -> simulation.addData(-1))
-                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> simulation.addData(-1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        assertThatThrownBy(() -> simulation.addData(3))
-                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> simulation.addData(3)).isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @Test
     public void cloneModel() {
-        final Simulation cloned = this.simulation.cloneModel();
-        assertNotNull(cloned);
+        final Simulation cloned = simulation.cloneModel();
+        
+        assertThat(cloned).isNotNull();
         final ScesimModelDescriptor originalDescriptor = simulation.getScesimModelDescriptor();
         final ScesimModelDescriptor clonedDescriptor = cloned.getScesimModelDescriptor();
-        assertEquals(originalDescriptor.getUnmodifiableFactMappings().size(), clonedDescriptor.getUnmodifiableFactMappings().size());
-        IntStream.range(0, originalDescriptor.getUnmodifiableFactMappings().size()).forEach(index -> {
-            assertEquals(originalDescriptor.getUnmodifiableFactMappings().get(index), clonedDescriptor.getUnmodifiableFactMappings().get(index));
-        });
-        assertEquals(simulation.getUnmodifiableData().size(), cloned.getUnmodifiableData().size());
-        IntStream.range(0, simulation.getUnmodifiableData().size()).forEach(index -> {
-            assertEquals(simulation.getUnmodifiableData().get(index).getDescription(), cloned.getUnmodifiableData().get(index).getDescription());
-        });
+        assertThat(clonedDescriptor.getUnmodifiableFactMappings()).hasSameSizeAs(originalDescriptor.getUnmodifiableFactMappings());
+        
+        assertThat(clonedDescriptor.getUnmodifiableFactMappings()).isEqualTo(originalDescriptor.getUnmodifiableFactMappings());
+        
+        assertThat(cloned.getUnmodifiableData()).hasSameSizeAs(simulation.getUnmodifiableData());
+        assertThat(cloned.getUnmodifiableData()).usingElementComparator((x, y) -> x.getDescription().compareTo(y.getDescription())).isEqualTo(simulation.getUnmodifiableData());
     }
 
     @Test
     public void cloneData() {
         Scenario clonedScenario = simulation.cloneData(0, 1);
 
-        assertEquals(originalScenario.getDescription(), clonedScenario.getDescription());
-        assertEquals(originalScenario.getUnmodifiableFactMappingValues().size(), clonedScenario.getUnmodifiableFactMappingValues().size());
-        assertEquals(originalScenario, simulation.getDataByIndex(0));
-        assertEquals(clonedScenario, simulation.getDataByIndex(1));
+        assertThat(clonedScenario.getDescription()).isEqualTo(originalScenario.getDescription());
+        assertThat(clonedScenario.getUnmodifiableFactMappingValues()).hasSameSizeAs(originalScenario.getUnmodifiableFactMappingValues());
+        assertThat(simulation.getDataByIndex(0)).isEqualTo(originalScenario);
+        assertThat(simulation.getDataByIndex(1)).isEqualTo(clonedScenario);
 
-        assertNotEquals(originalScenario, clonedScenario);
-        assertNotEquals(originalScenario.getUnmodifiableFactMappingValues().get(0), clonedScenario.getUnmodifiableFactMappingValues().get(0));
+        assertThat(clonedScenario).isNotEqualTo(originalScenario);
+        assertThat(clonedScenario.getUnmodifiableFactMappingValues().get(0)).isNotEqualTo(originalScenario.getUnmodifiableFactMappingValues().get(0));
     }
 
     @Test
-    public void cloneScenarioFail() {
+    public void cloneData_failOutsideBoundaries() {
 
-        assertThatThrownBy(() -> simulation.cloneData(-1, 1))
-                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> simulation.cloneData(-1, 1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        assertThatThrownBy(() -> simulation.cloneData(2, 1))
-                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> simulation.cloneData(2, 1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        assertThatThrownBy(() -> simulation.cloneData(0, -1))
-                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> simulation.cloneData(0, -1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        assertThatThrownBy(() -> simulation.cloneData(0, 2))
-                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> simulation.cloneData(0, 2)).isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @Test
     public void removeFactMappingByIndex() {
-        assertEquals(2, simulation.getUnmodifiableData().get(0).getUnmodifiableFactMappingValues().size());
-        assertEquals(1, simulation.getScesimModelDescriptor().getUnmodifiableFactMappings().size());
         simulation.removeFactMappingByIndex(0);
-        assertEquals(1, simulation.getUnmodifiableData().get(0).getUnmodifiableFactMappingValues().size());
-        assertEquals(0, simulation.getScesimModelDescriptor().getUnmodifiableFactMappings().size());
+        
+        assertThat(simulation.getUnmodifiableData().get(0).getUnmodifiableFactMappingValues()).hasSize(1);
+        assertThat(simulation.getScesimModelDescriptor().getUnmodifiableFactMappings()).hasSize(0);
     }
 
     @Test
     public void removeFactMapping() {
-        assertEquals(2, simulation.getUnmodifiableData().get(0).getUnmodifiableFactMappingValues().size());
-        assertEquals(1, simulation.getScesimModelDescriptor().getUnmodifiableFactMappings().size());
         simulation.removeFactMapping(simulation.getScesimModelDescriptor().getFactMappingByIndex(0));
-        assertEquals(1, simulation.getUnmodifiableData().get(0).getUnmodifiableFactMappingValues().size());
-        assertEquals(0, simulation.getScesimModelDescriptor().getUnmodifiableFactMappings().size());
+        
+        assertThat(simulation.getUnmodifiableData().get(0).getUnmodifiableFactMappingValues()).hasSize(1);
+        assertThat(simulation.getScesimModelDescriptor().getUnmodifiableFactMappings()).hasSize(0);
     }
 
     @Test
     public void getScenarioWithIndex() {
-        List<ScenarioWithIndex> scenarioWithIndex = simulation.getScenarioWithIndex();
-        assertEquals(simulation.getUnmodifiableData().size(), scenarioWithIndex.size());
-        ScenarioWithIndex scenario = scenarioWithIndex.get(0);
+        List<ScenarioWithIndex> scenarios = simulation.getScenarioWithIndex();
+        
+        assertThat(scenarios).hasSameSizeAs(simulation.getUnmodifiableData());
+        
+        ScenarioWithIndex scenario = scenarios.get(0);
         int index = scenario.getIndex();
-        assertEquals(simulation.getDataByIndex(index - 1), scenario.getScesimData());
+        
+        assertThat(scenario.getScesimData()).isEqualTo(simulation.getDataByIndex(index - 1));
     }
 }

@@ -1,23 +1,22 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.base;
-
-import org.drools.core.spi.GlobalResolver;
-import org.kie.api.runtime.Globals;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -31,6 +30,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.drools.base.rule.accessor.GlobalResolver;
+import org.kie.api.runtime.Globals;
+
 public class MapGlobalResolver
     implements
     GlobalResolver, Globals,
@@ -43,14 +45,14 @@ public class MapGlobalResolver
     private Globals delegate;
 
     public MapGlobalResolver() {
-        this.map = new ConcurrentHashMap<String, Object>();
+        this( new ConcurrentHashMap<>() );
     }
 
     public MapGlobalResolver(Map<String, Object> map) {
         if (map instanceof ConcurrentHashMap) {
             this.map = map;
         } else {
-            this.map = new ConcurrentHashMap<String, Object>();
+            this.map = new ConcurrentHashMap<>();
             this.map.putAll(map);
         }
     }
@@ -75,7 +77,7 @@ public class MapGlobalResolver
         } else if ( map.isEmpty() ) {
             return Collections.unmodifiableCollection( ((MapGlobalResolver) delegate).map.keySet() );
         } else {
-            Collection<String> combined = new HashSet<String>( map.keySet() );
+            Collection<String> combined = new HashSet<>( map.keySet() );
             combined.addAll( ((MapGlobalResolver) delegate).map.keySet() );
             return Collections.unmodifiableCollection( combined );
         }
@@ -98,8 +100,11 @@ public class MapGlobalResolver
     }
 
     public void setGlobal(String identifier, Object value) {
-        this.map.put( identifier,
-                      value );
+        if (value == null) {
+            this.map.remove(identifier);
+        } else {
+            this.map.put(identifier, value);
+        }
     }
 
     public void removeGlobal(String identifier) {
@@ -113,14 +118,14 @@ public class MapGlobalResolver
             Map<String,Object> delegateMap = ((MapGlobalResolver) delegate).map;
             return (Entry<String, Object>[]) delegateMap.entrySet().toArray(new Entry[delegateMap.size()]);
         } else {
-            Map<String,Object> combined = new HashMap<String,Object>( ((MapGlobalResolver) delegate).map );
+            Map<String,Object> combined = new HashMap<>( ((MapGlobalResolver) delegate).map );
             combined.putAll( map );
             return (Entry<String, Object>[]) combined.entrySet().toArray(new Entry[combined.size()]);
         }
     }
     
     public GlobalResolver clone() {
-        Map<String,Object> clone = new HashMap<String,Object>();
+        Map<String,Object> clone = new HashMap<>();
         
         for ( Entry<String,Object> entry : getGlobals() ) {
             clone.put( entry.getKey(), entry.getValue() );

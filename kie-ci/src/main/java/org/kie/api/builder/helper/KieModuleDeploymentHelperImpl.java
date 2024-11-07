@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.kie.api.builder.helper;
 
 import java.io.ByteArrayOutputStream;
@@ -29,10 +32,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
-import org.appformer.maven.integration.MavenRepository;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
-import org.drools.compiler.kproject.ReleaseIdImpl;
-import org.drools.core.util.IoUtils;
+import org.drools.util.IoUtils;
 import org.kie.api.KieBase;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
@@ -41,11 +42,13 @@ import org.kie.api.builder.Message;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.builder.model.KieModuleModel;
 import org.kie.api.runtime.KieSession;
+import org.kie.maven.integration.MavenRepository;
 import org.kie.scanner.KieMavenRepository;
+import org.kie.util.maven.support.ReleaseIdImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.drools.core.util.IoUtils.readBytesFromInputStream;
+import static org.drools.util.IoUtils.readBytesFromInputStream;
 import static org.kie.scanner.KieMavenRepository.getKieMavenRepository;
 
 /**
@@ -466,7 +469,7 @@ final class KieModuleDeploymentHelperImpl extends FluentKieModuleDeploymentHelpe
         } else {
             InputStream is = KieModuleDeploymentHelperImpl.class.getResourceAsStream(path);
             if (is == null) {
-                is = new FileInputStream(new File(path));
+                is = new FileInputStream(path);
             }
             String content = convertFileToString(is, true);
             String name = path.substring(path.lastIndexOf("/") + 1);
@@ -494,7 +497,7 @@ final class KieModuleDeploymentHelperImpl extends FluentKieModuleDeploymentHelpe
                 try {
                     kjarResources.addAll(internalLoadResources(filePath, false));
                 } catch (FileNotFoundException fnfe) {
-                    throw new RuntimeException("No file found at '" + filePath + "' -- if it's a directory, please add a " + File.separator + " to the end of the path.");
+                    throw new RuntimeException("No file found at '" + filePath + "' -- if it's a directory, please add a / to the end of the path.");
                 } catch (Exception e) {
                     throw new RuntimeException("Unable to load resource from '" + filePath + "'", e);
                 }
@@ -576,7 +579,7 @@ final class KieModuleDeploymentHelperImpl extends FluentKieModuleDeploymentHelpe
     private static byte[] readStream(InputStream ios) throws Exception {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[4096];
-            int read = 0;
+            int read;
             while ((read = ios.read(buffer)) != -1) {
                 baos.write(buffer, 0, read);
             }

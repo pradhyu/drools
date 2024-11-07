@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.builder.impl;
 
 import java.util.Collection;
@@ -22,31 +25,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.drools.base.definitions.InternalKnowledgePackage;
+import org.drools.base.factmodel.ClassDefinition;
+import org.drools.base.rule.TypeDeclaration;
+import org.drools.compiler.builder.impl.classbuilder.ClassBuilder;
+import org.drools.compiler.builder.impl.classbuilder.ClassBuilderFactory;
 import org.drools.compiler.compiler.PackageRegistry;
 import org.drools.compiler.compiler.TypeDeclarationError;
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
-import org.drools.compiler.lang.descr.AnnotationDescr;
-import org.drools.compiler.lang.descr.EnumDeclarationDescr;
-import org.drools.compiler.lang.descr.ImportDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.QualifiedName;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
-import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.factmodel.ClassDefinition;
-import org.drools.core.factmodel.FieldDefinition;
-import org.drools.core.factmodel.traits.Thing;
-import org.drools.core.factmodel.traits.Trait;
-import org.drools.core.factmodel.traits.TraitFactory;
-import org.drools.core.factmodel.traits.Traitable;
-import org.drools.core.rule.TypeDeclaration;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.AnnotationDescr;
+import org.drools.drl.ast.descr.EnumDeclarationDescr;
+import org.drools.drl.ast.descr.ImportDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.QualifiedName;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
 import org.kie.api.io.Resource;
 import org.kie.internal.builder.ResourceChange;
 
 public class TypeDeclarationBuilder {
 
-    protected final KnowledgeBuilderImpl kbuilder;
+    protected final TypeDeclarationContext context;
 
-    protected final Set<String> generatedTypes                = new HashSet<String>();
+    protected final BuildResultCollector results;
+
+    protected final Set<String> generatedTypes = new HashSet<>();
 
     protected TypeDeclarationCache classDeclarationExtractor;
     protected TypeDeclarationNameResolver typeDeclarationNameResolver;
@@ -55,14 +57,15 @@ public class TypeDeclarationBuilder {
     protected TypeDeclarationConfigurator typeDeclarationConfigurator;
     protected DeclaredClassBuilder declaredClassBuilder;
 
-    TypeDeclarationBuilder(KnowledgeBuilderImpl kbuilder) {
-        this.kbuilder = kbuilder;
-        this.classDeclarationExtractor = new TypeDeclarationCache( kbuilder );
-        this.typeDeclarationNameResolver = new TypeDeclarationNameResolver( kbuilder );
-        this.typeDeclarationFactory = new TypeDeclarationFactory( kbuilder );
-        this.classDefinitionFactory = new ClassDefinitionFactory( kbuilder );
-        this.typeDeclarationConfigurator = new TypeDeclarationConfigurator( kbuilder );
-        this.declaredClassBuilder = new DeclaredClassBuilder( kbuilder );
+    public TypeDeclarationBuilder(TypeDeclarationContext context, BuildResultCollector results) {
+        this.context = context;
+        this.results = results;
+        this.classDeclarationExtractor = new TypeDeclarationCache(context, results);
+        this.typeDeclarationNameResolver = new TypeDeclarationNameResolver(context, results);
+        this.typeDeclarationFactory = new TypeDeclarationFactory(context, results);
+        this.classDefinitionFactory = new ClassDefinitionFactory(context, results);
+        this.typeDeclarationConfigurator = new TypeDeclarationConfigurator(context, results);
+        this.declaredClassBuilder = new DeclaredClassBuilder(context, results);
     }
 
     public TypeDeclaration getAndRegisterTypeDeclaration( Class<?> cls, String packageName ) {
@@ -103,8 +106,8 @@ public class TypeDeclarationBuilder {
                                          List<TypeDefinition> unresolvedTypes,
                                          Map<String,AbstractClassTypeDeclarationDescr> unprocesseableDescrs ) {
 
-        packageDescrs.forEach( kbuilder::getOrCreatePackageRegistry );
-        packageDescrs.forEach( this::setResourcesInDescriptors );
+        packageDescrs.forEach( context::getOrCreatePackageRegistry );
+        packageDescrs.forEach(packageDescr -> setResourcesInDescriptors(packageDescr, null));
 
         // ensure all names are fully qualified before continuing
         typeDeclarationNameResolver.resolveTypes( packageDescrs, unresolvedTypes );
@@ -117,11 +120,12 @@ public class TypeDeclarationBuilder {
 
     public void processTypeDeclarations( PackageDescr packageDescr,
                                          PackageRegistry pkgRegistry,
+                                         Resource currentResource,
                                          Collection<AbstractClassTypeDeclarationDescr> unsortedDescrs,
                                          List<TypeDefinition> unresolvedTypes,
                                          Map<String,AbstractClassTypeDeclarationDescr> unprocesseableDescrs ) {
 
-        setResourcesInDescriptors( packageDescr );
+        setResourcesInDescriptors( packageDescr, currentResource );
 
         // ensure all names are fully qualified before continuing
         typeDeclarationNameResolver.resolveTypes( packageDescr, unresolvedTypes, pkgRegistry.getTypeResolver() );
@@ -141,11 +145,11 @@ public class TypeDeclarationBuilder {
         unsortedDescrs = compactDefinitionsAndDeclarations( unsortedDescrs, unprocesseableDescrs );
 
         // now sort declarations by mutual dependencies
-        ClassHierarchyManager classHierarchyManager = new ClassHierarchyManager( unsortedDescrs, kbuilder );
+        ClassHierarchyManager classHierarchyManager = new ClassHierarchyManager( unsortedDescrs, context, results );
 
         for ( AbstractClassTypeDeclarationDescr typeDescr : classHierarchyManager.getSortedDescriptors() ) {
             PackageRegistry pkgReg = getPackageRegistry( pkgRegistry, packageDescr, typeDescr );
-            createBean( typeDescr, pkgReg, classHierarchyManager, unresolvedTypes, unprocesseableDescrs );
+            createBean( typeDescr, results, pkgReg, classHierarchyManager, unresolvedTypes, unprocesseableDescrs );
         }
 
         for ( AbstractClassTypeDeclarationDescr typeDescr : classHierarchyManager.getSortedDescriptors() ) {
@@ -155,27 +159,27 @@ public class TypeDeclarationBuilder {
                 TypeDeclaration type = pkg.getTypeDeclaration( typeDescr.getType().getName() );
                 typeDeclarationConfigurator.wireFieldAccessors( pkgReg, typeDescr, type );
 
-                if (kbuilder.getKnowledgeBase() != null) {
+                if (context.getKnowledgeBase() != null) {
                     // in case of incremental compilatoin (re)register the new type declaration on the existing kbase
-                    kbuilder.getKnowledgeBase().registerTypeDeclaration( type, pkg );
+                    context.getKnowledgeBase().registerTypeDeclaration( type, pkg );
                 }
             }
         }
     }
 
     private PackageRegistry getPackageRegistry( PackageRegistry pkgRegistry, PackageDescr packageDescr, AbstractClassTypeDeclarationDescr typeDescr ) {
-        return pkgRegistry != null && typeDescr.getNamespace().equals( packageDescr.getName() ) ? pkgRegistry : kbuilder.getPackageRegistry( typeDescr.getNamespace() );
+        return pkgRegistry != null && typeDescr.getNamespace().equals( packageDescr.getName() ) ? pkgRegistry : context.getPackageRegistry( typeDescr.getNamespace() );
     }
 
     private Collection<AbstractClassTypeDeclarationDescr> compactDefinitionsAndDeclarations( Collection<AbstractClassTypeDeclarationDescr> unsortedDescrs, Map<String, AbstractClassTypeDeclarationDescr> unprocesseableDescrs ) {
-        Map<String,AbstractClassTypeDeclarationDescr> compactedUnsorted = new HashMap<String,AbstractClassTypeDeclarationDescr>( unsortedDescrs.size() );
+        Map<String,AbstractClassTypeDeclarationDescr> compactedUnsorted = new HashMap<>( unsortedDescrs.size() );
         for ( AbstractClassTypeDeclarationDescr descr : unsortedDescrs ) {
             if ( compactedUnsorted.containsKey( descr.getType().getFullName() ) ) {
                 AbstractClassTypeDeclarationDescr prev = compactedUnsorted.get( descr.getType().getFullName() );
                 boolean res = mergeTypeDescriptors( prev, descr );
                 if ( ! res ) {
                     unprocesseableDescrs.put( prev.getType().getFullName(), prev );
-                    kbuilder.addBuilderResult( new TypeDeclarationError( prev,
+                    results.addBuilderResult( new TypeDeclarationError( prev,
                                                                          "Found duplicate declaration for type " + prev.getType().getFullName() + ", unable to reconcile " ) );
                 }
             } else {
@@ -222,15 +226,19 @@ public class TypeDeclarationBuilder {
         return ! prev.getFields().isEmpty();
     }
 
-    private void setResourcesInDescriptors( PackageDescr packageDescr ) {
+    private void setResourcesInDescriptors( PackageDescr packageDescr, Resource currentResource ) {
+        if (currentResource == null) {
+            return;
+        }
         for ( AbstractClassTypeDeclarationDescr typeDescr : packageDescr.getClassAndEnumDeclarationDescrs() ) {
             if ( typeDescr.getResource() == null ) {
-                typeDescr.setResource( kbuilder.getCurrentResource() );
+                typeDescr.setResource( currentResource );
             }
         }
     }
 
     protected void createBean( AbstractClassTypeDeclarationDescr typeDescr,
+                             BuildResultCollector results,
                              PackageRegistry pkgRegistry,
                              ClassHierarchyManager hierarchyManager,
                              List<TypeDefinition> unresolvedTypes,
@@ -238,12 +246,11 @@ public class TypeDeclarationBuilder {
 
         //descriptor needs fields inherited from superclass
         if ( typeDescr instanceof TypeDeclarationDescr ) {
-            hierarchyManager.inheritFields( pkgRegistry, typeDescr, hierarchyManager.getSortedDescriptors(), unresolvedTypes, unprocesseableDescrs );
+            hierarchyManager.inheritFields( pkgRegistry, typeDescr, results, unprocesseableDescrs );
         }
 
-        TypeDeclaration type = typeDeclarationFactory.processTypeDeclaration( pkgRegistry,
-                                                                              typeDescr );
-        boolean success = ! kbuilder.hasErrors();
+        TypeDeclaration type = typeDeclarationFactory.processTypeDeclaration( pkgRegistry, typeDescr );
+        boolean success = ! results.hasErrors();
 
         try {
             // the type declaration is generated in any case (to be used by subclasses, if any)
@@ -263,20 +270,21 @@ public class TypeDeclarationBuilder {
                 }
 
             }
-            success = ( def != null ) && ( ! kbuilder.hasErrors() );
+            success = ( def != null ) && ( ! results.hasErrors() );
+
+            if(success) {
+                this.postGenerateDeclaredBean(typeDescr, type, def, pkgRegistry);
+            }
+            success = ! results.hasErrors();
 
             if ( success ) {
-                updateTraitInformation( typeDescr, type, def, pkgRegistry );
+                ClassBuilder classBuilder = ClassBuilderFactory.get().getClassBuilder(type);
+                declaredClassBuilder.generateBeanFromDefinition(typeDescr,
+                                                                type,
+                                                                pkgRegistry,
+                                                                def, classBuilder);
             }
-            success = ! kbuilder.hasErrors();
-
-            if ( success ) {
-                declaredClassBuilder.generateBeanFromDefinition( typeDescr,
-                                                                 type,
-                                                                 pkgRegistry,
-                                                                 def );
-            }
-            success = ! kbuilder.hasErrors();
+            success = ! results.hasErrors();
 
             if ( success ) {
                 Class<?> clazz = pkgRegistry.getTypeResolver().resolveType( typeDescr.getType().getFullName() );
@@ -287,11 +295,11 @@ public class TypeDeclarationBuilder {
                 type.setValid( false );
             }
 
-            typeDeclarationConfigurator.finalizeConfigurator(type, typeDescr, pkgRegistry, kbuilder.getPackageRegistry(), hierarchyManager );
+            typeDeclarationConfigurator.finalizeConfigurator(type, typeDescr, pkgRegistry, context.getPackageRegistry(), hierarchyManager );
 
         } catch ( final ClassNotFoundException e ) {
             unprocesseableDescrs.put( typeDescr.getType().getFullName(), typeDescr );
-            kbuilder.addBuilderResult(new TypeDeclarationError( typeDescr,
+            results.addBuilderResult(new TypeDeclarationError( typeDescr,
                                                                 "Class '" + type.getTypeClassName() +
                                                                 "' not found for type declaration of '" +
                                                                 type.getTypeName() + "'" ) );
@@ -304,20 +312,22 @@ public class TypeDeclarationBuilder {
         }
     }
 
-
+    protected void postGenerateDeclaredBean(AbstractClassTypeDeclarationDescr typeDescr, TypeDeclaration type, ClassDefinition def, PackageRegistry pkgRegistry) {
+        // currently used only in drools-traits module
+    }
 
     protected void normalizeForeignPackages( PackageDescr packageDescr ) {
         Map<String, PackageDescr> foreignPackages = null;
 
         for ( AbstractClassTypeDeclarationDescr typeDescr : packageDescr.getClassAndEnumDeclarationDescrs() ) {
-            if ( kbuilder.filterAccepts( ResourceChange.Type.DECLARATION, typeDescr.getNamespace(), typeDescr.getTypeName()) ) {
+            if ( context.filterAccepts( ResourceChange.Type.DECLARATION, typeDescr.getNamespace(), typeDescr.getTypeName()) ) {
 
                 if ( ! typeDescr.getNamespace().equals( packageDescr.getNamespace() ) ) {
                     // If the type declaration is for a different namespace, process that separately.
                     PackageDescr altDescr;
 
                     if ( foreignPackages == null ) {
-                        foreignPackages = new HashMap<String, PackageDescr>(  );
+                        foreignPackages = new HashMap<>(  );
                     }
 
                     if ( foreignPackages.containsKey( typeDescr.getNamespace() ) ) {
@@ -338,123 +348,9 @@ public class TypeDeclarationBuilder {
                         altDescr.addImport(imp);
                     }
 
-                    kbuilder.getOrCreatePackageRegistry( altDescr );
+                    context.getOrCreatePackageRegistry( altDescr );
                 }
             }
         }
     }
-
-
-    protected void updateTraitInformation( AbstractClassTypeDeclarationDescr typeDescr, TypeDeclaration type, ClassDefinition def, PackageRegistry pkgRegistry ) {
-        if ( typeDescr.hasAnnotation( Traitable.class )
-             || ( ! type.getKind().equals( TypeDeclaration.Kind.TRAIT ) &&
-                  kbuilder.getPackageRegistry().containsKey( def.getSuperClass() ) &&
-                  kbuilder.getPackageRegistry( def.getSuperClass() ).getTraitRegistry().getTraitables().containsKey( def.getSuperClass() )
-        )) {
-            // traitable
-            if ( type.isNovel() ) {
-                try {
-                    PackageRegistry reg = kbuilder.getPackageRegistry( typeDescr.getNamespace() );
-                    String availableName = typeDescr.getType().getFullName();
-                    Class<?> resolvedType = reg.getTypeResolver().resolveType( availableName );
-                    updateTraitDefinition( type,
-                                           resolvedType,
-                                           false );
-                } catch ( ClassNotFoundException cnfe ) {
-                    // we already know the class exists
-                }
-            }
-            pkgRegistry.getTraitRegistry().addTraitable( def );
-        } else if (type.getKind().equals(TypeDeclaration.Kind.TRAIT)
-                   || typeDescr.hasAnnotation(Trait.class) ) {
-            // trait
-            if ( ! type.isNovel() ) {
-                try {
-                    PackageRegistry reg = kbuilder.getPackageRegistry(typeDescr.getNamespace());
-                    String availableName = typeDescr.getType().getFullName();
-                    Class<?> resolvedType = reg.getTypeResolver().resolveType(availableName);
-                    if (!Thing.class.isAssignableFrom(resolvedType)) {
-                        if ( ! resolvedType.isInterface() ) {
-                            kbuilder.addBuilderResult( new TypeDeclarationError( typeDescr, "Unable to redeclare concrete class " + resolvedType.getName() + " as a trait." ) );
-                            return;
-                        }
-                        updateTraitDefinition( type,
-                                               resolvedType,
-                                               false );
-
-                        String target = typeDescr.getTypeName() + TraitFactory.SUFFIX;
-                        TypeDeclarationDescr tempDescr = new TypeDeclarationDescr();
-                        tempDescr.setNamespace(typeDescr.getNamespace());
-                        tempDescr.setFields(typeDescr.getFields());
-                        tempDescr.setType(target,
-                                          typeDescr.getNamespace());
-                        tempDescr.setTrait( true );
-                        tempDescr.addSuperType(typeDescr.getType());
-                        tempDescr.setResource(type.getResource());
-                        TypeDeclaration tempDeclr = new TypeDeclaration(target);
-                        tempDeclr.setKind(TypeDeclaration.Kind.TRAIT);
-                        tempDeclr.setTypesafe(type.isTypesafe());
-                        tempDeclr.setNovel(true);
-                        tempDeclr.setTypeClassName(tempDescr.getType().getFullName());
-                        tempDeclr.setResource(type.getResource());
-
-                        ClassDefinition tempDef = new ClassDefinition(target);
-                        tempDef.setClassName(tempDescr.getType().getFullName());
-                        tempDef.setTraitable(false);
-                        for ( FieldDefinition fld : def.getFieldsDefinitions() ) {
-                            tempDef.addField(fld);
-                        }
-                        tempDef.setInterfaces(def.getInterfaces());
-                        tempDef.setSuperClass(def.getClassName());
-                        tempDef.setDefinedClass(resolvedType);
-                        tempDef.setAbstrakt(true);
-                        tempDeclr.setTypeClassDef(tempDef);
-
-                        declaredClassBuilder.generateBeanFromDefinition( tempDescr,
-                                                                         tempDeclr,
-                                                                         pkgRegistry,
-                                                                         tempDef );
-                        try {
-                            Class<?> clazz = pkgRegistry.getTypeResolver().resolveType(tempDescr.getType().getFullName());
-                            tempDeclr.setTypeClass(clazz);
-
-                            pkgRegistry.getTraitRegistry().addTrait( tempDef.getClassName().replace( TraitFactory.SUFFIX,
-                                                                                                     ""),
-                                                                     tempDef );
-
-                        } catch (ClassNotFoundException cnfe) {
-                            kbuilder.addBuilderResult(new TypeDeclarationError( typeDescr,
-                                                                                "Internal Trait extension Class '" + target +
-                                                                                "' could not be generated correctly'" ) );
-                        } finally {
-                            pkgRegistry.getPackage().addTypeDeclaration(tempDeclr);
-                        }
-
-                    } else {
-                        updateTraitDefinition( type,
-                                               resolvedType,
-                                               true );
-                        pkgRegistry.getTraitRegistry().addTrait( def );
-                    }
-                } catch (ClassNotFoundException cnfe) {
-                    // we already know the class exists
-                }
-            } else {
-                if ( def.getClassName().endsWith( TraitFactory.SUFFIX ) ) {
-                    pkgRegistry.getTraitRegistry().addTrait( def.getClassName().replace( TraitFactory.SUFFIX,
-                                                                                         ""),
-                                                             def );
-                } else {
-                    pkgRegistry.getTraitRegistry().addTrait( def );
-                }
-            }
-        }
-    }
-
-    protected void updateTraitDefinition( TypeDeclaration type,
-                                          Class concrete,
-                                          boolean asTrait ) {
-        ClassDefinitionFactory.populateDefinitionFromClass( type.getTypeClassDef(), type.getResource(), concrete, asTrait );
-    }
-
 }

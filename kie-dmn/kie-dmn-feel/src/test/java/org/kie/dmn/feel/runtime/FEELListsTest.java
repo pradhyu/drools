@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.feel.runtime;
 
 import java.math.BigDecimal;
@@ -23,14 +25,21 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.dmn.api.feel.runtime.events.FEELEvent;
+import org.kie.dmn.feel.lang.FEELDialect;
 import org.kie.dmn.feel.runtime.impl.RangeImpl;
 
 public class FEELListsTest extends BaseFEELTest {
 
-    @Parameterized.Parameters(name = "{3}: {0} ({1}) = {2}")
-    public static Collection<Object[]> data() {
+    @ParameterizedTest
+    @MethodSource("data")
+    protected void instanceTest(String expression, Object result, FEELEvent.Severity severity, FEEL_TARGET testFEELTarget, Boolean useExtendedProfile, FEELDialect feelDialect) {
+        expression( expression,  result, severity, testFEELTarget, useExtendedProfile, feelDialect);
+    }
+
+    private static Collection<Object[]> data() {
         final Object[][] cases = new Object[][] {
 
                 { "[ 5, 10+2, \"foo\"+\"bar\", true ]", Arrays.asList( BigDecimal.valueOf( 5 ), BigDecimal.valueOf( 12 ), "foobar", Boolean.TRUE ), null },
@@ -106,8 +115,10 @@ public class FEELListsTest extends BaseFEELTest {
                 
                 // Selection
                 {"[ {x:1, y:2}, {x:2, y:3} ].y", Arrays.asList( BigDecimal.valueOf( 2 ), BigDecimal.valueOf( 3 ) ), null },
-                {"[ {x:1, y:2}, {x:2} ].y", Collections.singletonList(BigDecimal.valueOf(2)), null },
-                {"[ {x:1, y:2}, {x:2, y:3} ].z", Collections.emptyList(), null },
+                {"[ {x:1, y:2}, {x:2} ].y", Arrays.asList(BigDecimal.valueOf(2), null), null },
+                {"[ {x:1, y:2}, {x:2, y:3} ].z", Arrays.asList(null, null), null },
+                {"{ Data: [{v: \"A1\"}, {v: null}, {v: \"C1\"}], r: Data.v }.r", Arrays.asList("A1", null, "C1"), null },
+                {"{ Data: [{v: \"A1\"}, {v: null}, {v: \"C1\"}], r: Data[v != \"D1\"].v }.r", Arrays.asList("A1", null, "C1"), null },
 
                 // lists of intervals
                 {"[ ( 10 .. 20 ) ]", Collections.singletonList(new RangeImpl(Range.RangeBoundary.OPEN, BigDecimal.valueOf(10),

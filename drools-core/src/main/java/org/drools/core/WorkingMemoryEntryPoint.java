@@ -1,34 +1,34 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core;
 
-
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.base.rule.EntryPointId;
 import org.drools.core.common.ObjectStore;
 import org.drools.core.common.ObjectTypeConfigurationRegistry;
-import org.drools.core.common.TruthMaintenanceSystem;
-import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.common.ReteEvaluator;
+import org.drools.core.impl.InternalRuleBase;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.TerminalNode;
-import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.FactHandleFactory;
-import org.drools.core.util.bitmask.BitMask;
+import org.drools.core.rule.accessor.FactHandleFactory;
+import org.drools.core.rule.consequence.InternalMatch;
+import org.drools.util.bitmask.BitMask;
 import org.kie.api.runtime.rule.EntryPoint;
 import org.kie.api.runtime.rule.FactHandle;
 
@@ -54,8 +54,6 @@ public interface WorkingMemoryEntryPoint extends EntryPoint {
     FactHandle insert(Object object,
                       boolean dynamic);
 
-    WorkingMemoryEntryPoint getWorkingMemoryEntryPoint(String name);
-    
     /**
      * Internal method called by the engine when the session is being disposed, so that the entry point
      * can proceed with the necessary clean ups.
@@ -64,7 +62,7 @@ public interface WorkingMemoryEntryPoint extends EntryPoint {
 
     ObjectTypeConfigurationRegistry getObjectTypeConfigurationRegistry();
 
-    InternalKnowledgeBase getKnowledgeBase();
+    InternalRuleBase getKnowledgeBase();
 
     void delete(FactHandle factHandle,
                 RuleImpl rule,
@@ -79,14 +77,10 @@ public interface WorkingMemoryEntryPoint extends EntryPoint {
                 Object object,
                 BitMask mask,
                 Class<?> modifiedClass,
-                Activation activation);
-
-    TruthMaintenanceSystem getTruthMaintenanceSystem();
+                InternalMatch internalMatch);
 
     EntryPointId getEntryPoint();
-    InternalWorkingMemory getInternalWorkingMemory();
-
-    FactHandle getFactHandleByIdentity(Object object);
+    ReteEvaluator getReteEvaluator();
 
     void reset();
 

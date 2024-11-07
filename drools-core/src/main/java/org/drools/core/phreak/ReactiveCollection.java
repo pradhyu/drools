@@ -1,25 +1,29 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.phreak;
 
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.drools.base.phreak.ReactiveObject;
+import org.drools.base.reteoo.BaseTuple;
 import org.drools.core.phreak.ReactiveObjectUtil.ModificationType;
-import org.drools.core.spi.Tuple;
 
 public class ReactiveCollection<T, W extends Collection<T>> extends AbstractReactiveObject implements Collection<T> {
 
@@ -63,10 +67,10 @@ public class ReactiveCollection<T, W extends Collection<T>> extends AbstractReac
     public boolean add(T t) {
         boolean result = wrapped.add(t);
         if (result) {
-            ReactiveObjectUtil.notifyModification(t, getLeftTuples(), ModificationType.ADD);
+            ReactiveObjectUtil.notifyModification(t, getTuples(), ModificationType.ADD);
             if (t instanceof ReactiveObject) {
-                for (Tuple lts : getLeftTuples()) {
-                    ((ReactiveObject) t).addLeftTuple(lts);
+                for (BaseTuple lts : getTuples()) {
+                    ((ReactiveObject) t).addTuple(lts);
                 }
             }
         }
@@ -114,11 +118,11 @@ public class ReactiveCollection<T, W extends Collection<T>> extends AbstractReac
         boolean result = wrapped.remove(o);
         if (result) {
             if (o instanceof ReactiveObject) {
-                for (Tuple lts : getLeftTuples()) {
-                    ((ReactiveObject) o).removeLeftTuple(lts);
+                for (BaseTuple lts : getTuples()) {
+                    ((ReactiveObject) o).removeTuple(lts);
                 }
             }
-            ReactiveObjectUtil.notifyModification(o, getLeftTuples(), ModificationType.REMOVE);
+            ReactiveObjectUtil.notifyModification(o, getTuples(), ModificationType.REMOVE);
         }
         return result;
     }
@@ -153,11 +157,11 @@ public class ReactiveCollection<T, W extends Collection<T>> extends AbstractReac
             // the line above either throws UnsupportedOperationException or follows with:
             if (last != null) {
                 if (last instanceof ReactiveObject) {
-                    for (Tuple lts : getLeftTuples()) {
-                        ((ReactiveObject) last).removeLeftTuple(lts);
+                    for (BaseTuple lts : getTuples()) {
+                        ((ReactiveObject) last).removeTuple(lts);
                     }
                 }
-                ReactiveObjectUtil.notifyModification(last, getLeftTuples(), ModificationType.REMOVE);
+                ReactiveObjectUtil.notifyModification(last, getTuples(), ModificationType.REMOVE);
                 last = null;
             }
         }

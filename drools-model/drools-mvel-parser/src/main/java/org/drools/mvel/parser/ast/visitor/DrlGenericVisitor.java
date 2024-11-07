@@ -1,19 +1,20 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.mvel.parser.ast.visitor;
 
@@ -27,6 +28,7 @@ import com.github.javaparser.ast.PackageDeclaration;
 import com.github.javaparser.ast.body.AnnotationDeclaration;
 import com.github.javaparser.ast.body.AnnotationMemberDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.CompactConstructorDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.EnumConstantDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
@@ -35,6 +37,7 @@ import com.github.javaparser.ast.body.InitializerDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.ReceiverParameter;
+import com.github.javaparser.ast.body.RecordDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.comments.BlockComment;
 import com.github.javaparser.ast.comments.JavadocComment;
@@ -65,11 +68,13 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.PatternExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.SuperExpr;
 import com.github.javaparser.ast.expr.SwitchExpr;
+import com.github.javaparser.ast.expr.TextBlockLiteralExpr;
 import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
@@ -94,6 +99,7 @@ import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.LabeledStmt;
 import com.github.javaparser.ast.stmt.LocalClassDeclarationStmt;
+import com.github.javaparser.ast.stmt.LocalRecordDeclarationStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
@@ -102,6 +108,7 @@ import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.stmt.UnparsableStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
+import com.github.javaparser.ast.stmt.YieldStmt;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.IntersectionType;
@@ -113,29 +120,7 @@ import com.github.javaparser.ast.type.VarType;
 import com.github.javaparser.ast.type.VoidType;
 import com.github.javaparser.ast.type.WildcardType;
 import com.github.javaparser.ast.visitor.GenericVisitor;
-import org.drools.mvel.parser.ast.expr.BigDecimalLiteralExpr;
-import org.drools.mvel.parser.ast.expr.BigIntegerLiteralExpr;
-import org.drools.mvel.parser.ast.expr.DrlNameExpr;
-import org.drools.mvel.parser.ast.expr.DrlxExpression;
-import org.drools.mvel.parser.ast.expr.HalfBinaryExpr;
-import org.drools.mvel.parser.ast.expr.HalfPointFreeExpr;
-import org.drools.mvel.parser.ast.expr.InlineCastExpr;
-import org.drools.mvel.parser.ast.expr.ModifyStatement;
-import org.drools.mvel.parser.ast.expr.MapCreationLiteralExpression;
-import org.drools.mvel.parser.ast.expr.MapCreationLiteralExpressionKeyValuePair;
-import org.drools.mvel.parser.ast.expr.NullSafeFieldAccessExpr;
-import org.drools.mvel.parser.ast.expr.NullSafeMethodCallExpr;
-import org.drools.mvel.parser.ast.expr.OOPathChunk;
-import org.drools.mvel.parser.ast.expr.OOPathExpr;
-import org.drools.mvel.parser.ast.expr.PointFreeExpr;
-import org.drools.mvel.parser.ast.expr.RuleBody;
-import org.drools.mvel.parser.ast.expr.RuleConsequence;
-import org.drools.mvel.parser.ast.expr.RuleDeclaration;
-import org.drools.mvel.parser.ast.expr.RulePattern;
-import org.drools.mvel.parser.ast.expr.TemporalLiteralChunkExpr;
-import org.drools.mvel.parser.ast.expr.TemporalLiteralExpr;
-import org.drools.mvel.parser.ast.expr.TemporalLiteralInfiniteChunkExpr;
-import org.drools.mvel.parser.ast.expr.WithStatement;
+import org.drools.mvel.parser.ast.expr.*;
 
 public interface DrlGenericVisitor<R, A> extends GenericVisitor<R,A> {
     default R defaultMethod(Node n, A a) { return null; }
@@ -146,6 +131,8 @@ public interface DrlGenericVisitor<R, A> extends GenericVisitor<R,A> {
 
     default R visit(RulePattern n, A arg) { return defaultMethod(n, arg); }
 
+    default R visit(RuleJoinedPatterns n, A arg) { return defaultMethod(n, arg); }
+
     default R visit(DrlxExpression n, A arg) { return defaultMethod(n, arg); }
 
     default R visit(OOPathExpr n, A arg) { return defaultMethod(n, arg); }
@@ -155,6 +142,8 @@ public interface DrlGenericVisitor<R, A> extends GenericVisitor<R,A> {
     default R visit(RuleConsequence n, A arg) { return defaultMethod(n, arg); }
 
     default R visit(InlineCastExpr n, A arg) { return defaultMethod(n, arg); }
+
+    default R visit( FullyQualifiedInlineCastExpr n, A arg) { return defaultMethod(n, arg); }
 
     default R visit(NullSafeFieldAccessExpr n, A arg) { return defaultMethod(n, arg); }
 
@@ -650,9 +639,47 @@ public interface DrlGenericVisitor<R, A> extends GenericVisitor<R,A> {
         return defaultMethod(n, arg);
     }
 
-    default R visit(MapCreationLiteralExpression n, A arg) { return null; };
+    default R visit(MapCreationLiteralExpression n, A arg) {
+        return defaultMethod(n, arg);
+    }
 
-    default R visit(MapCreationLiteralExpressionKeyValuePair n, A arg) { return null; };
+    default R visit(MapCreationLiteralExpressionKeyValuePair n, A arg) { return null; }
 
-    default R visit(WithStatement withStatement, A arg) { return null; };
+    default R visit(ListCreationLiteralExpression n, A arg) {
+        return defaultMethod(n, arg);
+    }
+
+    default R visit(ListCreationLiteralExpressionElement n, A arg) { return null; }
+
+    default R visit(WithStatement withStatement, A arg) { return null; }
+
+    @Override
+    default R visit(LocalRecordDeclarationStmt n, A arg) {
+        return defaultMethod(n, arg);
+    }
+
+    @Override
+    default R visit(RecordDeclaration n, A arg) {
+        return defaultMethod(n, arg);
+    }
+
+    @Override
+    default R visit(CompactConstructorDeclaration n, A arg) {
+        return defaultMethod(n, arg);
+    }
+
+    @Override
+    default R visit(YieldStmt n, A arg) {
+        return defaultMethod(n, arg);
+    }
+
+    @Override
+    default R visit(TextBlockLiteralExpr n, A arg) {
+        return defaultMethod(n, arg);
+    }
+
+    @Override
+    default R visit(PatternExpr n, A arg) {
+        return defaultMethod(n, arg);
+    }
 }

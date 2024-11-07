@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests;
 
 import java.io.IOException;
@@ -22,50 +25,73 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Stream;
 
 import org.drools.compiler.integrationtests.incrementalcompilation.TestUtil;
+import org.drools.base.InitialFact;
+import org.drools.base.base.ClassObjectType;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.impl.InternalRuleBase;
+import org.drools.core.reteoo.AccumulateNode;
+import org.drools.core.reteoo.BetaMemory;
+import org.drools.core.reteoo.BetaNode;
+import org.drools.core.reteoo.ExistsNode;
+import org.drools.core.reteoo.FromNode;
+import org.drools.core.reteoo.NotNode;
+import org.drools.core.reteoo.ObjectTypeNode;
+import org.drools.core.reteoo.QueryElementNode;
+import org.drools.core.reteoo.RightInputAdapterNode;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.testcoverage.common.model.Address;
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
+import org.drools.testcoverage.common.util.KieSessionTestConfiguration;
+import org.drools.testcoverage.common.util.KieUtil;
 import org.drools.testcoverage.common.util.SerializationHelper;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
+import org.kie.api.KieServices;
+import org.kie.api.builder.KieModule;
+import org.kie.api.builder.ReleaseId;
 import org.kie.api.definition.KiePackage;
 import org.kie.api.io.ResourceType;
+import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
+import org.kie.api.runtime.rule.LiveQuery;
 import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.runtime.rule.QueryResultsRow;
+import org.kie.api.runtime.rule.Row;
+import org.kie.api.runtime.rule.Variable;
+import org.kie.api.runtime.rule.ViewChangedEventListener;
 import org.kie.internal.builder.KnowledgeBuilder;
+import org.kie.internal.builder.conf.PropertySpecificOption;
 import org.kie.internal.io.ResourceFactory;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.kie.api.runtime.rule.Variable.v;
 
-@RunWith(Parameterized.class)
 public class BackwardChainingTest extends AbstractBackwardChainingTest {
 
-    public BackwardChainingTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        super(kieBaseTestConfiguration);
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test(timeout = 10000)
-    public void testQueryPatternBindingAsResult() throws IOException, ClassNotFoundException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueryPatternBindingAsResult(KieBaseTestConfiguration kieBaseTestConfiguration) throws IOException, ClassNotFoundException {
         String str = "" +
                      "package org.drools.compiler.test  \n" +
                      "import " + Person.class.getCanonicalName() + "\n" +
@@ -116,35 +142,37 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
             ksession.fireAllRules();
             if (kieBaseTestConfiguration.isIdentity()) {
-                assertEquals(10, list.size());
-                assertEquals(p1, list.get(list.indexOf("darth : 100") - 1));
-                assertTrue(list.contains("darth : 100"));
-                assertEquals(p2, list.get(list.indexOf("darth : 200") - 1));
-                assertTrue(list.contains("darth : 200"));
-                assertEquals(p3, list.get(list.indexOf("yoda : 300") - 1));
-                assertTrue(list.contains("yoda : 300"));
-                assertEquals(p4, list.get(list.indexOf("luke : 300") - 1));
-                assertTrue(list.contains("luke : 300"));
-                assertEquals(p5, list.get(list.indexOf("bobba : 300") - 1));
-                assertTrue(list.contains("bobba : 300"));
+                assertThat(list.size()).isEqualTo(10);
+                assertThat(list.get(list.indexOf("darth : 100") - 1)).isEqualTo(p1);
+                assertThat(list.contains("darth : 100")).isTrue();
+                assertThat(list.get(list.indexOf("darth : 200") - 1)).isEqualTo(p2);
+                assertThat(list.contains("darth : 200")).isTrue();
+                assertThat(list.get(list.indexOf("yoda : 300") - 1)).isEqualTo(p3);
+                assertThat(list.contains("yoda : 300")).isTrue();
+                assertThat(list.get(list.indexOf("luke : 300") - 1)).isEqualTo(p4);
+                assertThat(list.contains("luke : 300")).isTrue();
+                assertThat(list.get(list.indexOf("bobba : 300") - 1)).isEqualTo(p5);
+                assertThat(list.contains("bobba : 300")).isTrue();
             } else {
-                assertEquals(8, list.size());
-                assertEquals(p1, list.get(list.indexOf("darth : 100") - 1));
-                assertTrue(list.contains("darth : 100"));
-                assertEquals(p3, list.get(list.indexOf("yoda : 300") - 1));
-                assertTrue(list.contains("yoda : 300"));
-                assertEquals(p4, list.get(list.indexOf("luke : 300") - 1));
-                assertTrue(list.contains("luke : 300"));
-                assertEquals(p5, list.get(list.indexOf("bobba : 300") - 1));
-                assertTrue(list.contains("bobba : 300"));
+                assertThat(list.size()).isEqualTo(8);
+                assertThat(list.get(list.indexOf("darth : 100") - 1)).isEqualTo(p1);
+                assertThat(list.contains("darth : 100")).isTrue();
+                assertThat(list.get(list.indexOf("yoda : 300") - 1)).isEqualTo(p3);
+                assertThat(list.contains("yoda : 300")).isTrue();
+                assertThat(list.get(list.indexOf("luke : 300") - 1)).isEqualTo(p4);
+                assertThat(list.contains("luke : 300")).isTrue();
+                assertThat(list.get(list.indexOf("bobba : 300") - 1)).isEqualTo(p5);
+                assertThat(list.contains("bobba : 300")).isTrue();
             }
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testQueriesWithNestedAccessorsAllOutputs() throws IOException, ClassNotFoundException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueriesWithNestedAccessorsAllOutputs(KieBaseTestConfiguration kieBaseTestConfiguration) throws IOException, ClassNotFoundException {
         String drl = "" +
                 "package org.drools.compiler.test  \n" +
                 "import " + Person.class.getCanonicalName() + "\n" +
@@ -184,16 +212,18 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             ksession.insert("go1");
             ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
             ksession.fireAllRules();
-            assertEquals(2, list.size());
-            assertTrue(list.contains("darth : stilton : s1"));
-            assertTrue(list.contains("yoda : stilton : s2"));
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list.contains("darth : stilton : s1")).isTrue();
+            assertThat(list.contains("yoda : stilton : s2")).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testQueriesWithNestedAcecssorsMixedArgs() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueriesWithNestedAcecssorsMixedArgs(KieBaseTestConfiguration kieBaseTestConfiguration) {
         String drl = "" +
                 "package org.drools.compiler.test  \n" +
                 "import " + Person.class.getCanonicalName() + "\n" +
@@ -232,21 +262,23 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
 
             ksession.insert("s1");
             ksession.fireAllRules();
-            assertEquals(1, list.size());
-            assertTrue(list.contains("darth : stilton : s1"));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.contains("darth : stilton : s1")).isTrue();
 
             list.clear();
             ksession.insert("s2");
             ksession.fireAllRules();
-            assertEquals(1, list.size());
-            assertTrue(list.contains("yoda : stilton : s2"));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.contains("yoda : stilton : s2")).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testQueryWithDynamicData() throws IOException, ClassNotFoundException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueryWithDynamicData(KieBaseTestConfiguration kieBaseTestConfiguration) throws IOException, ClassNotFoundException {
         String drl = "" +
                 "package org.drools.compiler.test  \n" +
                 "import " + Person.class.getCanonicalName() + "\n" +
@@ -267,7 +299,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("backward-chaining-test", kieBaseTestConfiguration, drl);
         KieSession ksession = kbase.newKieSession();
         try {
-            final List<String> list = new ArrayList<>();
+            final List<Person> list = new ArrayList<>();
             ksession.setGlobal("list", list);
 
             final Person p1 = new Person("darth",
@@ -281,23 +313,26 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             ksession.insert("darth");
             ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
             ksession.fireAllRules();
-            assertEquals(1, list.size());
-            assertEquals(p1, list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo(p1);
 
             list.clear();
             ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
             ksession.insert("yoda");
             ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
             ksession.fireAllRules();
-            assertEquals(1, list.size());
-            assertEquals(p2, list.get(0));
+            System.out.println(list);
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo(p2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testQueryWithDyanmicInsert() throws IOException, ClassNotFoundException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueryWithDyanmicInsert(KieBaseTestConfiguration kieBaseTestConfiguration) throws IOException, ClassNotFoundException {
         String drl = "" +
                 "package org.drools.compiler.test  \n" +
                 "import " + Person.class.getCanonicalName() + "\n" +
@@ -326,7 +361,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("backward-chaining-test", kieBaseTestConfiguration, drl);
         KieSession ksession = kbase.newKieSession();
         try {
-            final List<String> list = new ArrayList<>();
+            final List<Person> list = new ArrayList<>();
             ksession.setGlobal("list", list);
 
             final Person p1 = new Person("darth",
@@ -339,15 +374,17 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             ksession.insert("yoda"); // darth exists, so yoda won't get created
             ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
             ksession.fireAllRules();
-            assertEquals(1, list.size());
-            assertEquals(p1, list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo(p1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testQueryWithOr() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueryWithOr(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "" +
                 "package org.drools.compiler.test  \n" +
 
@@ -410,7 +447,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add((Integer) result.get("x"));
             }
-            assertEquals(0, list.size());
+            assertThat(list.size()).isEqualTo(0);
 
             list.clear();
             results = ksession.getQueryResults("p", new Integer[]{1});
@@ -418,54 +455,56 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
                 list.add((Integer) result.get("x"));
             }
 
-            assertEquals(1, list.size());
-            assertEquals(1, list.get(0).intValue());
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0).intValue()).isEqualTo(1);
 
             list.clear();
             results = ksession.getQueryResults("p", new Integer[]{2});
             for (final QueryResultsRow result : results) {
                 list.add((Integer) result.get("x"));
             }
-            assertEquals(1, list.size());
-            assertEquals(2, list.get(0).intValue());
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0).intValue()).isEqualTo(2);
 
             list.clear();
             results = ksession.getQueryResults("p", new Integer[]{3});
             for (final QueryResultsRow result : results) {
                 list.add((Integer) result.get("x"));
             }
-            assertEquals(1, list.size());
-            assertEquals(3, list.get(0).intValue());
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0).intValue()).isEqualTo(3);
 
             list.clear();
             results = ksession.getQueryResults("p", new Integer[]{4});
             for (final QueryResultsRow result : results) {
                 list.add((Integer) result.get("x"));
             }
-            assertEquals(0, list.size());
+            assertThat(list.size()).isEqualTo(0);
 
             list.clear();
             results = ksession.getQueryResults("p", new Integer[]{5});
             for (final QueryResultsRow result : results) {
                 list.add((Integer) result.get("x"));
             }
-            assertEquals(0, list.size());
+            assertThat(list.size()).isEqualTo(0);
 
             list.clear();
             results = ksession.getQueryResults("p", new Integer[]{6});
             for (final QueryResultsRow result : results) {
                 list.add((Integer) result.get("x"));
             }
-            assertEquals(2, list.size());
-            assertEquals(6, list.get(0).intValue());
-            assertEquals(6, list.get(1).intValue());
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list.get(0).intValue()).isEqualTo(6);
+            assertThat(list.get(1).intValue()).isEqualTo(6);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testGeneology() throws IOException, ClassNotFoundException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testGeneology(KieBaseTestConfiguration kieBaseTestConfiguration) throws IOException, ClassNotFoundException {
         // from http://kti.mff.cuni.cz/~bartak/prolog/genealogy.html
 
         final String drl = "" +
@@ -596,14 +635,15 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             ksession.insert(new Parent("eve",
                                        "jill"));
 
+            QueryResults results;
             ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
 
             list.clear();
-            QueryResults results = ksession.getQueryResults("woman", v);
+            results = ksession.getQueryResults("woman", v);
             for (final QueryResultsRow result : results) {
                 list.add((String) result.get("name"));
             }
-            assertEquals(5, list.size());
+            assertThat(list.size()).isEqualTo(5);
             assertContains(new String[]{"janet", "mary", "tina", "eve", "jill"}, list);
 
             list.clear();
@@ -611,7 +651,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add((String) result.get("name"));
             }
-            assertEquals(6, list.size());
+            assertThat(list.size()).isEqualTo(6);
             assertContains(new String[]{"stan", "john", "peter", "carl", "adam", "paul"}, list);
 
             list.clear();
@@ -619,7 +659,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add(result.get("father") + ", " + result.get("child"));
             }
-            assertEquals(7, list.size());
+            assertThat(list.size()).isEqualTo(7);
             assertContains(new String[]{"john, adam", "john, stan",
                                    "carl, eve", "carl, mary",
                                    "adam, peter", "adam, paul",
@@ -630,7 +670,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add(result.get("mother") + ", " + result.get("child"));
             }
-            assertEquals(7, list.size());
+            assertThat(list.size()).isEqualTo(7);
             assertContains(new String[]{"janet, adam", "janet, stan",
                                    "mary, paul", "tina, eve",
                                    "tina, mary", "eve, peter",
@@ -643,8 +683,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add(result.get("son") + ", " + result.get("parent"));
             }
-            assertEquals(8,
-                         list.size());
+            assertThat(list.size()).isEqualTo(8);
             assertContains(new String[]{"stan, john", "stan, janet",
                                    "peter, adam", "peter, eve",
                                    "adam, john", "adam, janet",
@@ -655,7 +694,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add(result.get("daughter") + ", " + result.get("parent"));
             }
-            assertEquals(6, list.size());
+            assertThat(list.size()).isEqualTo(6);
             assertContains(new String[]{"mary, carl", "mary, tina",
                                    "eve, carl", "eve, tina",
                                    "jill, adam", "jill, eve"}, list);
@@ -665,7 +704,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add(result.get("c1") + ", " + result.get("c2"));
             }
-            assertEquals(16, list.size());
+            assertThat(list.size()).isEqualTo(16);
             assertContains(new String[]{"eve, mary", "mary, eve",
                                    "adam, stan", "stan, adam",
                                    "adam, stan", "stan, adam",
@@ -676,11 +715,26 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
                                    "eve, mary", "mary, eve"}, list);
 
             list.clear();
+            
+            results = ksession.getQueryResults("parent", v, v);
+            for (final QueryResultsRow result : results) {
+                list.add(result.get("parent") + ":" + result.get("child"));
+            }
+            System.out.println(list);
+
+//            "query fullSiblings( String c1, String c2 )\n" +
+//            "   ?parent( $p1, c1; ) ?parent( $p1, c2; )\n" +
+//            "   ?parent( $p2, c1; ) ?parent( $p2, c2; )\n" +
+//            "   eval( !c1.equals( c2 ) && !$p1.equals( $p2 )  )\n" +
+//            "end\n" +
+
+            list.clear();
             results = ksession.getQueryResults("fullSiblings", v, v);
             for (final QueryResultsRow result : results) {
                 list.add(result.get("c1") + ", " + result.get("c2"));
             }
-            assertEquals(12, list.size());
+            System.out.println(list);
+            assertThat(list.size()).isEqualTo(12);
             assertContains(new String[]{"eve, mary", "mary, eve",
                                    "adam, stan", "stan, adam",
                                    "adam, stan", "stan, adam",
@@ -693,7 +747,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add(result.get("c1") + ", " + result.get("c2"));
             }
-            assertEquals(12, list.size());
+            assertThat(list.size()).isEqualTo(12);
             assertContains(new String[]{"eve, mary", "mary, eve",
                                    "adam, stan", "stan, adam",
                                    "adam, stan", "stan, adam",
@@ -706,7 +760,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add(result.get("uncle") + ", " + result.get("n"));
             }
-            assertEquals(6, list.size());
+            assertThat(list.size()).isEqualTo(6);
             assertContains(new String[]{"stan, peter",
                                    "stan, paul",
                                    "stan, jill",
@@ -719,7 +773,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add(result.get("aunt") + ", " + result.get("n"));
             }
-            assertEquals(6, list.size());
+            assertThat(list.size()).isEqualTo(6);
             assertContains(new String[]{"mary, peter",
                                    "mary, jill",
                                    "mary, peter",
@@ -732,7 +786,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             for (final QueryResultsRow result : results) {
                 list.add(result.get("gp") + ", " + result.get("gc"));
             }
-            assertEquals(12, list.size());
+            assertThat(list.size()).isEqualTo(12);
             assertContains(new String[]{"carl, peter",
                                    "carl, jill",
                                    "carl, paul",
@@ -750,8 +804,10 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
         }
     }
 
-    @Test()
-    public void testDynamicRulesWithSharing() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testDynamicRulesWithSharing(KieBaseTestConfiguration kieBaseTestConfiguration) {
         String drl = "" +
                 "package org.drools.compiler.test1  \n" +
                 "\n" +
@@ -876,29 +932,31 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
 
             ksession.fireAllRules();
 
-            assertEquals(2, list.size());
+            assertThat(list.size()).isEqualTo(2);
             assertContains(new String[]{"2:crackers", "2:apple"}, list);
 
             list.clear();
             kbase.addPackages(Collections.singletonList(pkgs.get("org.drools.compiler.test3")));
 
             ksession.fireAllRules();
-            assertEquals(2, list.size());
+            assertThat(list.size()).isEqualTo(2);
             assertContains(new String[]{"3:crackers", "3:apple"}, list);
 
             list.clear();
             kbase.addPackages(Collections.singletonList(pkgs.get("org.drools.compiler.test4")));
 
             ksession.fireAllRules();
-            assertEquals(2, list.size());
+            assertThat(list.size()).isEqualTo(2);
             assertContains(new String[]{"4:crackers", "4:apple"}, list);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testOpenBackwardChain() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testOpenBackwardChain(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // http://www.amzi.com/AdventureInProlog/advtop.php
 
         final String drl = "" +
@@ -1013,7 +1071,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             p.setLikes("lamp");
             ksession.insert(p);
             ksession.fireAllRules();
-            assertEquals("not blah", list.get(0));
+            assertThat(list.get(0)).isEqualTo("not blah");
 
             list.clear();
 
@@ -1022,40 +1080,40 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
 
             fh = getFactHandle(fh, ksession);
             ksession.delete(fh);
-            assertEquals("go1", list.get(0));
-            assertEquals("exists blah", list.get(1));
+            assertThat(list.get(0)).isEqualTo("go1");
+            assertThat(list.get(1)).isEqualTo("exists blah");
 
             fh = (InternalFactHandle) ksession.insert("go2");
             ksession.fireAllRules();
 
             fh = getFactHandle(fh, ksession);
             ksession.delete(fh);
-            assertEquals("go2", list.get(2));
-            assertEquals("not blah", list.get(3));
+            assertThat(list.get(2)).isEqualTo("go2");
+            assertThat(list.get(3)).isEqualTo("not blah");
 
             fh = (InternalFactHandle) ksession.insert("go3");
             ksession.fireAllRules();
 
             fh = getFactHandle(fh, ksession);
             ksession.delete(fh);
-            assertEquals("go3", list.get(4));
-            assertEquals("exists blah", list.get(5));
+            assertThat(list.get(4)).isEqualTo("go3");
+            assertThat(list.get(5)).isEqualTo("exists blah");
 
             fh = (InternalFactHandle) ksession.insert("go4");
             ksession.fireAllRules();
 
             fh = getFactHandle(fh, ksession);
             ksession.delete(fh);
-            assertEquals("go4", list.get(6));
-            assertEquals("not blah", list.get(7));
+            assertThat(list.get(6)).isEqualTo("go4");
+            assertThat(list.get(7)).isEqualTo("not blah");
 
             fh = (InternalFactHandle) ksession.insert("go5");
             ksession.fireAllRules();
 
             fh = getFactHandle(fh, ksession);
             ksession.delete(fh);
-            assertEquals("go5", list.get(8));
-            assertEquals("exists blah", list.get(9));
+            assertThat(list.get(8)).isEqualTo("go5");
+            assertThat(list.get(9)).isEqualTo("exists blah");
 
             // This simulates a modify of the root DroolsQuery object, but first we break it
             fh = (InternalFactHandle) ksession.insert("go6");
@@ -1063,8 +1121,8 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
 
             fh = getFactHandle(fh, ksession);
             ksession.delete(fh);
-            assertEquals("go6", list.get(10));
-            assertEquals("not blah", list.get(11));
+            assertThat(list.get(10)).isEqualTo("go6");
+            assertThat(list.get(11)).isEqualTo("not blah");
 
             // now fix it
             fh = (InternalFactHandle) ksession.insert("go7");
@@ -1072,15 +1130,17 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
 
             fh = getFactHandle(fh, ksession);
             ksession.delete(fh);
-            assertEquals("go7", list.get(12));
-            assertEquals("exists blah", list.get(13));
+            assertThat(list.get(12)).isEqualTo("go7");
+            assertThat(list.get(13)).isEqualTo("exists blah");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testCompile() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testCompile(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "declare Location\n"
                 + "thing : String\n"
                 + "location : String\n"
@@ -1094,8 +1154,10 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
         KieBaseUtil.getKieBaseFromKieModuleFromDrl("backward-chaining-test", kieBaseTestConfiguration, drl);
     }
 
-    @Test(timeout = 10000)
-    public void testInsertionOrder() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testInsertionOrder(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "" +
                 "package org.drools.compiler.integrationtests  \n" +
 
@@ -1192,40 +1254,43 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
                 final FactHandle fh = ksession.insert("go" + i);
                 ksession.fireAllRules();
                 ksession.delete(fh);
-                assertEquals(1, list.size());
-                assertEquals("kitchen has peach", list.get(0));
+                assertThat(list.size()).isEqualTo(1);
+                assertThat(list.get(0)).isEqualTo("kitchen has peach");
             } finally {
                 ksession.dispose();
             }
         }
     }
 
-    @Test(timeout = 10000)
-    public void testQueryFindAll() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueryFindAll(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final Object[] objects = new Object[]{42, "a String", 100};
         final int oCount = objects.length;
 
         final List<Object> queryList = new ArrayList<>();
         final List<Object> ruleList = new ArrayList<>();
         // expect all inserted objects + InitialFact
-        runTestQueryFindAll(0, queryList, ruleList, objects);
+        runTestQueryFindAll(kieBaseTestConfiguration, 0, queryList, ruleList, objects);
 
-        assertEquals(oCount, queryList.size());
+        assertThat(queryList.size()).isEqualTo(oCount);
         assertContains(objects, queryList);
 
         // expect inserted objects + InitialFact
         queryList.clear();
         ruleList.clear();
-        runTestQueryFindAll(1, queryList, ruleList, objects);
-        assertEquals(oCount * oCount, queryList.size());
+        runTestQueryFindAll(kieBaseTestConfiguration, 1, queryList, ruleList, objects);
+        assertThat(queryList.size()).isEqualTo(oCount * oCount);
 
         queryList.clear();
         ruleList.clear();
-        runTestQueryFindAll(2, queryList, ruleList, objects);
-        assertEquals(oCount * oCount, queryList.size());
+        runTestQueryFindAll(kieBaseTestConfiguration, 2, queryList, ruleList, objects);
+        assertThat(queryList.size()).isEqualTo(oCount * oCount);
     }
 
-    private void runTestQueryFindAll(final int iCase,
+    private void runTestQueryFindAll(KieBaseTestConfiguration kieBaseTestConfiguration,
+    		final int iCase,
                                      final List<Object> queryList,
                                      final List<Object> ruleList,
                                      final Object[] objects) {
@@ -1281,8 +1346,10 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testQueryWithObject() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueryWithObject(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "" +
                 "package org.drools.compiler.test  \n" +
 
@@ -1337,7 +1404,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             ksession.insert("go1");
             ksession.fireAllRules();
 
-            assertEquals(12, list.size());
+            assertThat(list.size()).isEqualTo(12);
             assertContains(new Object[]{
                     "go1", "init", new Q(6), new R(6), new S(3),
                     new R(2), new R(1), new R(4), new S(2),
@@ -1359,7 +1426,7 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             ksession.insert("init");
             ksession.fireAllRules();
 
-            assertEquals(12, list.size());
+            assertThat(list.size()).isEqualTo(12);
             assertContains(new Object[]{
                     "go1", "init", new Q(6), new R(6), new S(3),
                     new R(2), new R(1), new R(4), new S(2),
@@ -1608,8 +1675,10 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testQueryWithClassLiterals() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueryWithClassLiterals(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "" +
                 "package org.drools.test \n" +
 
@@ -1648,16 +1717,18 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             ksession.insert("go1");
             ksession.fireAllRules();
 
-            assertEquals(2, list.size());
-            assertEquals("go1", list.get(0));
-            assertEquals("org.drools.test.Foo", list.get(1).getClass().getName());
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list.get(0)).isEqualTo("go1");
+            assertThat(list.get(1).getClass().getName()).isEqualTo("org.drools.test.Foo");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testQueryIndexingWithUnification() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueryIndexingWithUnification(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "" +
                 "package org.drools.test \n" +
 
@@ -1702,14 +1773,16 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             ksession.insert("go");
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testQueryWithEvents() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testQueryWithEvents(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "global java.util.List list; " +
                 "" +
                 "declare Inner\n" +
@@ -1741,14 +1814,16 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
             final ArrayList list = new ArrayList();
             ksession.setGlobal("list", list);
             ksession.fireAllRules();
-            assertEquals(Collections.singletonList(42), list);
+            assertThat(list).isEqualTo(Collections.singletonList(42));
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testNpeOnQuery() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testNpeOnQuery(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "global java.util.List list; " +
                         "query foo( Integer $i ) " +
@@ -1792,10 +1867,724 @@ public class BackwardChainingTest extends AbstractBackwardChainingTest {
 
             kieSession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals(20, (int) list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat((int) list.get(0)).isEqualTo(20);
         } finally {
             kieSession.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testQueryWithEvalAndTypeBoxingUnboxing(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        final String drl = "package org.drools.test;\n" +
+                "\n" +
+                "global java.util.List list \n;" +
+                "\n" +
+                "query primitiveInt( int $a )\n" +
+                " Integer( intValue == $a )\n" +
+                " eval( $a == 178 )\n" +
+                "end\n" +
+                "\n" +
+                "query boxedInteger( Integer $a )\n" +
+                " Integer( this == $a )\n" +
+                " eval( $a == 178 )\n" +
+                "end\n" +
+                "\n" +
+                "query boxInteger( int $a )\n" +
+                " Integer( this == $a )\n" +
+                " eval( $a == 178 )\n" +
+                "end\n" +
+                "\n" +
+                "query unboxInteger( Integer $a )\n" +
+                " Integer( intValue == $a )\n" +
+                " eval( $a == 178 )\n" +
+                "end\n" +
+                "\n" +
+                "query cast( int $a )\n" +
+                " Integer( intValue == $a )\n" +
+                " eval( $a == 178 )\n" +
+                "end\n" +
+                "" +
+                "rule Init when then insert( 178 ); end\n" +
+                "\n" +
+                "rule Check\n" +
+                "when\n" +
+                " String()\n" +
+                " ?primitiveInt( 178 ; )\n" +
+                " ?boxedInteger( $x ; )\n" +
+                " ?boxInteger( $x ; )\n" +
+                " ?unboxInteger( $y ; )\n" +
+                " ?cast( $z ; )\n" +
+                "then\n" +
+                " list.add( $x ); \n" +
+                " list.add( $y ); \n" +
+                " list.add( $z ); \n" +
+                "end";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("backward-chaining-test", kieBaseTestConfiguration, drl);
+        final KieSession ksession = kbase.newKieSession();
+        try {
+            final ArrayList list = new ArrayList();
+            ksession.setGlobal("list", list);
+
+            ksession.fireAllRules();
+            assertThat(list.isEmpty()).isTrue();
+
+            ksession.insert("go");
+            ksession.fireAllRules();
+
+            assertThat(list).isEqualTo(Arrays.asList(178, 178, 178));
+        } finally {
+            ksession.dispose();
+        }
+    }
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNaniSearchsNoPropReactivity(KieBaseTestConfiguration kieBaseTestConfiguration) throws IOException, ClassNotFoundException {
+        testNaniSearchs(kieBaseTestConfiguration, PropertySpecificOption.ALLOWED);
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNaniSearchsWithPropReactivity(KieBaseTestConfiguration kieBaseTestConfiguration) throws IOException, ClassNotFoundException {
+        // DROOLS-1453
+        testNaniSearchs(kieBaseTestConfiguration, PropertySpecificOption.ALWAYS);
+    }
+
+    private void testNaniSearchs(KieBaseTestConfiguration kieBaseTestConfiguration, final PropertySpecificOption propertySpecificOption) throws IOException, ClassNotFoundException {
+        // http://www.amzi.com/AdventureInProlog/advtop.php
+
+        final String drl = "" +
+                "package org.drools.compiler.test  \n" +
+
+                "import java.util.List\n" +
+                "import java.util.ArrayList\n" +
+
+                "import java.util.Map\n" +
+                "import java.util.HashMap\n" +
+
+                "global List list\n" +
+
+                "dialect \"mvel\"\n" +
+
+                "declare Room" +
+                "    name : String\n" +
+                "end\n" +
+                "\n" +
+                "declare Location\n" +
+                "    thing : String \n" +
+                "    location : String \n" +
+                "end" +
+                "\n" +
+                "declare Door\n" +
+                "   fromLocation : String\n" +
+                "   toLocation : String\n" +
+                "end" +
+                "\n" +
+                "declare Edible\n" +
+                "   thing : String\n" +
+                "end" +
+                "\n" +
+                "declare TastesYucky\n" +
+                "   thing : String\n" +
+                "end\n" +
+                "\n" +
+                "declare Here\n" +
+                "   place : String \n" +
+                "end\n" +
+                "\n" +
+
+                "query whereFood( String x, String y ) \n" +
+                "    ( Location(x, y;) and\n" +
+                "      Edible(x;) ) " +
+                "     or \n " +
+                "    ( Location(z, y;) and ?whereFood(x, z;) )\n" +
+                "end\n" +
+
+                "query connect( String x, String y ) \n" +
+                "    Door(x, y;)\n" +
+                "    or \n" +
+                "    Door(y, x;)\n" +
+                "end\n" +
+                "\n" +
+                "query isContainedIn( String x, String y ) \n" +
+                "    Location(x, y;)\n" +
+                "    or \n" +
+                "    ( Location(z, y;) and ?isContainedIn(x, z;) )\n" +
+                "end\n" +
+                "\n" +
+                "query look(String place, List things, List food, List exits ) \n" +
+                "    Here(place;)\n" +
+                "    things := List() from accumulate( Location(thing, place;),\n" +
+                "                                      collectList( thing ) )\n" +
+                "    food := List() from accumulate( ?whereFood(thing, place;) ," +
+                "                                    collectList( thing ) )\n" +
+                "    exits := List() from accumulate( ?connect(place, exit;),\n" +
+                "                                    collectList( exit ) )\n" +
+                "end\n" +
+                "\n" +
+                "rule reactiveLook when\n" +
+                "    Here( place : place) \n" +
+                "    ?look(place, things, food, exits;)\n" +
+                "then\n" +
+                "    Map map = new HashMap();" +
+                "    list.add(map);" +
+                "    map.put( 'place', place); " +
+                "    map.put( 'things', things); " +
+                "    map.put( 'food', food); " +
+                "    map.put( 'exits', exits); " +
+                "    System.out.println( \"You are in the \" + place);\n" +
+                "    System.out.println( \"  You can see \" + things );\n" +
+                "    System.out.println( \"  You can eat \" + food );\n" +
+                "    System.out.println( \"  You can go to \" + exits );\n" +
+                "end\n" +
+                "\n" +
+                "rule init when\n" +
+                "then\n" +
+                "        insert( new Room(\"kitchen\") );\n" +
+                "        insert( new Room(\"office\") );\n" +
+                "        insert( new Room(\"hall\") );\n" +
+                "        insert( new Room(\"dining room\") );\n" +
+                "        insert( new Room(\"cellar\") );\n" +
+                "        \n" +
+                "        insert( new Location(\"apple\", \"kitchen\") );\n" +
+
+                "        insert( new Location(\"desk\", \"office\") );\n" +
+                "        insert( new Location(\"apple\", \"desk\") );\n" +
+                "        insert( new Location(\"flashlight\", \"desk\") );\n" +
+                "        insert( new Location(\"envelope\", \"desk\") );\n" +
+                "        insert( new Location(\"key\", \"envelope\") );\n" +
+
+                "        insert( new Location(\"washing machine\", \"cellar\") );\n" +
+                "        insert( new Location(\"nani\", \"washing machine\") );\n" +
+                "        insert( new Location(\"broccoli\", \"kitchen\") );\n" +
+                "        insert( new Location(\"crackers\", \"kitchen\") );\n" +
+                "        insert( new Location(\"computer\", \"office\") );\n" +
+                "        \n" +
+                "        insert( new Door(\"office\", \"hall\") );\n" +
+                "        insert( new Door(\"kitchen\", \"office\") );\n" +
+                "        insert( new Door(\"hall\", \"dining room\") );\n" +
+                "        insert( new Door(\"kitchen\", \"cellar\") );\n" +
+                "        insert( new Door(\"dining room\", \"kitchen\") );\n" +
+                "        \n" +
+                "        insert( new Edible(\"apple\") );\n" +
+                "        insert( new Edible(\"crackers\") );\n" +
+                "        \n" +
+                "        insert( new TastesYucky(\"broccoli\") );  " +
+                "end\n" +
+                "" +
+                "rule go1 when\n" +
+                "   String( this == 'go1' )\n" +
+                "then\n" +
+                "   insert( new Here(\"kitchen\") );\n" +
+                "end\n" +
+                "\n" +
+                "rule go2 when\n" +
+                "   String( this == 'go2' )\n" +
+                "   $h : Here( place == \"kitchen\")" +
+                "then\n" +
+                "   modify( $h ) { place = \"office\" };\n" +
+                "end\n" +
+                "";
+
+        final ReleaseId releaseId1 = KieServices.get().newReleaseId("org.kie", "backward-chaining-test", "1");
+        final Map<String, String> kieModuleConfigurationProperties = new HashMap<>();
+        kieModuleConfigurationProperties.put(PropertySpecificOption.PROPERTY_NAME, propertySpecificOption.toString());
+
+        final KieModule kieModule = KieUtil.getKieModuleFromDrls(releaseId1,
+                kieBaseTestConfiguration,
+                KieSessionTestConfiguration.STATEFUL_REALTIME,
+                kieModuleConfigurationProperties,
+                drl);
+        final KieContainer kieContainer = KieServices.get().newKieContainer(kieModule.getReleaseId());
+        final KieBase kbase = kieContainer.getKieBase();
+
+        KieSession ksession = kbase.newKieSession();
+        try {
+            final List<Map<String, Object>> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+
+            ksession.fireAllRules();
+
+            ksession.insert("go1");
+            ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
+            ksession.fireAllRules();
+
+            Map<String, Object> map = list.get(0);
+            assertThat(map.get("place")).isEqualTo("kitchen");
+            List<String> items = (List<String>) map.get("things");
+            assertThat(items.size()).isEqualTo(3);
+            assertContains(new String[]{"apple", "broccoli", "crackers"}, items);
+
+            items = (List<String>) map.get("food");
+            assertThat(items.size()).isEqualTo(2);
+            assertContains(new String[]{"apple", "crackers"}, items);
+
+            items = (List<String>) map.get("exits");
+            assertThat(items.size()).isEqualTo(3);
+            assertContains(new String[]{"office", "cellar", "dining room"}, items);
+
+            ksession.insert("go2");
+            ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
+            ksession.fireAllRules();
+
+            map = list.get(1);
+            assertThat(map.get("place")).isEqualTo("office");
+            items = (List<String>) map.get("things");
+            assertThat(items.size()).isEqualTo(2);
+            assertContains(new String[]{"computer", "desk",}, items);
+
+            items = (List<String>) map.get("food");
+            assertThat(items.size()).isEqualTo(1);
+            assertContains(new String[]{"apple"}, items); // notice the apple is on the desk in the office
+
+            items = (List<String>) map.get("exits");
+            assertThat(items.size()).isEqualTo(2);
+            assertContains(new String[]{"hall", "kitchen"}, items);
+
+            QueryResults results = ksession.getQueryResults("isContainedIn", "key", "office");
+            assertThat(results.size()).isEqualTo(1);
+            final QueryResultsRow result = results.iterator().next();
+            assertThat(result.get("x")).isEqualTo("key");
+            assertThat(result.get("y")).isEqualTo("office");
+
+            results = ksession.getQueryResults("isContainedIn", "key", Variable.v);
+            List<List<String>> l = new ArrayList<>();
+            for (final QueryResultsRow r : results) {
+                l.add(Arrays.asList((String) r.get("x"), (String) r.get("y")));
+            }
+            assertThat(results.size()).isEqualTo(3);
+            assertContains(Arrays.asList("key", "desk"), l);
+            assertContains(Arrays.asList("key", "office"), l);
+            assertContains(Arrays.asList("key", "envelope"), l);
+
+            results = ksession.getQueryResults("isContainedIn", Variable.v, "office");
+            l = new ArrayList<>();
+            for (final QueryResultsRow r : results) {
+                l.add(Arrays.asList((String) r.get("x"), (String) r.get("y")));
+            }
+
+            assertThat(results.size()).isEqualTo(6);
+            assertContains(Arrays.asList("desk", "office"), l);
+            assertContains(Arrays.asList("computer", "office"), l);
+            assertContains(Arrays.asList("apple", "office"), l);
+            assertContains(Arrays.asList("envelope", "office"), l);
+            assertContains(Arrays.asList("flashlight", "office"), l);
+            assertContains(Arrays.asList("key", "office"), l);
+
+            results = ksession.getQueryResults("isContainedIn", Variable.v, Variable.v);
+            l = new ArrayList<>();
+            for (final QueryResultsRow r : results) {
+                l.add(Arrays.asList((String) r.get("x"), (String) r.get("y")));
+            }
+            assertThat(results.size()).isEqualTo(17);
+            assertContains(Arrays.asList("apple", "kitchen"), l);
+            assertContains(Arrays.asList("apple", "desk"), l);
+            assertContains(Arrays.asList("envelope", "desk"), l);
+            assertContains(Arrays.asList("desk", "office"), l);
+            assertContains(Arrays.asList("computer", "office"), l);
+            assertContains(Arrays.asList("washing machine", "cellar"), l);
+            assertContains(Arrays.asList("key", "envelope"), l);
+            assertContains(Arrays.asList("broccoli", "kitchen"), l);
+            assertContains(Arrays.asList("nani", "washing machine"), l);
+            assertContains(Arrays.asList("crackers", "kitchen"), l);
+            assertContains(Arrays.asList("flashlight", "desk"), l);
+            assertContains(Arrays.asList("nani", "cellar"), l);
+            assertContains(Arrays.asList("apple", "office"), l);
+            assertContains(Arrays.asList("envelope", "office"), l);
+            assertContains(Arrays.asList("flashlight", "office"), l);
+            assertContains(Arrays.asList("key", "office"), l);
+            assertContains(Arrays.asList("key", "desk"), l);
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSubNetworksAndQueries(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        final String drl = "" +
+                "package org.drools.compiler.test  \n" +
+
+                "import java.util.List\n" +
+                "import java.util.ArrayList\n" +
+
+                "import java.util.Map\n" +
+                "import java.util.HashMap\n" +
+
+                "global List list\n" +
+
+                "dialect \"mvel\"\n" +
+                "\n" +
+                "declare Location\n" +
+                "    thing : String \n" +
+                "    location : String \n" +
+                "end" +
+                "\n" +
+                "declare Edible\n" +
+                "   thing : String\n" +
+                "end" +
+                "\n" +
+                "query whereFood( String x, String y ) \n" +
+                "    Location(x, y;) Edible(x;) \n" +
+                "end\n" +
+                "\n" +
+                "query look(String place, List food ) \n" +
+                "    $s : String() // just here to give a OTN lookup point\n" +
+                "    food := List() from accumulate( whereFood(thing, place;) ," +
+                "                                    collectList( thing ) )\n" +
+                "    exists( whereFood(thing, place;) )\n" +
+                "    not( whereFood(thing, place;) and\n " +
+                "         String( this == $s ) from thing )\n" +
+                "end\n" +
+                "\n" +
+                "rule init when\n" +
+                "then\n" +
+                "        \n" +
+                "        insert( new Location(\"apple\", \"kitchen\") );\n" +
+                "        insert( new Location(\"crackers\", \"kitchen\") );\n" +
+                "        insert( new Location(\"broccoli\", \"kitchen\") );\n" +
+                "        insert( new Location(\"computer\", \"office\") );\n" +
+
+                "        insert( new Edible(\"apple\") );\n" +
+                "        insert( new Edible(\"crackers\") );\n" +
+                "end\n" +
+                "";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("backward-chaining-test", kieBaseTestConfiguration, drl);
+
+        // Get the accumulate node, so we can test it's memory later
+        // now check beta memory was correctly cleared
+        final List<ObjectTypeNode> nodes = ((InternalRuleBase) kbase).getRete().getObjectTypeNodes();
+        ObjectTypeNode node = null;
+        for (final ObjectTypeNode n : nodes) {
+            if ((( ClassObjectType ) n.getObjectType()).getClassType() == String.class) {
+                node = n;
+                break;
+            }
+        }
+
+        assertThat(node).isNotNull();
+        final BetaNode stringBetaNode = (BetaNode) node.getObjectSinkPropagator().getSinks()[0];
+        final QueryElementNode queryElementNode1 = (QueryElementNode) stringBetaNode.getSinkPropagator().getSinks()[0];
+        final RightInputAdapterNode riaNode1 = (RightInputAdapterNode) queryElementNode1.getSinkPropagator().getSinks()[0];
+        final AccumulateNode accNode = (AccumulateNode) riaNode1.getObjectSinkPropagator().getSinks()[0];
+
+        final QueryElementNode queryElementNode2 = (QueryElementNode) accNode.getSinkPropagator().getSinks()[0];
+        final RightInputAdapterNode riaNode2 = (RightInputAdapterNode) queryElementNode2.getSinkPropagator().getSinks()[0];
+        final ExistsNode existsNode = (ExistsNode) riaNode2.getObjectSinkPropagator().getSinks()[0];
+
+        final QueryElementNode queryElementNode3 = (QueryElementNode) existsNode.getSinkPropagator().getSinks()[0];
+        final FromNode fromNode = (FromNode) queryElementNode3.getSinkPropagator().getSinks()[0];
+        final RightInputAdapterNode riaNode3 = (RightInputAdapterNode) fromNode.getSinkPropagator().getSinks()[0];
+        final NotNode notNode = (NotNode) riaNode3.getObjectSinkPropagator().getSinks()[0];
+
+        final KieSession ksession = kbase.newKieSession();
+        try {
+            final InternalWorkingMemory wm = (( StatefulKnowledgeSessionImpl ) ksession);
+            final AccumulateNode.AccumulateMemory accMemory = (AccumulateNode.AccumulateMemory ) wm.getNodeMemory(accNode);
+            final BetaMemory existsMemory = (BetaMemory) wm.getNodeMemory(existsNode);
+            final FromNode.FromMemory fromMemory = (FromNode.FromMemory ) wm.getNodeMemory(fromNode);
+            final BetaMemory notMemory = (BetaMemory) wm.getNodeMemory(notNode);
+
+            final List<Map<String, Object>> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+            final FactHandle fh = ksession.insert("bread");
+
+            ksession.fireAllRules();
+
+            final List food = new ArrayList();
+
+            // Execute normal query and check no subnetwork tuples are left behind
+            QueryResults results = ksession.getQueryResults("look", "kitchen", Variable.v);
+            assertThat(results.size()).isEqualTo(1);
+
+            for (final org.kie.api.runtime.rule.QueryResultsRow row : results) {
+                food.addAll((Collection) row.get("food"));
+            }
+            assertThat(food.size()).isEqualTo(2);
+            assertContains(new String[]{"crackers", "apple"}, food);
+
+            assertThat(accMemory.getBetaMemory().getRightTupleMemory().size()).isEqualTo(0);
+            assertThat(existsMemory.getRightTupleMemory().size()).isEqualTo(0);
+            assertThat(fromMemory.getBetaMemory().getLeftTupleMemory().size()).isEqualTo(0);
+            assertThat(notMemory.getRightTupleMemory().size()).isEqualTo(0);
+
+            // Now execute an open query and ensure the memory is left populated
+            food.clear();
+            final List foodUpdated = new ArrayList();
+            final LiveQuery query = ksession.openLiveQuery("look",
+                    new Object[]{"kitchen", Variable.v},
+                    new ViewChangedEventListener() {
+
+                        public void rowUpdated(final Row row) {
+                            foodUpdated.addAll((Collection) row.get("food"));
+                        }
+
+                        public void rowDeleted(final Row row) {
+                        }
+
+                        public void rowInserted(final Row row) {
+                            food.addAll((Collection) row.get("food"));
+                        }
+                    });
+            assertThat(food.size()).isEqualTo(2);
+            assertContains(new String[]{"crackers", "apple"}, food);
+
+            assertThat(accMemory.getBetaMemory().getRightTupleMemory().size()).isEqualTo(2);
+            assertThat(existsMemory.getRightTupleMemory().size()).isEqualTo(0); // This is zero, as it's held directly on the LeftTuple context
+            assertThat(fromMemory.getBetaMemory().getLeftTupleMemory().size()).isEqualTo(2);
+            assertThat(notMemory.getRightTupleMemory().size()).isEqualTo(0);
+
+            food.clear();
+            // Now try again, make sure it only delete's it's own tuples
+            results = ksession.getQueryResults("look", "kitchen", Variable.v);
+            assertThat(results.size()).isEqualTo(1);
+
+            for (final org.kie.api.runtime.rule.QueryResultsRow row : results) {
+                food.addAll((Collection) row.get("food"));
+            }
+            assertThat(food.size()).isEqualTo(2);
+            assertContains(new String[]{"crackers", "apple"}, food);
+
+            assertThat(accMemory.getBetaMemory().getRightTupleMemory().size()).isEqualTo(2);
+            assertThat(existsMemory.getRightTupleMemory().size()).isEqualTo(0);  // This is zero, as it's held directly on the LeftTuple context
+            assertThat(fromMemory.getBetaMemory().getLeftTupleMemory().size()).isEqualTo(2);
+            assertThat(notMemory.getRightTupleMemory().size()).isEqualTo(0);
+            food.clear();
+
+            // do an update and check it's  still memory size 2
+            // however this time the food should be empty, as 'crackers' now blocks the not.
+            ksession.update(fh, "crackers");
+            ksession.fireAllRules();
+
+            assertThat(accMemory.getBetaMemory().getRightTupleMemory().size()).isEqualTo(2);
+            assertThat(existsMemory.getLeftTupleMemory().size()).isEqualTo(1);
+            assertThat(existsMemory.getRightTupleMemory().size()).isEqualTo(0);  // This is zero, as it's held directly on the LeftTuple context
+            assertThat(fromMemory.getBetaMemory().getLeftTupleMemory().size()).isEqualTo(2);
+            assertThat(notMemory.getRightTupleMemory().size()).isEqualTo(0);  // This is zero, as it's held directly on the LeftTuple context
+
+            assertThat(foodUpdated.size()).isEqualTo(0);
+
+            // do an update and check it's  still memory size 2
+            // this time
+            ksession.update(fh, "oranges");
+            ksession.fireAllRules();
+
+            assertThat(accMemory.getBetaMemory().getRightTupleMemory().size()).isEqualTo(2);
+            assertThat(existsMemory.getLeftTupleMemory().size()).isEqualTo(1);
+            assertThat(existsMemory.getRightTupleMemory().size()).isEqualTo(0);  // This is zero, as it's held directly on the LeftTuple context
+            assertThat(fromMemory.getBetaMemory().getLeftTupleMemory().size()).isEqualTo(2);
+            assertThat(notMemory.getRightTupleMemory().size()).isEqualTo(0);
+
+            assertThat(food.size()).isEqualTo(2);
+            assertContains(new String[]{"crackers", "apple"}, food);
+
+            // Close the open
+            query.close();
+            assertThat(accMemory.getBetaMemory().getRightTupleMemory().size()).isEqualTo(0);
+            assertThat(existsMemory.getRightTupleMemory().size()).isEqualTo(0);
+            assertThat(fromMemory.getBetaMemory().getLeftTupleMemory().size()).isEqualTo(0);
+            assertThat(notMemory.getRightTupleMemory().size()).isEqualTo(0);
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testInsertionOrderTwo(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        final StringBuilder drlBuilder = new StringBuilder("" +
+                "package org.drools.compiler.test \n" +
+                "import java.util.List \n" +
+                "global List list \n" +
+                "declare Thing \n" +
+                "    thing : String @key \n" +
+                "end \n" +
+                "declare Edible extends Thing \n" +
+                "end \n" +
+                "declare Location extends Thing \n" +
+                "    location : String  @key \n" +
+                "end \n" +
+                "declare Here \n" +
+                "    place : String \n" +
+                "end \n" +
+                "rule kickOff \n" +
+                "when \n" +
+                "    Integer( $i: intValue ) \n" +
+                "then \n" +
+                "    switch( $i ){ \n");
+
+        String[] facts = new String[]{"new Edible( 'peach' )", "new Location( 'peach', 'table' )", "new Here( 'table' )"};
+        int f = 0;
+        for (final String fact : facts) {
+            for (final String fact1 : facts) {
+                for (final String fact2 : facts) {
+                    // use a Set to make sure we only include 3 unique values
+                    final Set<String> set = new HashSet<>();
+                    set.add(fact);
+                    set.add(fact1);
+                    set.add(fact2);
+                    if (set.size() == 3) {
+                        drlBuilder.append("    case ").append(f++).append(": \n")
+                                .append("        insert( ").append(fact).append(" ); \n")
+                                .append("        insert( ").append(fact1).append(" ); \n")
+                                .append("        insert( ").append(fact2).append(" ); \n")
+                                .append("        break; \n");
+                    }
+                }
+            }
+        }
+
+        facts = new String[]{"new Edible( 'peach' )", "new Location( 'table', 'office' )", "new Location( 'peach', 'table' )", "new Here( 'office' )"};
+        int h = f;
+        for (final String fact : facts) {
+            for (final String fact1 : facts) {
+                for (final String fact3 : facts) {
+                    for (final String fact2 : facts) {
+                        // use a Set to make sure we only include 3 unique values
+                        final Set<String> set = new HashSet<>();
+                        set.add(fact);
+                        set.add(fact1);
+                        set.add(fact3);
+                        set.add(fact2);
+                        if (set.size() == 4) {
+                            drlBuilder.append("    case ").append(h++).append(": \n")
+                                    .append("        insert( ").append(fact).append(" ); \n")
+                                    .append("        insert( ").append(fact1).append(" ); \n")
+                                    .append("        insert( ").append(fact3).append(" ); \n")
+                                    .append("        insert( ").append(fact2).append(" ); \n")
+                                    .append("        break; \n");
+                        }
+                    }
+                }
+            }
+        }
+
+        drlBuilder.append("    } \n" + "end \n" + "\n"
+                + "query whereFood( String x, String y ) \n"
+                + "    ( Location(x, y;) and Edible(x;) ) \n "
+                + "    or  \n"
+                + "    ( Location(z, y;) and whereFood(x, z;) ) \n"
+                + "end "
+                + "query look(String place, List things, List food)  \n" + "    Here(place;) \n"
+                + "    things := List() from accumulate( Location(thing, place;), \n"
+                + "                                      collectList( thing ) ) \n"
+                + "    food := List() from accumulate( whereFood(thing, place;), \n"
+                + "                                    collectList( thing ) ) \n"
+                + "end \n" + "rule reactiveLook \n" + "when \n" + "    Here( $place : place)  \n"
+                + "    look($place, $things, $food;) \n"
+                + "then \n"
+                + "    list.addAll( $things ); \n"
+                + "    list.addAll( $food   ); \n"
+                + "end \n" + "");
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("backward-chaining-test", kieBaseTestConfiguration, drlBuilder.toString());
+
+        for (int i = 0; i < f; i++) {
+            final KieSession ksession = kbase.newKieSession();
+            try {
+                final List<String> list = new ArrayList<>();
+                ksession.setGlobal("list", list);
+                ksession.fireAllRules();
+                list.clear();
+                InternalFactHandle fh = (InternalFactHandle) ksession.insert(i);
+                ksession.fireAllRules();
+
+                assertThat(list.size()).isEqualTo(2);
+                assertThat(list.get(0)).isEqualTo("peach");
+                assertThat(list.get(1)).isEqualTo("peach");
+                list.clear();
+
+                final InternalFactHandle[] handles = ksession.getFactHandles().toArray(new InternalFactHandle[0]);
+                for (int j = 0; j < handles.length; j++) {
+                    if (handles[j].getObject() instanceof InitialFact || handles[j].getObject() instanceof Integer) {
+                        continue;
+                    }
+                    handles[j] = getFactHandle(handles[j], ksession);
+                    final Object o = handles[j].getObject();
+
+                    // first retract + assert
+                    ksession.delete(handles[j]);
+
+                    handles[j] = (InternalFactHandle) ksession.insert(o);
+
+                    ksession.fireAllRules();
+                    assertThat(list.size()).isEqualTo(2);
+                    assertThat(list.get(0)).isEqualTo("peach");
+                    assertThat(list.get(1)).isEqualTo("peach");
+                    list.clear();
+
+                    // now try update
+                    // session was serialised so need to get factHandle
+                    handles[j] = getFactHandle(handles[j], ksession);
+                    ksession.update(handles[j], handles[j].getObject());
+
+                    ksession.fireAllRules();
+                    assertThat(list.size()).isEqualTo(2);
+                    assertThat(list.get(0)).isEqualTo("peach");
+                    assertThat(list.get(1)).isEqualTo("peach");
+                    list.clear();
+                }
+
+                fh = getFactHandle(fh, ksession);
+                ksession.delete(fh);
+            } finally {
+                ksession.dispose();
+            }
+        }
+
+        for (int i = f; i < h; i++) {
+            final KieSession ksession = kbase.newKieSession();
+            try {
+                final List<String> list = new ArrayList<>();
+                ksession.setGlobal("list", list);
+                ksession.fireAllRules();
+                list.clear();
+
+                InternalFactHandle fh = (InternalFactHandle) ksession.insert(i);
+                ksession.fireAllRules();
+                assertThat(list.size()).isEqualTo(2);
+                assertThat(list.get(0)).isEqualTo("table");
+                assertThat(list.get(1)).isEqualTo("peach");
+                list.clear();
+
+                final InternalFactHandle[] handles = ksession.getFactHandles().toArray(new InternalFactHandle[0]);
+                for (int j = 0; j < handles.length; j++) {
+                    if (handles[j].getObject() instanceof InitialFact || handles[j].getObject() instanceof Integer) {
+                        continue;
+                    }
+
+                    handles[j] = getFactHandle(handles[j], ksession);
+                    final Object o = handles[j].getObject();
+
+                    ksession.delete(handles[j]);
+                    handles[j] = (InternalFactHandle) ksession.insert(o);
+
+                    ksession.fireAllRules();
+                    assertThat(list.size()).isEqualTo(2);
+                    assertThat(list.get(0)).isEqualTo("table");
+                    assertThat(list.get(1)).isEqualTo("peach");
+                    list.clear();
+
+                    // now try update
+                    handles[j] = getFactHandle(handles[j], ksession);
+                    ksession.update(handles[j], handles[j].getObject());
+
+                    ksession.fireAllRules();
+                    assertThat(list.size()).isEqualTo(2);
+                    assertThat(list.get(0)).isEqualTo("table");
+                    assertThat(list.get(1)).isEqualTo("peach");
+                    list.clear();
+                }
+
+                fh = getFactHandle(fh, ksession);
+                ksession.delete(fh);
+            } finally {
+                ksession.dispose();
+            }
         }
     }
 }

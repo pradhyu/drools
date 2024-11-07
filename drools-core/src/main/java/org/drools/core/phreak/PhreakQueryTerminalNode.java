@@ -1,34 +1,36 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.phreak;
 
-import org.drools.core.base.DroolsQuery;
-import org.drools.core.common.InternalAgenda;
+import java.util.List;
+
+import org.drools.core.base.DroolsQueryImpl;
+import org.drools.core.common.ActivationsManager;
 import org.drools.core.common.TupleSets;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.LeftTupleSink;
 import org.drools.core.reteoo.PathMemory;
 import org.drools.core.reteoo.QueryElementNode.QueryElementNodeMemory;
 import org.drools.core.reteoo.QueryTerminalNode;
-import org.drools.core.reteoo.RuleTerminalNode;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.Tuple;
+import org.drools.core.reteoo.Tuple;
+import org.drools.core.reteoo.TupleImpl;
 import org.drools.core.util.LinkedList;
-
-import java.util.List;
 
 /**
 * Created with IntelliJ IDEA.
@@ -39,50 +41,46 @@ import java.util.List;
 */
 public class PhreakQueryTerminalNode {
     public void doNode(QueryTerminalNode qtnNode,
-                       InternalAgenda agenda,
-                       TupleSets<LeftTuple> srcLeftTuples,
+                       ActivationsManager activationsManager,
+                       TupleSets srcLeftTuples,
                        LinkedList<StackEntry> stack) {
         if (srcLeftTuples.getDeleteFirst() != null) {
-            doLeftDeletes(qtnNode, agenda, srcLeftTuples, stack);
+            doLeftDeletes(qtnNode, activationsManager, srcLeftTuples, stack);
         }
 
         if (srcLeftTuples.getUpdateFirst() != null) {
-            doLeftUpdates(qtnNode, agenda, srcLeftTuples, stack);
+            doLeftUpdates(qtnNode, activationsManager, srcLeftTuples, stack);
         }
 
         if (srcLeftTuples.getInsertFirst() != null) {
-            doLeftInserts(qtnNode, agenda, srcLeftTuples, stack);
+            doLeftInserts(qtnNode, activationsManager, srcLeftTuples, stack);
         }
 
         srcLeftTuples.resetAll();
     }
 
     public void doLeftInserts(QueryTerminalNode qtnNode,
-                              InternalAgenda agenda,
-                              TupleSets<LeftTuple> srcLeftTuples,
+                              ActivationsManager activationsManager,
+                              TupleSets srcLeftTuples,
                               LinkedList<StackEntry> stack) {
 
-        for (LeftTuple leftTuple = srcLeftTuples.getInsertFirst(); leftTuple != null; ) {
-            LeftTuple next = leftTuple.getStagedNext();
+        for (TupleImpl leftTuple = srcLeftTuples.getInsertFirst(); leftTuple != null; ) {
+            TupleImpl next = leftTuple.getStagedNext();
             //qtnNode.assertLeftTuple( leftTuple, leftTuple.getPropagationContext(), wm );
-
-            PropagationContext pCtx = RuleTerminalNode.findMostRecentPropagationContext(leftTuple,
-                                                                                        leftTuple.getPropagationContext());
 
             // find the DroolsQuery object
             Tuple rootEntry = leftTuple.getRootTuple();
 
-            DroolsQuery dquery = (DroolsQuery) rootEntry.getFactHandle().getObject();
+            DroolsQueryImpl dquery = (DroolsQueryImpl) rootEntry.getFactHandle().getObject();
             dquery.setQuery(qtnNode.getQuery());
             if (dquery.getStackEntry() != null) {
-                checkAndTriggerQueryReevaluation(agenda, stack, rootEntry, dquery);
+                checkAndTriggerQueryReevaluation(activationsManager, stack, rootEntry, dquery);
             }
 
             // Add results to the adapter
             dquery.getQueryResultCollector().rowAdded(qtnNode.getQuery(),
                                                       leftTuple,
-                                                      pCtx,
-                                                      agenda.getWorkingMemory());
+                                                      activationsManager.getReteEvaluator());
 
             leftTuple.clearStaged();
             leftTuple = next;
@@ -90,34 +88,27 @@ public class PhreakQueryTerminalNode {
     }
 
     public void doLeftUpdates(QueryTerminalNode qtnNode,
-                              InternalAgenda agenda,
-                              TupleSets<LeftTuple> srcLeftTuples,
+                              ActivationsManager activationsManager,
+                              TupleSets srcLeftTuples,
                               LinkedList<StackEntry> stack) {
 
-        for (LeftTuple leftTuple = srcLeftTuples.getUpdateFirst(); leftTuple != null; ) {
-            LeftTuple next = leftTuple.getStagedNext();
-
-            PropagationContext pCtx = RuleTerminalNode.findMostRecentPropagationContext(leftTuple,
-                                                                                        leftTuple.getPropagationContext());
+        for (TupleImpl leftTuple = srcLeftTuples.getUpdateFirst(); leftTuple != null; ) {
+            TupleImpl next = leftTuple.getStagedNext();
 
             // qtnNode.modifyLeftTuple( leftTuple, leftTuple.getPropagationContext(), wm );
-            LeftTuple rootEntry = leftTuple;
-
             // find the DroolsQuery object
-            while (rootEntry.getParent() != null) {
-                rootEntry = rootEntry.getParent();
-            }
-            DroolsQuery dquery = (DroolsQuery) rootEntry.getFactHandle().getObject();
+            TupleImpl rootEntry = leftTuple.getRootTuple();
+
+            DroolsQueryImpl dquery = (DroolsQueryImpl) rootEntry.getFactHandle().getObject();
             dquery.setQuery(qtnNode.getQuery());
             if (dquery.getStackEntry() != null) {
-                checkAndTriggerQueryReevaluation(agenda, stack, rootEntry, dquery);
+                checkAndTriggerQueryReevaluation(activationsManager, stack, rootEntry, dquery);
             }
 
             // Add results to the adapter
             dquery.getQueryResultCollector().rowUpdated(qtnNode.getQuery(),
                                                         leftTuple,
-                                                        pCtx,
-                                                        agenda.getWorkingMemory());
+                                                        activationsManager.getReteEvaluator());
 
             leftTuple.clearStaged();
             leftTuple = next;
@@ -125,36 +116,29 @@ public class PhreakQueryTerminalNode {
     }
 
     public void doLeftDeletes(QueryTerminalNode qtnNode,
-                              InternalAgenda agenda,
-                              TupleSets<LeftTuple> srcLeftTuples,
+                              ActivationsManager activationsManager,
+                              TupleSets srcLeftTuples,
                               LinkedList<StackEntry> stack) {
 
-        for (LeftTuple leftTuple = srcLeftTuples.getDeleteFirst(); leftTuple != null; ) {
-            LeftTuple next = leftTuple.getStagedNext();
+        for (TupleImpl leftTuple = srcLeftTuples.getDeleteFirst(); leftTuple != null; ) {
+            TupleImpl next = leftTuple.getStagedNext();
 
             //qtnNode.retractLeftTuple( leftTuple, leftTuple.getPropagationContext(), wm );
 
-            PropagationContext pCtx = RuleTerminalNode.findMostRecentPropagationContext(leftTuple,
-                                                                                        leftTuple.getPropagationContext());
-
-            LeftTuple rootEntry = leftTuple;
-
             // find the DroolsQuery object
-            while (rootEntry.getParent() != null) {
-                rootEntry = rootEntry.getParent();
-            }
-            DroolsQuery dquery = (DroolsQuery) rootEntry.getFactHandle().getObject();
+            TupleImpl rootEntry = leftTuple.getRootTuple();
+
+            DroolsQueryImpl dquery = (DroolsQueryImpl) rootEntry.getFactHandle().getObject();
             dquery.setQuery(qtnNode.getQuery());
 
             if (dquery.getStackEntry() != null) {
-                checkAndTriggerQueryReevaluation(agenda, stack, rootEntry, dquery);
+                checkAndTriggerQueryReevaluation(activationsManager, stack, rootEntry, dquery);
             }
 
             // Add results to the adapter
             dquery.getQueryResultCollector().rowRemoved(qtnNode.getQuery(),
                                                         leftTuple,
-                                                        pCtx,
-                                                        agenda.getWorkingMemory());
+                                                        activationsManager.getReteEvaluator());
 
             leftTuple.clearStaged();
             leftTuple = next;
@@ -162,7 +146,7 @@ public class PhreakQueryTerminalNode {
     }
 
 
-    public static void checkAndTriggerQueryReevaluation(InternalAgenda agenda, LinkedList<StackEntry> stack, Tuple rootEntry, DroolsQuery dquery) {
+    public static void checkAndTriggerQueryReevaluation(ActivationsManager activationsManager, LinkedList<StackEntry> stack, Tuple rootEntry, DroolsQueryImpl dquery) {
         StackEntry stackEntry = dquery.getStackEntry();
         if (!isAdded(stack, stackEntry)) {
             // Ignore unless stackEntry is not added to stack
@@ -170,7 +154,7 @@ public class PhreakQueryTerminalNode {
             // node must be marked as dirty
             ((QueryElementNodeMemory)stackEntry.getNodeMem()).setNodeDirtyWithoutNotify();
 
-            if (stackEntry.getRmem().getPathEndNode().getPathNodes()[0] == ((LeftTupleSink)rootEntry.getTupleSink()).getLeftTupleSource()) {
+            if (stackEntry.getRmem().getPathEndNode().getPathNodes()[0] == ((LeftTupleSink)rootEntry.getSink()).getLeftTupleSource()) {
                 // query is recursive, so just re-add the stack entry to the current stack. This happens for reactive queries, triggered by a beta node right input
                 stack.add(stackEntry);
             } else {
@@ -182,7 +166,7 @@ public class PhreakQueryTerminalNode {
                     // reactivity comes form within the query, so need to notify parent rules to evaluate the results
                     for (int i = 0, length = pmems.size(); i < length; i++) {
                         PathMemory pmem = pmems.get(i);
-                        pmem.doLinkRule(agenda); // method already ignores is rule is activated and on agenda
+                        pmem.doLinkRule(activationsManager); // method already ignores is rule is activated and on agenda
                     }
                 }
             }
@@ -190,10 +174,6 @@ public class PhreakQueryTerminalNode {
     }
 
     public static boolean isAdded(LinkedList<StackEntry> stack, StackEntry stackEntry) {
-        if (stackEntry == null || stackEntry.getPrevious() != null || stackEntry.getNext() != null || stack.getFirst() == stackEntry) {
-            return true;
-        }
-
-        return false;
+        return stackEntry == null || stackEntry.getPrevious() != null || stackEntry.getNext() != null || stack.getFirst() == stackEntry;
     }
 }

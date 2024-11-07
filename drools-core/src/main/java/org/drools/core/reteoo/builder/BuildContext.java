@@ -1,90 +1,97 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo.builder;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
-import java.util.ListIterator;
-import java.util.Stack;
 
+import org.drools.base.RuleBuildContext;
+import org.drools.base.common.NetworkNode;
+import org.drools.base.common.RuleBasePartitionId;
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.base.rule.EntryPointId;
+import org.drools.base.rule.GroupElement;
+import org.drools.base.rule.Pattern;
+import org.drools.base.rule.RuleComponent;
+import org.drools.base.rule.RuleConditionElement;
+import org.drools.base.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.base.rule.constraint.BetaConstraint;
+import org.drools.base.rule.constraint.XpathConstraint;
 import org.drools.core.common.BaseNode;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.common.NetworkNode;
-import org.drools.core.common.RuleBasePartitionId;
-import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.reteoo.KieComponentFactory;
+import org.drools.core.impl.InternalRuleBase;
 import org.drools.core.reteoo.LeftTupleSource;
 import org.drools.core.reteoo.ObjectSource;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.PathEndNode;
-import org.drools.core.rule.EntryPointId;
-import org.drools.core.rule.GroupElement;
-import org.drools.core.rule.Pattern;
-import org.drools.core.rule.RuleConditionElement;
-import org.drools.core.rule.constraint.XpathConstraint;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.RuleComponent;
+import org.drools.core.reteoo.TerminalNode;
 import org.drools.core.time.TemporalDependencyMatrix;
 
-import static org.drools.core.rule.TypeDeclaration.NEVER_EXPIRES;
+import static org.drools.base.rule.TypeDeclaration.NEVER_EXPIRES;
 
 /**
  * A build context for Reteoo Builder
  */
-public class BuildContext {
+public class BuildContext implements RuleBuildContext {
+
+    private final List<TerminalNode> terminals = new ArrayList<>();
 
     // tuple source to attach next node to
-    private LeftTupleSource                  tupleSource;
+    private LeftTupleSource tupleSource;
     // object source to attach next node to
-    private ObjectSource                     objectSource;
+    private ObjectSource objectSource;
     // object type cache to check for cross products
-    private LinkedList<Pattern>              objectType;
-    // offset of the pattern
-    private int                              currentPatternOffset;
+    private List<Pattern> patterns;
+
     // rule base to add rules to
-    private InternalKnowledgeBase            kBase;
+    private final InternalRuleBase ruleBase;
     // rule being added at this moment
-    private RuleImpl                         rule;
-    private GroupElement                     subRule;
+    private RuleImpl rule;
+    private GroupElement subRule;
     // the rule component being processed at the moment
-    private Stack<RuleComponent>             ruleComponent;
+    private final Deque<RuleComponent> ruleComponent = new ArrayDeque<>();
     // a build stack to track nested elements
-    private LinkedList<RuleConditionElement> buildstack;
+    private Deque<RuleConditionElement>    buildstack;
     // beta constraints from the last pattern attached
-    private List<BetaNodeFieldConstraint>    betaconstraints;
+    private List<BetaConstraint>           betaconstraints;
     // alpha constraints from the last pattern attached
-    private List<AlphaNodeFieldConstraint>   alphaConstraints;
+    private List<AlphaNodeFieldConstraint> alphaConstraints;
     // xpath constraints from the last pattern attached
     private List<XpathConstraint>            xpathConstraints;
+
     // the current entry point
     private EntryPointId                     currentEntryPoint;
     private boolean                          tupleMemoryEnabled;
-    private boolean                          objectTypeNodeMemoryEnabled;
     private boolean                          query;
 
-    private List<PathEndNode>                pathEndNodes = new ArrayList<>();
+    private int                              subRuleIndex;
+
+    private final List<PathEndNode>          pathEndNodes = new ArrayList<>();
+
     /**
      * Stores the list of nodes being added that require partitionIds
      */
-    private List<BaseNode>                   nodes;
+    private List<BaseNode> nodes = new ArrayList<>();
     /**
      * Stores the id of the partition this rule will be added to
      */
@@ -102,38 +109,21 @@ public class BuildContext {
     private boolean                          attachPQN;
     private boolean                          terminated;
 
-    private final KieComponentFactory        componentFactory;
-
     private String                           consequenceName;
 
-    public BuildContext(final InternalKnowledgeBase kBase) {
-        this.kBase = kBase;
+    private final Collection<InternalWorkingMemory> workingMemories;
 
-        this.objectType = null;
-        this.buildstack = null;
-
-        this.tupleSource = null;
-        this.objectSource = null;
-
-        this.currentPatternOffset = 0;
-
+    public BuildContext(InternalRuleBase ruleBase, Collection<InternalWorkingMemory> workingMemories) {
+        this.ruleBase = ruleBase;
+        this.workingMemories = workingMemories;
         this.tupleMemoryEnabled = true;
-
-        this.objectTypeNodeMemoryEnabled = true;
-
         this.currentEntryPoint = EntryPointId.DEFAULT;
-
-        this.nodes = new LinkedList<>();
-
-        this.partitionId = null;
-
-        this.ruleComponent = new Stack<>();
-
         this.attachPQN = true;
-
-        this.componentFactory = kBase.getConfiguration().getComponentFactory();
-
         this.emptyForAllBetaConstraints = false;
+    }
+
+    public List<TerminalNode> getTerminals() {
+        return terminals;
     }
 
     public boolean isEmptyForAllBetaConstraints() {
@@ -144,27 +134,14 @@ public class BuildContext {
         this.emptyForAllBetaConstraints = true;
     }
 
-    /**
-     * @return the currentPatternOffset
-     */
-    public int getCurrentPatternOffset() {
-        return this.currentPatternOffset;
-    }
-
-    /**
-     * @param currentPatternIndex the currentPatternOffset to set
-     */
-    void setCurrentPatternOffset(final int currentPatternIndex) {
-        this.currentPatternOffset = currentPatternIndex;
-        this.syncObjectTypesWithPatternOffset();
-    }
-
-    private void syncObjectTypesWithPatternOffset() {
-        if (this.objectType == null) {
-            this.objectType = new LinkedList<>();
+    public void syncObjectTypesWithObjectCount() {
+        if (this.patterns == null) {
+            return;
         }
-        while (this.objectType.size() > this.currentPatternOffset) {
-            this.objectType.removeLast();
+        if (tupleSource != null) {
+            while (this.patterns.size() > tupleSource.getObjectCount()) {
+                this.patterns.remove(this.patterns.size()-1);
+            }
         }
     }
 
@@ -182,24 +159,15 @@ public class BuildContext {
         this.objectSource = objectSource;
     }
 
-    /**
-     * @return the objectType
-     */
-    public LinkedList<Pattern> getObjectType() {
-        if (this.objectType == null) {
-            this.objectType = new LinkedList<>();
-        }
-        return this.objectType;
+    public List<Pattern> getPatterns() {
+        return this.patterns == null ? Collections.emptyList() : this.patterns;
     }
 
-    /**
-     * @param objectType the objectType to set
-     */
-    public void setObjectType(final LinkedList<Pattern> objectType) {
-        if (this.objectType == null) {
-            this.objectType = new LinkedList<>();
+    public void addPattern(Pattern pattern) {
+        if (this.patterns == null) {
+            this.patterns = new ArrayList<>();
         }
-        this.objectType = objectType;
+        this.patterns.add( pattern );
     }
 
     /**
@@ -216,20 +184,11 @@ public class BuildContext {
         this.tupleSource = tupleSource;
     }
 
-    public void incrementCurrentPatternOffset() {
-        this.currentPatternOffset++;
-    }
-
-    public void decrementCurrentPatternOffset() {
-        this.currentPatternOffset--;
-        this.syncObjectTypesWithPatternOffset();
-    }
-
     /**
      * Returns context rulebase
      */
-    public InternalKnowledgeBase getKnowledgeBase() {
-        return this.kBase;
+    public InternalRuleBase getRuleBase() {
+        return this.ruleBase;
     }
 
     /**
@@ -237,25 +196,25 @@ public class BuildContext {
      * rulebase.
      */
     public Collection<InternalWorkingMemory> getWorkingMemories() {
-        return this.kBase.getWorkingMemories();
+        return workingMemories;
     }
 
     /**
      * Returns an Id for the next node
      */
-    public int getNextId() {
-        return kBase.getReteooBuilder().getIdGenerator().getNextId();
+    public int getNextNodeId() {
+        return ruleBase.getReteooBuilder().getNodeIdsGenerator().getNextId();
     }
 
-    public int getNextId(String topic) {
-        return kBase.getReteooBuilder().getIdGenerator().getNextId(topic);
+    public int getNextMemoryId() {
+        return ruleBase.getReteooBuilder().getMemoryIdsGenerator().getNextId();
     }
 
     /**
      * Method used to undo previous id assignment
      */
     public void releaseId(NetworkNode node) {
-        kBase.getReteooBuilder().getIdGenerator().releaseId(node);
+        ruleBase.getReteooBuilder().releaseId(node);
     }
 
     /**
@@ -263,7 +222,7 @@ public class BuildContext {
      */
     public void push(final RuleConditionElement rce) {
         if (this.buildstack == null) {
-            this.buildstack = new LinkedList<>();
+            this.buildstack = new ArrayDeque<>();
         }
         this.buildstack.addLast(rce);
     }
@@ -272,9 +231,6 @@ public class BuildContext {
      * Removes the top stack element
      */
     public RuleConditionElement pop() {
-        if (this.buildstack == null) {
-            this.buildstack = new LinkedList<>();
-        }
         return this.buildstack.removeLast();
     }
 
@@ -282,27 +238,18 @@ public class BuildContext {
      * Returns the top stack element without removing it
      */
     public RuleConditionElement peek() {
-        if (this.buildstack == null) {
-            this.buildstack = new LinkedList<>();
-        }
         return this.buildstack.getLast();
     }
 
-    /**
-     * Returns a list iterator to iterate over the stacked elements
-     */
-    ListIterator<RuleConditionElement> stackIterator() {
-        if (this.buildstack == null) {
-            this.buildstack = new LinkedList<>();
-        }
-        return this.buildstack.listIterator(this.buildstack.size());
+    public Collection<RuleConditionElement> getBuildstack() {
+        return this.buildstack == null ? Collections.emptyList() : buildstack;
     }
 
-    public List<BetaNodeFieldConstraint> getBetaconstraints() {
+    public List<BetaConstraint> getBetaconstraints() {
         return this.betaconstraints;
     }
 
-    public void setBetaconstraints(final List<BetaNodeFieldConstraint> betaconstraints) {
+    public void setBetaconstraints(final List<BetaConstraint> betaconstraints) {
         this.betaconstraints = betaconstraints;
     }
 
@@ -336,14 +283,6 @@ public class BuildContext {
 
     public void setTupleMemoryEnabled(boolean hasLeftMemory) {
         this.tupleMemoryEnabled = hasLeftMemory;
-    }
-
-    public boolean isObjectTypeNodeMemoryEnabled() {
-        return objectTypeNodeMemoryEnabled;
-    }
-
-    public void setObjectTypeNodeMemoryEnabled(boolean hasObjectTypeMemory) {
-        this.objectTypeNodeMemoryEnabled = hasObjectTypeMemory;
     }
 
     public boolean isQuery() {
@@ -487,16 +426,12 @@ public class BuildContext {
         this.attachPQN = attachPQN;
     }
 
-    public KieComponentFactory getComponentFactory() {
-        return componentFactory;
-    }
-
     boolean isTerminated() {
         return terminated;
     }
 
-    void setTerminated(boolean terminated) {
-        this.terminated = terminated;
+    void terminate() {
+        this.terminated = true;
     }
 
     public String getConsequenceName() {
@@ -506,4 +441,13 @@ public class BuildContext {
     public void setConsequenceName( String consequenceName ) {
         this.consequenceName = consequenceName;
     }
+
+    public int getSubRuleIndex() {
+        return subRuleIndex;
+    }
+
+    public void setSubRuleIndex(int subRuleIndex) {
+        this.subRuleIndex = subRuleIndex;
+    }
+
 }

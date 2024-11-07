@@ -1,28 +1,28 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
-import java.util.Collection;
-
+import org.drools.base.reteoo.NodeTypeEnums;
 import org.drools.core.common.BetaConstraints;
-import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.spi.PropagationContext;
 
 /**
  * <code>ExistsNode</code> extends <code>BetaNode</code> to perform tests for
@@ -53,6 +53,7 @@ public class ExistsNode extends BetaNode {
                joinNodeBinder,
                context );
         this.tupleMemoryEnabled = context.isTupleMemoryEnabled();
+        this.setObjectCount(leftInput.getObjectCount()); // 'exists' nodes do not increase the count
     }
     
     public String toString() {
@@ -63,63 +64,20 @@ public class ExistsNode extends BetaNode {
         return "[ExistsNode(" + this.getId() + ") - " + ((source != null) ? ((ObjectTypeNode) source).getObjectType() : "<source from a subnetwork>") + "]";
     }
 
-    public short getType() {
+    public int getType() {
         return NodeTypeEnums.ExistsNode;
     }
-    
-    public LeftTuple createLeftTuple(InternalFactHandle factHandle,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new NotNodeLeftTuple(factHandle, sink, leftTupleMemoryEnabled );
-    }
 
-    public LeftTuple createLeftTuple(final InternalFactHandle factHandle,
-                                     final LeftTuple leftTuple,
-                                     final Sink sink) {
-        return new NotNodeLeftTuple(factHandle,leftTuple, sink );
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     Sink sink,
-                                     PropagationContext pctx,
-                                     boolean leftTupleMemoryEnabled) {
-        return new NotNodeLeftTuple(leftTuple,sink, pctx, leftTupleMemoryEnabled );
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     Sink sink) {
-        return new NotNodeLeftTuple(leftTuple, rightTuple, sink );
-    }   
-    
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     LeftTuple currentLeftChild,
-                                     LeftTuple currentRightChild,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new NotNodeLeftTuple(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );        
-    }
-    
-    public LeftTuple createPeer(LeftTuple original) {
-        NotNodeLeftTuple peer = new NotNodeLeftTuple();
-        peer.initPeer( (BaseLeftTuple) original, this );
-        original.setPeer( peer );
-        return peer;
-    }
-
-    public void retractRightTuple(final RightTuple rightTuple,
+    public void retractRightTuple(final TupleImpl rightTuple,
                                   final PropagationContext pctx,
-                                  final InternalWorkingMemory workingMemory) {
-        final BetaMemory memory = (BetaMemory) workingMemory.getNodeMemory( this );
+                                  final ReteEvaluator reteEvaluator) {
+        final BetaMemory memory = (BetaMemory) reteEvaluator.getNodeMemory(this);
         rightTuple.setPropagationContext( pctx );
-        doDeleteRightTuple( rightTuple,
-                            workingMemory,
-                            memory );
+        doDeleteRightTuple( rightTuple, reteEvaluator, memory );
     }
 
     @Override
-    public void modifyRightTuple(RightTuple rightTuple, PropagationContext context, InternalWorkingMemory workingMemory) {
+    public void modifyRightTuple(TupleImpl rightTuple, PropagationContext context, ReteEvaluator reteEvaluator) {
         throw new UnsupportedOperationException();
     }
 

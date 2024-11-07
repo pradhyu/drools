@@ -1,68 +1,58 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.io.Serializable;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-import org.drools.core.InitialFact;
-import org.drools.core.RuleBaseConfiguration;
-import org.drools.core.base.ClassObjectType;
-import org.drools.core.base.ValueType;
-import org.drools.core.common.ClassAwareObjectStore;
+import org.drools.base.InitialFact;
+import org.drools.base.base.ClassObjectType;
+import org.drools.base.base.ObjectType;
+import org.drools.base.common.NetworkNode;
+import org.drools.base.common.RuleBasePartitionId;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.EntryPointId;
+import org.drools.base.rule.Pattern;
+import org.drools.base.time.JobHandle;
 import org.drools.core.common.DefaultFactHandle;
-import org.drools.core.common.DroolsObjectInputStream;
-import org.drools.core.common.EventFactHandle;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.common.Memory;
-import org.drools.core.common.MemoryFactory;
-import org.drools.core.common.RuleBasePartitionId;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.common.ReteEvaluator;
+import org.drools.core.common.SuperCacheFixer;
 import org.drools.core.common.UpdateContext;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl.WorkingMemoryReteExpireAction;
-import org.drools.core.marshalling.impl.MarshallerReaderContext;
-import org.drools.core.marshalling.impl.MarshallerWriteContext;
-import org.drools.core.marshalling.impl.PersisterEnums;
-import org.drools.core.marshalling.impl.ProtobufMessages;
-import org.drools.core.marshalling.impl.ProtobufMessages.Timers.ExpireTimer;
-import org.drools.core.marshalling.impl.ProtobufMessages.Timers.Timer;
-import org.drools.core.marshalling.impl.TimersInputMarshaller;
-import org.drools.core.marshalling.impl.TimersOutputMarshaller;
+import org.drools.core.impl.InternalRuleBase;
+import org.drools.core.impl.WorkingMemoryReteExpireAction;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.reteoo.compiled.CompiledNetwork;
-import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PropagationContext;
 import org.drools.core.time.Job;
 import org.drools.core.time.JobContext;
-import org.drools.core.time.JobHandle;
-import org.drools.core.time.TimerService;
 import org.drools.core.time.impl.DefaultJobHandle;
-import org.drools.core.time.impl.PointInTimeTrigger;
-import org.drools.core.util.bitmask.BitMask;
-import org.drools.core.util.bitmask.EmptyBitMask;
+import org.drools.util.bitmask.BitMask;
+import org.drools.util.bitmask.EmptyBitMask;
 
-import static org.drools.core.rule.TypeDeclaration.NEVER_EXPIRES;
+import static org.drools.base.rule.TypeDeclaration.NEVER_EXPIRES;
 
 /**
  * <code>ObjectTypeNodes<code> are responsible for filtering and propagating the matching
@@ -78,14 +68,8 @@ import static org.drools.core.rule.TypeDeclaration.NEVER_EXPIRES;
  *
  * @see Rete
  */
-public class ObjectTypeNode extends ObjectSource
-        implements
-        ObjectSink,
-        Externalizable,
-        MemoryFactory<ObjectTypeNode.ObjectTypeNodeMemory> {
-    // ------------------------------------------------------------
-    // Instance members
-    // ------------------------------------------------------------
+public class ObjectTypeNode extends ObjectSource implements ObjectSink {
+
 
     private static final long serialVersionUID = 510l;
 
@@ -94,15 +78,7 @@ public class ObjectTypeNode extends ObjectSource
      */
     protected ObjectType objectType;
 
-    private boolean objectMemoryEnabled;
-
-    private static final transient ExpireJob job = new ExpireJob();
-
-    private long                            expirationOffset = -1;
-
-    private boolean queryNode;
-
-    protected CompiledNetwork compiledNetwork;
+    private long expirationOffset = -1;
 
     /* always dirty after serialisation */
     private transient volatile boolean dirty;
@@ -131,27 +107,25 @@ public class ObjectTypeNode extends ObjectSource
                           final BuildContext context) {
         super(id,
               RuleBasePartitionId.MAIN_PARTITION,
-              context.getKnowledgeBase().getConfiguration().isMultithreadEvaluation(),
               source,
-              context.getKnowledgeBase().getConfiguration().getAlphaNodeHashingThreshold());
+              context.getRuleBase().getRuleBaseConfiguration().getAlphaNodeHashingThreshold(),
+              context.getRuleBase().getRuleBaseConfiguration().getAlphaNodeRangeIndexThreshold());
         this.objectType = objectType;
-        idGenerator = new IdGenerator(id);
-
-        setObjectMemoryEnabled(context.isObjectTypeNodeMemoryEnabled());
-
-        if (ClassObjectType.DroolsQuery_ObjectType.isAssignableFrom(objectType)) {
-            queryNode = true;
-        }
-
+        this.idGenerator = new IdGenerator(id);
         this.dirty = true;
-
-        hashcode = calculateHashCode();
-
-        if (objectType != ClassObjectType.InitialFact_ObjectType && context.getKnowledgeBase().getConfiguration().isMultithreadEvaluation()) {
-            this.sink = new CompositePartitionAwareObjectSinkAdapter();
-        }
-
+        this.hashcode = calculateHashCode();
         initMemoryId( context );
+    }
+
+    public void setupParallelExecution(InternalRuleBase kbase) {
+        if (objectType == ClassObjectType.InitialFact_ObjectType) {
+            return;
+        }
+        CompositePartitionAwareObjectSinkAdapter partitionedSink = new CompositePartitionAwareObjectSinkAdapter(kbase.getParallelEvaluationSlotsCount());
+        for ( ObjectSink objectSink : this.sink.getSinks()) {
+            partitionedSink.addObjectSink(objectSink, alphaNodeHashingThreshold, alphaNodeRangeIndexThreshold);
+        }
+        this.sink = partitionedSink;
     }
 
     private static class IdGenerator {
@@ -162,8 +136,8 @@ public class ObjectTypeNode extends ObjectSource
             this.otnId = otnId;
         }
 
-        private Id nextId() {
-            return new Id(otnId, otnIdCounter++);
+        private ObjectTypeNodeId nextId() {
+            return new ObjectTypeNodeId(otnId, otnIdCounter++);
         }
 
         private void reset() {
@@ -171,76 +145,10 @@ public class ObjectTypeNode extends ObjectSource
         }
     }
 
-    public static final Id DEFAULT_ID = new Id(-1, 0);
-
-    public static class Id {
-
-        private final int otnId;
-        private final int id;
-
-        public Id(int otnId, int id) {
-            this.otnId = otnId;
-            this.id = id;
-        }
-
-        @Override
-        public String toString() {
-            return "ObjectTypeNode.Id[" + otnId + "#" + id + "]";
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof Id)) return false;
-
-            Id otherId = (Id) o;
-            return id == otherId.id && otnId == otherId.otnId;
-        }
-
-        @Override
-        public int hashCode() {
-            return 31 * otnId + 37 * id;
-        }
-
-        public boolean before(Id otherId) {
-            return otherId != null && (otnId < otherId.otnId || (otnId == otherId.otnId && id < otherId.id));
-        }
-
-        public int getId() {
-            return id;
-        }
-    }
+    public static final ObjectTypeNodeId DEFAULT_ID = new ObjectTypeNodeId(-1, 0);
 
     @Override
-    public void readExternal(ObjectInput in) throws IOException,
-                                                    ClassNotFoundException {
-        super.readExternal(in);
-        objectType = (ObjectType) in.readObject();
-
-        // this is here as not all objectTypeNodes used ClassObjectTypes in packages (i.e. rules with those nodes did not exist yet)
-        // and thus have no wiring targets
-        if (objectType instanceof ClassObjectType) {
-            objectType = ((DroolsObjectInputStream) in).getKnowledgeBase().getClassFieldAccessorCache().getClassObjectType((ClassObjectType) objectType, true);
-        }
-
-        objectMemoryEnabled = in.readBoolean();
-        expirationOffset = in.readLong();
-        queryNode = in.readBoolean();
-        dirty = true;
-        idGenerator = new IdGenerator(id);
-    }
-
-    @Override
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal(out);
-        out.writeObject(objectType);
-        out.writeBoolean(objectMemoryEnabled);
-        out.writeLong(expirationOffset);
-        out.writeBoolean(queryNode);
-    }
-
-    @Override
-    public short getType() {
+    public int getType() {
         return NodeTypeEnums.ObjectTypeNode;
     }
 
@@ -262,7 +170,7 @@ public class ObjectTypeNode extends ObjectSource
     }
 
     @Override
-    public BitMask calculateDeclaredMask(Class modifiedClass, List<String> settableProperties) {
+    public BitMask calculateDeclaredMask(Pattern pattern, ObjectType modifiedType, List<String> settableProperties) {
         return EmptyBitMask.get();
     }
 
@@ -270,26 +178,11 @@ public class ObjectTypeNode extends ObjectSource
         return this.objectType.isAssignableFrom(objectType);
     }
 
-    public CompiledNetwork getCompiledNetwork() {
-        return this.compiledNetwork;
-    }
-
-    public void setCompiledNetwork(CompiledNetwork compiledNetwork) {
-        this.compiledNetwork = compiledNetwork;
-
-        this.compiledNetwork.setObjectTypeNode(this);
-    }
-
     public void assertInitialFact(final InternalFactHandle factHandle,
                                   final PropagationContext context,
-                                  final InternalWorkingMemory workingMemory) {
-        if (objectMemoryEnabled) {
-            InitialFactObjectTypeNodeMemory memory = (InitialFactObjectTypeNodeMemory) workingMemory.getNodeMemory(this);
-            memory.add(factHandle);
-        }
-
+                                  final ReteEvaluator reteEvaluator) {
         checkDirty();
-        propagateAssert(factHandle, context, workingMemory);
+        propagateAssert(factHandle, context, reteEvaluator);
     }
 
     protected void checkDirty() {
@@ -311,25 +204,17 @@ public class ObjectTypeNode extends ObjectSource
      *
      * @param factHandle    The fact handle.
      * @param context       The propagation context.
-     * @param workingMemory The working memory session.
+     * @param reteEvaluator The working memory session.
      */
     @Override
     public void assertObject(final InternalFactHandle factHandle,
                              final PropagationContext context,
-                             final InternalWorkingMemory workingMemory) {
+                             final ReteEvaluator reteEvaluator) {
     }
 
-    public void propagateAssert(InternalFactHandle factHandle, PropagationContext context, InternalWorkingMemory workingMemory) {
+    public void propagateAssert(InternalFactHandle factHandle, PropagationContext context, ReteEvaluator reteEvaluator) {
         checkDirty();
-        if (compiledNetwork != null) {
-            compiledNetwork.assertObject(factHandle,
-                                         context,
-                                         workingMemory);
-        } else {
-            this.sink.propagateAssertObject(factHandle,
-                                            context,
-                                            workingMemory);
-        }
+        this.sink.propagateAssertObject(factHandle, context, reteEvaluator);
     }
 
     /**
@@ -338,80 +223,74 @@ public class ObjectTypeNode extends ObjectSource
      *
      * @param factHandle    The fact handle.
      * @param context       The propagation context.
-     * @param workingMemory The working memory session.
+     * @param reteEvaluator The working memory session.
      */
     public void retractObject(final InternalFactHandle factHandle,
                               final PropagationContext context,
-                              final InternalWorkingMemory workingMemory) {
+                              final ReteEvaluator reteEvaluator) {
         checkDirty();
 
-        doRetractObject( factHandle, context, workingMemory);
+        doRetractObject( factHandle, context, reteEvaluator);
     }
 
     public void retractObject(final InternalFactHandle factHandle,
                               final PropagationContext context,
-                              final InternalWorkingMemory workingMemory,
+                              final ReteEvaluator reteEvaluator,
                               int partition) {
         checkDirty();
 
-        retractRightTuples( factHandle, context, workingMemory, partition );
-        retractLeftTuples( factHandle, context, workingMemory, partition );
+        retractRightTuples( factHandle, context, reteEvaluator, partition );
+        retractLeftTuples( factHandle, context, reteEvaluator, partition );
     }
 
     public static void doRetractObject(final InternalFactHandle factHandle,
                                        final PropagationContext context,
-                                       final InternalWorkingMemory workingMemory) {
-        retractRightTuples( factHandle, context, workingMemory );
-        retractLeftTuples( factHandle, context, workingMemory );
+                                       final ReteEvaluator reteEvaluator) {
+        retractRightTuples( factHandle, context, reteEvaluator );
+        retractLeftTuples( factHandle, context, reteEvaluator );
     }
 
-    public static void expireLeftTuple(LeftTuple leftTuple) {
+    public static void expireLeftTuple(TupleImpl leftTuple) {
         if (!leftTuple.isExpired()) {
             leftTuple.setExpired();
-            for ( LeftTuple child = leftTuple.getFirstChild(); child != null; child = child.getHandleNext() ) {
+            for ( TupleImpl child = leftTuple.getFirstChild(); child != null; child = child.getHandleNext() ) {
                 expireLeftTuple(child);
             }
-            for ( LeftTuple peer = leftTuple.getPeer(); peer != null; peer = peer.getPeer() ) {
+            for ( TupleImpl peer = leftTuple.getPeer(); peer != null; peer = peer.getPeer() ) {
                 expireLeftTuple(peer);
             }
         }
     }
 
-    public static void expireRightTuple(RightTuple rightTuple) {
-        for ( LeftTuple child = rightTuple.getFirstChild(); child != null; child = child.getHandleNext() ) {
+    public static void expireRightTuple(TupleImpl rightTuple) {
+        for ( TupleImpl child = rightTuple.getFirstChild(); child != null; child = child.getHandleNext() ) {
             expireLeftTuple(child);
         }
     }
 
-    public static void retractLeftTuples( InternalFactHandle factHandle, PropagationContext context, InternalWorkingMemory workingMemory ) {
+    public static void retractLeftTuples( InternalFactHandle factHandle, PropagationContext context, ReteEvaluator reteEvaluator ) {
         factHandle.forEachLeftTuple( lt -> {
-            LeftTupleSink sink = lt.getTupleSink();
-            ((LeftInputAdapterNode) sink.getLeftTupleSource()).retractLeftTuple(lt,
-                                                                                context,
-                                                                                workingMemory);
+            ((LeftInputAdapterNode) SuperCacheFixer.getLeftTupleSource(lt)).retractLeftTuple(lt, context, reteEvaluator);
         } );
         factHandle.clearLeftTuples();
     }
 
-    public static void retractLeftTuples( InternalFactHandle factHandle, PropagationContext context, InternalWorkingMemory workingMemory, int partition ) {
+    public static void retractLeftTuples( InternalFactHandle factHandle, PropagationContext context, ReteEvaluator reteEvaluator, int partition ) {
         DefaultFactHandle.CompositeLinkedTuples linkedTuples = ( (DefaultFactHandle.CompositeLinkedTuples) factHandle.getLinkedTuples() );
         linkedTuples.forEachLeftTuple( partition, lt -> {
-            LeftTupleSink sink = lt.getTupleSink();
-            ((LeftInputAdapterNode) sink.getLeftTupleSource()).retractLeftTuple(lt,
-                                                                                context,
-                                                                                workingMemory);
+            ((LeftInputAdapterNode) SuperCacheFixer.getLeftTupleSource(lt)).retractLeftTuple(lt, context, reteEvaluator);
         } );
         linkedTuples.clearLeftTuples(partition);
     }
 
-    public static void retractRightTuples( InternalFactHandle factHandle, PropagationContext context, InternalWorkingMemory workingMemory ) {
-        factHandle.forEachRightTuple( rt -> rt.retractTuple( context, workingMemory) );
+    public static void retractRightTuples( InternalFactHandle factHandle, PropagationContext context, ReteEvaluator reteEvaluator ) {
+        factHandle.forEachRightTuple( rt -> ((RightTuple)rt).retractTuple(context, reteEvaluator));
         factHandle.clearRightTuples();
     }
 
-    public static void retractRightTuples( InternalFactHandle factHandle, PropagationContext context, InternalWorkingMemory workingMemory, int partition ) {
+    public static void retractRightTuples( InternalFactHandle factHandle, PropagationContext context, ReteEvaluator reteEvaluator, int partition ) {
         DefaultFactHandle.CompositeLinkedTuples linkedTuples = ( (DefaultFactHandle.CompositeLinkedTuples) factHandle.getLinkedTuples() );
-        linkedTuples.forEachRightTuple( partition, rt -> rt.retractTuple( context, workingMemory) );
+        linkedTuples.forEachRightTuple( partition, rt -> ((RightTuple)rt).retractTuple(context, reteEvaluator));
         linkedTuples.clearRightTuples(partition);
     }
 
@@ -420,60 +299,49 @@ public class ObjectTypeNode extends ObjectSource
     }
 
     @Override
-    public void modifyObject(InternalFactHandle factHandle,
-                             ModifyPreviousTuples modifyPreviousTuples,
-                             PropagationContext context,
-                             InternalWorkingMemory workingMemory) {
+    public void modifyObject(InternalFactHandle factHandle, ModifyPreviousTuples modifyPreviousTuples, PropagationContext context, ReteEvaluator reteEvaluator) {
         checkDirty();
-
-        if (compiledNetwork != null) {
-            compiledNetwork.modifyObject(factHandle,
-                                         modifyPreviousTuples,
-                                         context.adaptModificationMaskForObjectType(objectType, workingMemory),
-                                         workingMemory);
-        } else {
-            this.sink.propagateModifyObject(factHandle,
-                                            modifyPreviousTuples,
-                                            context.adaptModificationMaskForObjectType(objectType, workingMemory),
-                                            workingMemory);
-        }
+        this.sink.propagateModifyObject(factHandle,
+                                        modifyPreviousTuples,
+                                        context.adaptModificationMaskForObjectType(objectType, reteEvaluator),
+                                        reteEvaluator);
     }
 
     @Override
-    public void updateSink(final ObjectSink sink,
-                           final PropagationContext context,
-                           final InternalWorkingMemory workingMemory) {
+    public void updateSink(ObjectSink sink, PropagationContext context, InternalWorkingMemory workingMemory) {
         checkDirty();
-
-        // Regular updateSink
-        final ObjectTypeNodeMemory memory = workingMemory.getNodeMemory(this);
-        Iterator<InternalFactHandle> it = memory.iterator();
-
-        while (it.hasNext()) {
-            sink.assertObject(it.next(),
-                              context,
-                              workingMemory);
+        Class<?> classType = ((ClassObjectType) getObjectType()).getClassType();
+        if (InitialFact.class.isAssignableFrom(classType)) {
+            sink.assertObject(workingMemory.getInitialFactHandle(), context, workingMemory);
+        } else {
+            Iterator<InternalFactHandle> it = getFactHandlesIterator(workingMemory);
+            while (it.hasNext()) {
+                sink.assertObject(it.next(), context, workingMemory);
+            }
         }
+    }
+
+    public Iterator<InternalFactHandle> getFactHandlesIterator(InternalWorkingMemory workingMemory) {
+        Class<?> classType = ((ClassObjectType) getObjectType()).getClassType();
+        return InitialFact.class.isAssignableFrom(classType) ?
+                Collections.singleton(workingMemory.getInitialFactHandle()).iterator() :
+                workingMemory.getEntryPoint(((EntryPointNode)source).getEntryPoint().getEntryPointId()).getObjectStore().getStoreForClass(classType).iterator();
     }
 
     /**
      * Rete needs to know that this ObjectTypeNode has been added
      */
     @Override
-    public void attach(BuildContext context) {
+    public void doAttach(BuildContext context) {
+        super.doAttach(context);
         this.source.addObjectSink(this);
 
-        Class<?> nodeTypeClass = objectType.getClassType();
-        if (nodeTypeClass == null) {
-            return;
-        }
-
-        EntryPointNode epn = context.getKnowledgeBase().getRete().getEntryPointNode( ((EntryPointNode) source).getEntryPoint() );
+        EntryPointNode epn = context.getRuleBase().getRete().getEntryPointNode( ((EntryPointNode) source).getEntryPoint() );
         if (epn == null) {
             return;
         }
 
-        ObjectTypeConf objectTypeConf = epn.getTypeConfReg().getObjectTypeConfByClass( nodeTypeClass );
+        ObjectTypeConf objectTypeConf = epn.getTypeConfReg().getConfForObjectType( objectType );
         if ( objectTypeConf != null ) {
             objectTypeConf.resetCache();
         }
@@ -487,22 +355,22 @@ public class ObjectTypeNode extends ObjectSource
     protected static void updateTupleSinkId(ObjectTypeNode otn,
                                             ObjectSource source) {
         for (ObjectSink sink : source.sink.getSinks()) {
-            if (sink instanceof BetaNode) {
-                ((BetaNode) sink).setRightInputOtnId(otn.nextOtnId());
-            } else if (sink instanceof LeftInputAdapterNode) {
+            if (NodeTypeEnums.isBetaNode(sink)) {
+                ((BetaNode)sink).setRightInputOtnId(otn.nextOtnId());
+            } else if (NodeTypeEnums.isLeftInputAdapterNode(sink)) {
                 for (LeftTupleSink liaChildSink : ((LeftInputAdapterNode) sink).getSinkPropagator().getSinks()) {
                     liaChildSink.setLeftInputOtnId(otn.nextOtnId());
                 }
-            } else if (sink instanceof WindowNode) {
-                ((WindowNode) sink).setRightInputOtnId(otn.nextOtnId());
+            } else if (sink.getType() == NodeTypeEnums.WindowNode) {
+                ((WindowNode)sink).setRightInputOtnId(otn.nextOtnId());
                 updateTupleSinkId(otn, (WindowNode) sink);
-            } else if (sink instanceof AlphaNode) {
+            } else if (sink.getType() == NodeTypeEnums.AlphaNode) {
                 updateTupleSinkId(otn, (AlphaNode) sink);
             }
         }
     }
 
-    public Id nextOtnId() {
+    public ObjectTypeNodeId nextOtnId() {
         return idGenerator.nextId();
     }
 
@@ -525,28 +393,6 @@ public class ObjectTypeNode extends ObjectSource
         return false;
     }
 
-    /**
-     * Creates memory for the node using PrimitiveLongMap as its optimised for storage and reteivals of Longs.
-     * However PrimitiveLongMap is not ideal for spase data. So it should be monitored incase its more optimal
-     * to switch back to a standard HashMap.
-     */
-    @Override
-    public ObjectTypeNodeMemory createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
-        Class<?> classType = ((ClassObjectType) getObjectType()).getClassType();
-        if (InitialFact.class.isAssignableFrom(classType)) {
-            return new InitialFactObjectTypeNodeMemory(classType);
-        }
-        return new ObjectTypeNodeMemory(classType, wm);
-    }
-
-    public boolean isObjectMemoryEnabled() {
-        return this.objectMemoryEnabled;
-    }
-
-    public void setObjectMemoryEnabled(boolean objectMemoryEnabled) {
-        this.objectMemoryEnabled = objectMemoryEnabled;
-    }
-
     @Override
     public String toString() {
         return "[ObjectTypeNode(" + this.id + ")::" + ((EntryPointNode) this.source).getEntryPoint() + " objectType=" + this.objectType + " expiration=" + this.getExpirationOffset() + "ms ]";
@@ -562,7 +408,7 @@ public class ObjectTypeNode extends ObjectSource
             return true;
         }
 
-        if ( !(object instanceof ObjectTypeNode) || this.hashCode() != object.hashCode() ) {
+        if (((NetworkNode)object).getType() != NodeTypeEnums.ObjectTypeNode || this.hashCode() != object.hashCode() ) {
             return false;
         }
 
@@ -583,15 +429,6 @@ public class ObjectTypeNode extends ObjectSource
 
     public void setExpirationOffset(long expirationOffset) {
         this.expirationOffset = expirationOffset;
-        if (!this.objectType.getValueType().equals(ValueType.QUERY_TYPE)) {
-            if (expirationOffset > 0) {
-                // override memory enabled settings
-                this.setObjectMemoryEnabled(true);
-            } else if (expirationOffset == 0) {
-                // disable memory
-                this.setObjectMemoryEnabled(false);
-            }
-        }
     }
 
     public void mergeExpirationOffset(ObjectTypeNode other) {
@@ -602,13 +439,14 @@ public class ObjectTypeNode extends ObjectSource
 
     public static class ExpireJob
             implements
-            Job {
+            Job, Serializable {
 
         @Override
         public void execute(JobContext ctx) {
             ExpireJobContext context = (ExpireJobContext) ctx;
-            context.workingMemory.queueWorkingMemoryAction(context.expireAction);
-            context.getExpireAction().getFactHandle().removeJob( context.getJobHandle());
+
+            context.reteEvaluator.addPropagation(context.expireAction);
+            context.getExpireAction().getFactHandle().removeJob( (DefaultJobHandle) context.getJobHandle());
         }
     }
 
@@ -616,15 +454,18 @@ public class ObjectTypeNode extends ObjectSource
             implements
             JobContext,
             Externalizable {
-        public final WorkingMemoryReteExpireAction expireAction;
-        public final InternalWorkingMemory         workingMemory;
+        public WorkingMemoryReteExpireAction expireAction;
+        public transient ReteEvaluator         reteEvaluator;
         public JobHandle                     handle;
 
+        public ExpireJobContext() {
+        }
+
         public ExpireJobContext(WorkingMemoryReteExpireAction expireAction,
-                                InternalWorkingMemory workingMemory) {
+                                ReteEvaluator reteEvaluator) {
             super();
             this.expireAction = expireAction;
-            this.workingMemory = workingMemory;
+            this.reteEvaluator = reteEvaluator;
         }
 
         @Override
@@ -641,8 +482,12 @@ public class ObjectTypeNode extends ObjectSource
             return expireAction;
         }
 
-        public InternalWorkingMemory getWorkingMemory() {
-            return workingMemory;
+        public ReteEvaluator getReteEvaluator() {
+            return reteEvaluator;
+        }
+
+        public void setReteEvaluator(ReteEvaluator reteEvaluator) {
+            this.reteEvaluator = reteEvaluator;
         }
 
         public JobHandle getHandle() {
@@ -656,95 +501,14 @@ public class ObjectTypeNode extends ObjectSource
         @Override
         public void readExternal(ObjectInput in) throws IOException,
                                                         ClassNotFoundException {
-            //this.behavior = (O)
+            this.expireAction = (WorkingMemoryReteExpireAction) in.readObject();
+            this.handle = (JobHandle) in.readObject();
         }
 
         @Override
         public void writeExternal(ObjectOutput out) throws IOException {
-            // TODO Auto-generated method stub
-
-        }
-    }
-
-    public static class ExpireJobContextTimerOutputMarshaller
-            implements
-            TimersOutputMarshaller {
-
-        public void write(JobContext jobCtx,
-                          MarshallerWriteContext outputCtx) throws IOException {
-            // ExpireJob, no state
-            ExpireJobContext ejobCtx = (ExpireJobContext) jobCtx;
-            DefaultJobHandle jobHandle = (DefaultJobHandle) ejobCtx.getJobHandle();
-            PointInTimeTrigger trigger = (PointInTimeTrigger) jobHandle.getTimerJobInstance().getTrigger();
-            // There is no reason to serialize a timer when it has no future execution time.
-            Date nextFireTime = trigger.hasNextFireTime();
-            if (nextFireTime != null) {
-                outputCtx.writeShort(PersisterEnums.EXPIRE_TIMER);
-                outputCtx.writeLong(ejobCtx.getExpireAction().getFactHandle().getId());
-                outputCtx.writeLong(nextFireTime.getTime());
-            }
-        }
-
-        @Override
-        public ProtobufMessages.Timers.Timer serialize(JobContext jobCtx,
-                                                       MarshallerWriteContext outputCtx) {
-            // ExpireJob, no state
-            ExpireJobContext ejobCtx = (ExpireJobContext) jobCtx;
-            WorkingMemoryReteExpireAction expireAction = ejobCtx.getExpireAction();
-            DefaultJobHandle jobHandle = (DefaultJobHandle) ejobCtx.getJobHandle();
-            PointInTimeTrigger trigger = (PointInTimeTrigger) jobHandle.getTimerJobInstance().getTrigger();
-            Date nextFireTime = trigger.hasNextFireTime();
-            if (nextFireTime != null) {
-                return ProtobufMessages.Timers.Timer.newBuilder()
-                        .setType(ProtobufMessages.Timers.TimerType.EXPIRE)
-                        .setExpire(ProtobufMessages.Timers.ExpireTimer.newBuilder()
-                                           .setHandleId(expireAction.getFactHandle().getId())
-                                           .setNextFireTimestamp(nextFireTime.getTime())
-                                           .build())
-                        .build();
-            } else {
-                // There is no reason to serialize a timer when it has no future execution time.
-                return null;
-            }
-        }
-    }
-
-    public static class ExpireJobContextTimerInputMarshaller
-            implements
-            TimersInputMarshaller {
-        public void read(MarshallerReaderContext inCtx) throws IOException,
-                                                               ClassNotFoundException {
-
-            InternalFactHandle factHandle = inCtx.handles.get( inCtx.readLong() );
-
-            long nextTimeStamp = inCtx.readLong();
-
-            TimerService clock = inCtx.wm.getTimerService();
-
-            JobContext jobctx = new ExpireJobContext( new WorkingMemoryReteExpireAction( (EventFactHandle) factHandle ),
-                                                      inCtx.wm );
-            JobHandle handle = clock.scheduleJob( job,
-                                                  jobctx,
-                                                  PointInTimeTrigger.createPointInTimeTrigger( nextTimeStamp, null ) );
-            jobctx.setJobHandle( handle );
-
-        }
-
-        @Override
-        public void deserialize(MarshallerReaderContext inCtx,
-                                Timer timer) throws ClassNotFoundException {
-            ExpireTimer expire = timer.getExpire();
-            InternalFactHandle factHandle = inCtx.handles.get( expire.getHandleId() );
-
-            TimerService clock = inCtx.wm.getTimerService();
-
-            JobContext jobctx = new ExpireJobContext( new WorkingMemoryReteExpireAction((EventFactHandle)factHandle),
-                                                      inCtx.wm );
-            JobHandle jobHandle = clock.scheduleJob( job,
-                                                     jobctx,
-                                                     PointInTimeTrigger.createPointInTimeTrigger( expire.getNextFireTimestamp(), null ) );
-            jobctx.setJobHandle( jobHandle );
-            ((EventFactHandle) factHandle).addJob(jobHandle);
+            out.writeObject(expireAction);
+            out.writeObject(handle);
         }
     }
 
@@ -752,96 +516,7 @@ public class ObjectTypeNode extends ObjectSource
     public void byPassModifyToBetaNode(InternalFactHandle factHandle,
                                        ModifyPreviousTuples modifyPreviousTuples,
                                        PropagationContext context,
-                                       InternalWorkingMemory workingMemory) {
+                                       ReteEvaluator reteEvaluator) {
         throw new UnsupportedOperationException("This should never get called, as the PropertyReactive first happens at the AlphaNode");
-    }
-
-
-    public static class ObjectTypeNodeMemory implements Memory {
-        private ClassAwareObjectStore.SingleClassStore store;
-        private Class<?> classType;
-
-        ObjectTypeNodeMemory(Class<?> classType) {
-            this.classType = classType;
-        }
-
-        ObjectTypeNodeMemory(Class<?> classType, InternalWorkingMemory wm) {
-            this(classType);
-            store = ((ClassAwareObjectStore) wm.getObjectStore()).getOrCreateClassStore(classType);
-        }
-
-        @Override
-        public short getNodeType() {
-            return NodeTypeEnums.ObjectTypeNode;
-        }
-
-        public Iterator<InternalFactHandle> iterator() {
-            return store.factHandlesIterator(true);
-        }
-
-        @Override
-        public SegmentMemory getSegmentMemory() {
-            return null;
-        }
-
-        @Override
-        public void setSegmentMemory(SegmentMemory segmentMemory) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Memory getPrevious() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setPrevious(Memory previous) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void nullPrevNext() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setNext(Memory next) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Memory getNext() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void reset() { }
-
-        @Override
-        public String toString() {
-            return "ObjectTypeMemory for " + classType;
-        }
-    }
-
-    public static class InitialFactObjectTypeNodeMemory extends ObjectTypeNodeMemory {
-        private List<InternalFactHandle> list = Collections.emptyList();
-
-        InitialFactObjectTypeNodeMemory(Class<?> classType) {
-            super(classType);
-        }
-
-        public void add(InternalFactHandle factHandle) {
-            list = Collections.singletonList( factHandle );
-        }
-
-        @Override
-        public Iterator<InternalFactHandle> iterator() {
-            return list.iterator();
-        }
-
-        @Override
-        public void reset() {
-            list = Collections.emptyList();
-        }
     }
 }

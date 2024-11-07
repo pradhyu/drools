@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.testcoverage.functional;
 
 import java.io.IOException;
@@ -26,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.assertj.core.api.Assertions;
 import org.drools.decisiontable.ExternalSpreadsheetCompiler;
 import org.drools.template.DataProviderCompiler;
 import org.drools.template.ObjectDataCompiler;
@@ -45,6 +46,8 @@ import org.kie.api.io.Resource;
 import org.kie.api.runtime.KieSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests templates - providers, generating rules, performance.
@@ -90,9 +93,9 @@ public class TemplatesTest {
         final String rule0_then = "\tthen\n\t\tlist.add( $name );\nend\n\n";
 
         EXPECTED_RULES.append(head);
-        EXPECTED_RULES.append(rule2_when).append(rule2_then);
-        EXPECTED_RULES.append(rule1_when).append(rule1_then);
         EXPECTED_RULES.append(rule0_when).append(rule0_then);
+        EXPECTED_RULES.append(rule1_when).append(rule1_then);
+        EXPECTED_RULES.append(rule2_when).append(rule2_then);
     }
 
     @Test
@@ -161,7 +164,7 @@ public class TemplatesTest {
 
         final KieServices kieServices = KieServices.Factory.get();
         // the data we are interested in starts at row 1, column 1 (e.g. A1)
-        try (InputStream spreadSheetStream = kieServices.getResources().newClassPathResource("template1_spreadsheet.xls", getClass()).getInputStream();
+        try (InputStream spreadSheetStream = kieServices.getResources().newClassPathResource("template1_spreadsheet.drl.xls", getClass()).getInputStream();
              InputStream templateStream = kieServices.getResources().newClassPathResource("template_1.drl", getClass()).getInputStream()) {
 
             final String drl = converter.compile(spreadSheetStream, templateStream, 1, 1);
@@ -265,14 +268,14 @@ public class TemplatesTest {
         }
 
         // check of size of satisfying items
-        Assertions.assertThat(list.size()).isEqualTo(4);
+        assertThat(list.size()).isEqualTo(4);
 
         final Collection<KiePackage> pkgs = kbase.getKiePackages();
-        Assertions.assertThat(pkgs.size()).isEqualTo(1);
+        assertThat(pkgs.size()).isEqualTo(1);
         final KiePackage pkg = pkgs.iterator().next();
 
         // check of generated rules size from template
-        Assertions.assertThat(pkg.getRules().size()).isEqualTo(3);
+        assertThat(pkg.getRules().size()).isEqualTo(3);
     }
 
     private void testManyRows(final String drl, final int expectedResultListSize, final int expectedRulesCount) {
@@ -296,14 +299,14 @@ public class TemplatesTest {
         }
 
         // check of size of satisfying items
-        Assertions.assertThat(list.size()).isEqualTo(expectedResultListSize);
+        assertThat(list.size()).isEqualTo(expectedResultListSize);
 
         final Collection<KiePackage> pkgs = kbase.getKiePackages();
-        Assertions.assertThat(pkgs.size()).isEqualTo(1);
+        assertThat(pkgs.size()).isEqualTo(1);
         final KiePackage pkg = pkgs.iterator().next();
 
         // check of generated rules size from template
-        Assertions.assertThat(pkg.getRules().size()).isEqualTo(expectedRulesCount);
+        assertThat(pkg.getRules().size()).isEqualTo(expectedRulesCount);
     }
 
     private void testManyRules(final String drl, final int expectedRulesCount) {
@@ -312,11 +315,11 @@ public class TemplatesTest {
         final KieBase kbase = KieBaseUtil.getKieBaseFromResources(kieBaseTestConfiguration, drlResource);
 
         Collection<KiePackage> pkgs = kbase.getKiePackages();
-        Assertions.assertThat(pkgs.size()).isEqualTo(1);
+        assertThat(pkgs.size()).isEqualTo(1);
         KiePackage pkg = pkgs.iterator().next();
 
         // check of generated rules size from template
-        Assertions.assertThat(pkg.getRules().size()).isEqualTo(expectedRulesCount);
+        assertThat(pkg.getRules().size()).isEqualTo(expectedRulesCount);
     }
 
     private Collection<Map<String, Object>> getMapsParam() {
@@ -464,6 +467,6 @@ public class TemplatesTest {
     }
 
     private static void assertEqualsIgnoreWhitespace(final String expected, final String actual) {
-        Assertions.assertThat(expected).isEqualToIgnoringWhitespace(actual);
+        assertThat(expected).isEqualToIgnoringWhitespace(actual);
     }
 }

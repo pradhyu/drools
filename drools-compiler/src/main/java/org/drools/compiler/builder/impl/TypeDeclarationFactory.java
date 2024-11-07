@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.builder.impl;
 
 import java.io.IOException;
@@ -22,33 +25,41 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.drools.base.base.ClassFieldInspector;
+import org.drools.base.base.CoreComponentsBuilder;
+import org.drools.base.factmodel.FieldDefinition;
+import org.drools.base.factmodel.GeneratedFact;
+import org.drools.base.rule.TypeDeclaration;
 import org.drools.compiler.compiler.PackageRegistry;
 import org.drools.compiler.compiler.TypeDeclarationError;
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
-import org.drools.compiler.lang.descr.EnumDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeFieldDescr;
-import org.drools.core.factmodel.FieldDefinition;
-import org.drools.core.factmodel.GeneratedFact;
-import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.util.asm.ClassFieldInspector;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.EnumDeclarationDescr;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
+import org.drools.drl.ast.descr.TypeFieldDescr;
 import org.kie.api.definition.type.FactField;
 import org.kie.api.definition.type.PropertyChangeSupport;
 import org.kie.api.definition.type.Role;
 import org.kie.api.definition.type.TypeSafe;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.drools.compiler.rule.builder.util.AnnotationFactory.getTypedAnnotation;
 
 public class TypeDeclarationFactory {
+    private static final Logger LOG = LoggerFactory.getLogger(TypeDeclarationFactory.class);
 
-    protected KnowledgeBuilderImpl kbuilder;
+    protected TypeDeclarationContext context;
+    private final BuildResultCollector results;
 
-    public TypeDeclarationFactory( KnowledgeBuilderImpl kbuilder ) {
-        this.kbuilder = kbuilder;
+    public TypeDeclarationFactory( TypeDeclarationContext context, BuildResultCollector results ) {
+        this.context = context;
+        this.results = results;
     }
 
     public TypeDeclaration processTypeDeclaration( PackageRegistry pkgRegistry,
                                                    AbstractClassTypeDeclarationDescr typeDescr ) {
 
-        TypeDeclaration type = kbuilder.getTypeBuilder().getExistingTypeDeclaration( typeDescr.getFullTypeName() );
+        TypeDeclaration type = context.getTypeBuilder().getExistingTypeDeclaration( typeDescr.getFullTypeName() );
         if (type == null) {
             type = new TypeDeclaration( typeDescr.getTypeName() );
             type.setResource( typeDescr.getResource() );
@@ -70,17 +81,17 @@ public class TypeDeclarationFactory {
         try {
             processAnnotations( typeDescr, type );
         } catch (Exception e) {
-            kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr, e.getMessage() ) );
+            results.addBuilderResult(new TypeDeclarationError(typeDescr, e.getMessage() ) );
         }
     }
 
     public static void processAnnotations( AbstractClassTypeDeclarationDescr typeDescr, TypeDeclaration type ) {
-        Role role = typeDescr.getTypedAnnotation(Role.class);
+        Role role = getTypedAnnotation(typeDescr, Role.class);
         if (role != null) {
             type.setRole(role.value());
         }
 
-        TypeSafe typeSafe = typeDescr.getTypedAnnotation(TypeSafe.class);
+        TypeSafe typeSafe = getTypedAnnotation(typeDescr, TypeSafe.class);
         if (typeSafe != null) {
             type.setTypesafe(typeSafe.value());
         }
@@ -95,7 +106,7 @@ public class TypeDeclarationFactory {
     }
 
     protected void checkRedeclaration( AbstractClassTypeDeclarationDescr typeDescr, TypeDeclaration type, PackageRegistry pkgRegistry ) {
-        TypeDeclaration previousTypeDeclaration = kbuilder.getPackageRegistry( typeDescr.getNamespace() ).getPackage().getTypeDeclaration( typeDescr.getTypeName() );
+        TypeDeclaration previousTypeDeclaration = context.getPackageRegistry( typeDescr.getNamespace() ).getPackage().getTypeDeclaration( typeDescr.getTypeName() );
 
         try {
             // if there is no previous declaration, then the original declaration was a POJO
@@ -104,13 +115,13 @@ public class TypeDeclarationFactory {
                 // new declarations of a POJO can't declare new fields,
                 // except if the POJO was previously generated/compiled and saved into the kjar
                 Class<?> existingDeclarationClass = TypeDeclarationUtils.getExistingDeclarationClass( typeDescr, pkgRegistry );
-                if ( ! kbuilder.getBuilderConfiguration().isPreCompiled() &&
+                if ( ! context.getBuilderConfiguration().isPreCompiled() &&
                      ! GeneratedFact.class.isAssignableFrom( existingDeclarationClass ) &&
                      ! type.getTypeClassDef().getFields().isEmpty()
                         ) {
                     try {
                         Class existingClass = pkgRegistry.getPackage().getTypeResolver().resolveType( typeDescr.getType().getFullName() );
-                        ClassFieldInspector cfi = new ClassFieldInspector( existingClass );
+                        ClassFieldInspector cfi = CoreComponentsBuilder.get().createClassFieldInspector( existingClass );
 
                         int fieldCount = 0;
                         for ( String existingFieldName : cfi.getFieldTypesField().keySet() ) {
@@ -121,15 +132,15 @@ public class TypeDeclarationFactory {
                                     ) {
                                 if ( ! typeDescr.getFields().containsKey( existingFieldName ) ) {
                                     type.setValid(false);
-                                    kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr, "New declaration of "+typeDescr.getType().getFullName() +
+                                    results.addBuilderResult(new TypeDeclarationError(typeDescr, "New declaration of "+typeDescr.getType().getFullName() +
                                                                                                   " does not include field " + existingFieldName ) );
                                 } else {
                                     String fldType = cfi.getFieldType( existingFieldName ).getName();
-                                    fldType = TypeDeclarationUtils.toBuildableType( fldType, kbuilder.getRootClassLoader() );
+                                    fldType = TypeDeclarationUtils.toBuildableType( fldType, context.getRootClassLoader() );
                                     TypeFieldDescr declaredField = typeDescr.getFields().get( existingFieldName );
                                     if ( ! fldType.equals( type.getTypeClassDef().getField( existingFieldName ).getTypeName() ) ) {
                                         type.setValid(false);
-                                        kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr, "New declaration of "+typeDescr.getType().getFullName() +
+                                        results.addBuilderResult(new TypeDeclarationError(typeDescr, "New declaration of "+typeDescr.getType().getFullName() +
                                                                                                       " redeclared field " + existingFieldName + " : \n" +
                                                                                                       "existing : " + fldType + " vs declared : " + declaredField.getPattern().getObjectType() ) );
                                     } else {
@@ -141,15 +152,15 @@ public class TypeDeclarationFactory {
                         }
 
                         if ( fieldCount != typeDescr.getFields().size() ) {
-                            kbuilder.addBuilderResult( reportDeclarationDiff( cfi, typeDescr ) );
+                            results.addBuilderResult( reportDeclarationDiff( cfi, typeDescr ) );
                         }
                     } catch ( IOException e ) {
-                        e.printStackTrace();
+                        LOG.error("Exception", e);
                         type.setValid(false);
-                        kbuilder.addBuilderResult( new TypeDeclarationError( typeDescr, "Unable to redeclare " + typeDescr.getType().getFullName() + " : " + e.getMessage() ) );
+                        results.addBuilderResult( new TypeDeclarationError( typeDescr, "Unable to redeclare " + typeDescr.getType().getFullName() + " : " + e.getMessage() ) );
                     } catch ( ClassNotFoundException e ) {
                         type.setValid(false);
-                        kbuilder.addBuilderResult( new TypeDeclarationError( typeDescr, "Unable to redeclare " + typeDescr.getType().getFullName() + " : " + e.getMessage() ) );
+                        results.addBuilderResult( new TypeDeclarationError( typeDescr, "Unable to redeclare " + typeDescr.getType().getFullName() + " : " + e.getMessage() ) );
                     }
                 }
             } else if (previousTypeDeclaration != null) { // previous declaration can be null during an incremental compilation
@@ -158,12 +169,12 @@ public class TypeDeclarationFactory {
 
                 if (typeComparisonResult < 0) {
                     //oldDeclaration is "less" than newDeclaration -> error
-                    kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr, typeDescr.getType().getFullName()
+                    results.addBuilderResult(new TypeDeclarationError(typeDescr, typeDescr.getType().getFullName()
                                                                                   + " declares more fields than the already existing version"));
                     type.setValid(false);
                 } else if (typeComparisonResult > 0 && !type.getTypeClassDef().getFields().isEmpty()) {
                     //oldDeclaration is "grater" than newDeclaration -> error
-                    kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr, typeDescr.getType().getFullName()
+                    results.addBuilderResult(new TypeDeclarationError(typeDescr, typeDescr.getType().getFullName()
                                                                                   + " declares less fields than the already existing version"));
                     type.setValid(false);
                 }
@@ -179,7 +190,7 @@ public class TypeDeclarationFactory {
 
         } catch (IncompatibleClassChangeError error) {
             //if the types are incompatible -> error
-            kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr, error.getMessage()));
+            results.addBuilderResult(new TypeDeclarationError(typeDescr, error.getMessage()));
         }
 
     }
@@ -217,15 +228,13 @@ public class TypeDeclarationFactory {
 
         //different superclasses -> Incompatible (TODO: check for hierarchy)
         if (!oldDeclaration.getTypeClassDef().getSuperClass().equals(newDeclaration.getTypeClassDef().getSuperClass())) {
-            if (oldDeclaration.getNature() == TypeDeclaration.Nature.DEFINITION
-                && newDeclaration.getNature() == TypeDeclaration.Nature.DECLARATION
-                && Object.class.getName().equals(newDeclaration.getTypeClassDef().getSuperClass())) {
-                // actually do nothing. The new declaration just recalls the previous definition, probably to extend it.
-            } else {
-                throw new IncompatibleClassChangeError("Type Declaration " + newDeclaration.getTypeName() + " has a different"
-                                                       + " superclass that its previous definition: " + newDeclaration.getTypeClassDef().getSuperClass()
-                                                       + " != " + oldDeclaration.getTypeClassDef().getSuperClass());
-            }
+            if (oldDeclaration.getNature() != TypeDeclaration.Nature.DEFINITION
+                    || newDeclaration.getNature() != TypeDeclaration.Nature.DECLARATION
+                    || !Object.class.getName().equals(newDeclaration.getTypeClassDef().getSuperClass())) {
+                        throw new IncompatibleClassChangeError("Type Declaration " + newDeclaration.getTypeName() + " has a different"
+                                                               + " superclass that its previous definition: " + newDeclaration.getTypeClassDef().getSuperClass()
+                                                               + " != " + oldDeclaration.getTypeClassDef().getSuperClass());
+                }
         }
 
         //different duration -> Incompatible
@@ -248,7 +257,7 @@ public class TypeDeclarationFactory {
 
         //Field comparison
         List<FactField> oldFields = oldDeclaration.getTypeClassDef().getFields();
-        Map<String, FactField> newFieldsMap = new HashMap<String, FactField>();
+        Map<String, FactField> newFieldsMap = new HashMap<>();
         for (FactField factField : newDeclaration.getTypeClassDef().getFields()) {
             newFieldsMap.put(factField.getName(), factField);
         }
@@ -309,16 +318,16 @@ public class TypeDeclarationFactory {
 
 
     private TypeDeclarationError reportDeclarationDiff( ClassFieldInspector cfi, AbstractClassTypeDeclarationDescr typeDescr) {
-        List<String> existing = new ArrayList<String>();
+        List<String> existing = new ArrayList<>();
         for ( String existingFieldName : cfi.getFieldTypesField().keySet() ) {
             if ( ! cfi.isNonGetter( existingFieldName ) && ! "class".equals( existingFieldName ) && cfi.getSetterMethods().containsKey( existingFieldName ) ) {
                 existing.add( existingFieldName );
             }
         }
         Collections.sort( existing );
-        List<String> declared = new ArrayList<String>( typeDescr.getFields().keySet() );
+        List<String> declared = new ArrayList<>( typeDescr.getFields().keySet() );
         Collections.sort( declared );
-        List<String> deltas = new ArrayList<String>();
+        List<String> deltas = new ArrayList<>();
         for ( String s : existing ) {
             if ( ! declared.contains( s ) ) {
                 deltas.add( "--" + s );

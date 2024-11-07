@@ -1,24 +1,25 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.testcoverage.functional;
 
 import java.io.IOException;
 
-import org.assertj.core.api.Assertions;
 import org.drools.core.impl.InternalKieContainer;
 import org.drools.testcoverage.common.util.TestConstants;
 import org.junit.Before;
@@ -33,6 +34,9 @@ import org.kie.api.builder.model.KieSessionModel;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.StatelessKieSession;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This class's purpose is to test obtaining default KieSessions and default KieBases from KieContainer. It tests
@@ -70,8 +74,8 @@ public class KieContainerDefaultsTest {
         final KieBase firstKBase = kieContainer.getKieBase("firstKBase");
         final KieBase secondKBase = kieContainer.getKieBase("secondKBase");
 
-        Assertions.assertThat(kieContainer.getKieBase()).isEqualTo(firstKBase);
-        Assertions.assertThat(kieContainer.getKieBase()).isNotEqualTo(secondKBase);
+        assertThat(kieContainer.getKieBase()).isEqualTo(firstKBase);
+        assertThat(kieContainer.getKieBase()).isNotEqualTo(secondKBase);
     }
 
     /**
@@ -87,7 +91,7 @@ public class KieContainerDefaultsTest {
 
         final KieContainer kieContainer = kieServices.newKieContainer(RELEASE_ID);
 
-        Assertions.assertThatThrownBy(() -> kieContainer.getKieBase())
+        assertThatThrownBy(() -> kieContainer.getKieBase())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Cannot find a default KieBase");
     }
@@ -109,8 +113,8 @@ public class KieContainerDefaultsTest {
         final KieSession secondKSession = kieContainer.newKieSession("secondKSession");
 
         try {
-            Assertions.assertThat(firstKSession).isEqualTo(((InternalKieContainer) kieContainer).getKieSession());
-            Assertions.assertThat(secondKSession).isNotEqualTo(((InternalKieContainer) kieContainer).getKieSession());
+            assertThat(firstKSession).isEqualTo(((InternalKieContainer) kieContainer).getKieSession());
+            assertThat(secondKSession).isNotEqualTo(((InternalKieContainer) kieContainer).getKieSession());
         } finally {
             firstKSession.dispose();
             secondKSession.dispose();
@@ -130,7 +134,7 @@ public class KieContainerDefaultsTest {
 
         final KieContainer kieContainer = kieServices.newKieContainer(RELEASE_ID);
 
-        Assertions.assertThatThrownBy(() -> kieContainer.newKieSession())
+        assertThatThrownBy(() -> kieContainer.newKieSession())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Cannot find a default KieSession");
     }
@@ -148,7 +152,7 @@ public class KieContainerDefaultsTest {
 
         final KieContainer kieContainer = kieServices.newKieContainer(RELEASE_ID);
 
-        Assertions.assertThatThrownBy(() -> kieContainer.newKieSession())
+        assertThatThrownBy(() -> kieContainer.newKieSession())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Cannot find a default KieSession");
     }
@@ -166,7 +170,7 @@ public class KieContainerDefaultsTest {
 
         final KieContainer kieContainer = kieServices.newKieContainer(RELEASE_ID);
 
-        Assertions.assertThatThrownBy(() -> kieContainer.newKieSession())
+        assertThatThrownBy(() -> kieContainer.newKieSession())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Cannot find a default KieSession");
     }
@@ -187,9 +191,9 @@ public class KieContainerDefaultsTest {
         final StatelessKieSession firstKSession = kieContainer.newStatelessKieSession("firstKSession");
         final KieSession secondKSession = kieContainer.newKieSession("secondKSession");
 
-        try {
-            Assertions.assertThat(firstKSession).isEqualTo(((InternalKieContainer) kieContainer).getStatelessKieSession());
-            Assertions.assertThat(secondKSession).isNotEqualTo(((InternalKieContainer) kieContainer).getStatelessKieSession());
+    try {
+            assertThat(firstKSession).isEqualTo(((InternalKieContainer) kieContainer).getStatelessKieSession());
+            assertThat(secondKSession).isNotInstanceOf(StatelessKieSession.class);
         } finally {
             secondKSession.dispose();
         }
@@ -211,8 +215,8 @@ public class KieContainerDefaultsTest {
         final StatelessKieSession firstKSession = kieContainer.newStatelessKieSession("firstKSession");
         final StatelessKieSession secondKSession = kieContainer.newStatelessKieSession("secondKSession");
 
-        Assertions.assertThat(firstKSession).isEqualTo(((InternalKieContainer) kieContainer).getStatelessKieSession());
-        Assertions.assertThat(secondKSession).isNotEqualTo(((InternalKieContainer) kieContainer).getStatelessKieSession());
+        assertThat(firstKSession).isEqualTo(((InternalKieContainer) kieContainer).getStatelessKieSession());
+        assertThat(secondKSession).isNotEqualTo(((InternalKieContainer) kieContainer).getStatelessKieSession());
     }
 
     /**
@@ -228,7 +232,7 @@ public class KieContainerDefaultsTest {
 
         final KieContainer kieContainer = kieServices.newKieContainer(RELEASE_ID);
 
-        Assertions.assertThatThrownBy(() -> kieContainer.newStatelessKieSession())
+        assertThatThrownBy(() -> kieContainer.newStatelessKieSession())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Cannot find a default StatelessKieSession");
     }
@@ -246,7 +250,7 @@ public class KieContainerDefaultsTest {
 
         final KieContainer kieContainer = kieServices.newKieContainer(RELEASE_ID);
 
-        Assertions.assertThatThrownBy(() -> kieContainer.newStatelessKieSession())
+        assertThatThrownBy(() -> kieContainer.newStatelessKieSession())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Cannot find a default StatelessKieSession");
     }
@@ -264,7 +268,7 @@ public class KieContainerDefaultsTest {
 
         final KieContainer kieContainer = kieServices.newKieContainer(RELEASE_ID);
 
-        Assertions.assertThatThrownBy(() -> kieContainer.newStatelessKieSession())
+        assertThatThrownBy(() -> kieContainer.newStatelessKieSession())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Cannot find a default StatelessKieSession");
     }

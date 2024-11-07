@@ -1,30 +1,32 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.visitor;
 
-import org.drools.core.base.evaluators.Operator;
-import org.drools.compiler.lang.descr.FieldConstraintDescr;
-import org.drools.compiler.lang.descr.LiteralRestrictionDescr;
-import org.drools.compiler.lang.descr.PredicateDescr;
-import org.drools.compiler.lang.descr.QualifiedIdentifierRestrictionDescr;
-import org.drools.compiler.lang.descr.RestrictionConnectiveDescr;
-import org.drools.compiler.lang.descr.RestrictionDescr;
-import org.drools.compiler.lang.descr.ReturnValueRestrictionDescr;
-import org.drools.compiler.lang.descr.VariableRestrictionDescr;
+import org.drools.drl.parser.impl.Operator;
+import org.drools.drl.ast.descr.FieldConstraintDescr;
+import org.drools.drl.ast.descr.LiteralRestrictionDescr;
+import org.drools.drl.ast.descr.PredicateDescr;
+import org.drools.drl.ast.descr.QualifiedIdentifierRestrictionDescr;
+import org.drools.drl.ast.descr.RestrictionConnectiveDescr;
+import org.drools.drl.ast.descr.RestrictionDescr;
+import org.drools.drl.ast.descr.ReturnValueRestrictionDescr;
+import org.drools.drl.ast.descr.VariableRestrictionDescr;
 import org.drools.verifier.components.EnumField;
 import org.drools.verifier.components.EnumRestriction;
 import org.drools.verifier.components.Field;
@@ -91,7 +93,7 @@ public class FieldConstraintDescrVisitor {
         } else if (restrictionDescr instanceof VariableRestrictionDescr) {
             visit((VariableRestrictionDescr) restrictionDescr);
         } else if (restrictionDescr instanceof PredicateDescr) {
-            visit((PredicateDescr) restrictionDescr);
+            visit(restrictionDescr);
         } else if (restrictionDescr instanceof RestrictionConnectiveDescr) {
             visit((RestrictionConnectiveDescr) restrictionDescr);
         } else {

@@ -1,19 +1,21 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.core.checks;
 
 import java.util.ArrayList;
@@ -57,7 +59,8 @@ public class SingleRangeCheck extends CheckBase {
 
     private final Collection<RuleInspector> ruleInspectors;
 
-    public SingleRangeCheck(AnalyzerConfiguration configuration, Collection<RuleInspector> ruleInspectors) {
+    public SingleRangeCheck(final AnalyzerConfiguration configuration,
+                            final Collection<RuleInspector> ruleInspectors) {
         super(configuration);
         this.ruleInspectors = ruleInspectors;
     }
@@ -94,8 +97,10 @@ public class SingleRangeCheck extends CheckBase {
             for (ObjectField field : rangeFields) {
                 if ("Integer".equals(field.getFieldType())) {
                     checkMonodimensionalRange(partition, dimensions, field, conditionIndex, IntegerRange::new, Integer.MIN_VALUE, Integer.MAX_VALUE);
-                } else {
+                } else if ("Double".equals(field.getFieldType())) {
                     checkMonodimensionalRange(partition, dimensions, field, conditionIndex, NumericRange::new, Double.MIN_VALUE, Double.MAX_VALUE);
+                } else {
+                    checkMonodimensionalRange(partition, dimensions, field, conditionIndex, ComparableRange::new, ComparableWrapper.MIN_VALUE, ComparableWrapper.MAX_VALUE);
                 }
             }
 
@@ -112,8 +117,8 @@ public class SingleRangeCheck extends CheckBase {
                 .map(rangeSupplier)
                 .collect(toList());
 
-        T upper = getCoverageUpperBound(min, ranges);
-        if (upper.equals(max)) {
+        final T upper = getCoverageUpperBound(min, ranges);
+        if ((upper != null && upper.equals(max)) || (upper == null && max == null)) {
             dimensions.add(ranges);
         } else {
             errors.add(new RangeError(partition.getValue(), partition.getKey(), upper));
@@ -124,6 +129,8 @@ public class SingleRangeCheck extends CheckBase {
         if (errors.isEmpty() && dimensions.size() >= 2) {
             for (int i = 0; i < dimensions.size() - 1; i++) {
                 for (int j = i + 1; j < dimensions.size(); j++) {
+                    //AF-2542: the new version of JDT used by GWT has a hard time to resolve some generics.
+                    //         the unnecessary cast is required because of that.
                     if (!checkBidimensionalRanges(dimensions.get(i), dimensions.get(j))) {
                         errors.add(new RangeError(partition.getValue(), partition.getKey(), null));
                     }
@@ -333,6 +340,41 @@ public class SingleRangeCheck extends CheckBase {
         protected abstract T minValue();
 
         protected abstract T maxValue();
+    }
+
+    private static class ComparableRange extends Range<ComparableWrapper> implements Comparable<Range<ComparableWrapper>> {
+
+        ComparableRange(List<ConditionInspector> conditionInspectors) {
+            super(conditionInspectors);
+        }
+
+        @Override
+        protected Consumer<ConditionInspector> getConditionParser() {
+            return c -> {
+                FieldCondition cond = (FieldCondition) c.getCondition();
+                Operator op = resolve(cond.getOperator());
+                switch (op) {
+                    case LESS_OR_EQUAL:
+                    case LESS_THAN:
+                        upperBound = new ComparableWrapper((Comparable) cond.getValues().iterator().next());
+                        break;
+                    case GREATER_THAN:
+                    case GREATER_OR_EQUAL:
+                        lowerBound = new ComparableWrapper((Comparable) cond.getValues().iterator().next());
+                        break;
+                }
+            };
+        }
+
+        @Override
+        protected ComparableWrapper minValue() {
+            return ComparableWrapper.MIN_VALUE;
+        }
+
+        @Override
+        protected ComparableWrapper maxValue() {
+            return ComparableWrapper.MAX_VALUE;
+        }
     }
 
     private static class IntegerRange extends Range<Integer> implements Comparable<Range<Integer>> {

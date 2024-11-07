@@ -1,48 +1,44 @@
-/*
- * Copyright (C) 2007-2010 Júlio Vilmar Gesser.
- * Copyright (C) 2011, 2013-2016 The JavaParser Team.
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * This file is part of JavaParser.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * JavaParser can be used either under the terms of
- * a) the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- * b) the terms of the Apache License
- *
- * You should have received a copy of both licenses in LICENCE.LGPL and
- * LICENCE.APACHE. Please refer to those files for details.
- *
- * JavaParser is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * Modified by Red Hat, Inc.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.mvel.parser.ast.expr;
 
 import com.github.javaparser.TokenRange;
 import com.github.javaparser.ast.AllFieldsConstructor;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.observer.ObservableProperty;
 import com.github.javaparser.ast.visitor.CloneVisitor;
-import org.drools.mvel.parser.ast.visitor.DrlGenericVisitor;
-import org.drools.mvel.parser.ast.visitor.DrlVoidVisitor;
 import com.github.javaparser.ast.visitor.GenericVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.metamodel.BinaryExprMetaModel;
 import com.github.javaparser.metamodel.JavaParserMetaModel;
-import com.github.javaparser.printer.Printable;
+import com.github.javaparser.printer.Stringable;
+import org.drools.mvel.parser.ast.visitor.DrlGenericVisitor;
+import org.drools.mvel.parser.ast.visitor.DrlVoidVisitor;
 
 import static com.github.javaparser.utils.Utils.assertNotNull;
 
 public final class HalfBinaryExpr extends Expression {
 
-    public enum Operator implements Printable {
+    public enum Operator implements Stringable {
 
         EQUALS("=="), NOT_EQUALS("!="), LESS("<"), GREATER(">"), LESS_EQUALS("<="), GREATER_EQUALS(">=");
 
@@ -54,6 +50,18 @@ public final class HalfBinaryExpr extends Expression {
 
         public String asString() {
             return codeRepresentation;
+        }
+
+        public BinaryExpr.Operator toBinaryExprOperator() {
+            switch (this) {
+                case EQUALS: return BinaryExpr.Operator.EQUALS;
+                case NOT_EQUALS: return BinaryExpr.Operator.NOT_EQUALS;
+                case LESS: return BinaryExpr.Operator.LESS;
+                case GREATER: return BinaryExpr.Operator.GREATER;
+                case LESS_EQUALS: return BinaryExpr.Operator.LESS_EQUALS;
+                case GREATER_EQUALS: return BinaryExpr.Operator.GREATER_EQUALS;
+            }
+            throw new UnsupportedOperationException("Unknown operator " + this);
         }
     }
 
@@ -99,7 +107,7 @@ public final class HalfBinaryExpr extends Expression {
     public HalfBinaryExpr setOperator(final Operator operator) {
         assertNotNull(operator);
         if (operator == this.operator) {
-            return (HalfBinaryExpr) this;
+            return this;
         }
         notifyPropertyChange(ObservableProperty.OPERATOR, this.operator, operator);
         this.operator = operator;
@@ -109,7 +117,7 @@ public final class HalfBinaryExpr extends Expression {
     public HalfBinaryExpr setRight(final Expression right) {
         assertNotNull(right);
         if (right == this.right) {
-            return (HalfBinaryExpr) this;
+            return this;
         }
         notifyPropertyChange(ObservableProperty.RIGHT, this.right, right);
         if (this.right != null)

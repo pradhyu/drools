@@ -1,33 +1,53 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.lang.descr;
 
-import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.kie.api.io.Resource;
-import org.kie.internal.builder.ResourceChange;
-
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import org.drools.compiler.builder.impl.AssetFilter;
+import org.drools.drl.ast.descr.AccumulateImportDescr;
+import org.drools.drl.ast.descr.AttributeDescr;
+import org.drools.drl.ast.descr.EntryPointDeclarationDescr;
+import org.drools.drl.ast.descr.EnumDeclarationDescr;
+import org.drools.drl.ast.descr.FunctionDescr;
+import org.drools.drl.ast.descr.FunctionImportDescr;
+import org.drools.drl.ast.descr.GlobalDescr;
+import org.drools.drl.ast.descr.ImportDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
+import org.drools.drl.ast.descr.WindowDeclarationDescr;
+import org.kie.api.io.Resource;
+import org.kie.internal.builder.ResourceChange;
 
 public class CompositePackageDescr extends PackageDescr {
     
     private CompositeAssetFilter filter;
 
     public CompositePackageDescr() { }
+
+    public CompositePackageDescr(String namespace) {
+        this.setNamespace(namespace);
+    }
 
     public CompositePackageDescr(Resource resource, PackageDescr packageDescr) {
         super(packageDescr.getNamespace(), packageDescr.getDocumentation());
@@ -44,101 +64,80 @@ public class CompositePackageDescr extends PackageDescr {
     }
 
     private void internalAdd(Resource resource, PackageDescr packageDescr) {
-        List<ImportDescr> currentImports = getImports();
         for (ImportDescr descr : packageDescr.getImports()) {
-            if (!currentImports.contains(descr)) {
-                addImport(descr);
-                descr.setResource(resource);
-            }
+            addImport(descr);
+            descr.setResource(resource);
         }
 
-        List<FunctionImportDescr> currentFunctionImports = getFunctionImports();
         for (FunctionImportDescr descr : packageDescr.getFunctionImports()) {
-            if (!currentFunctionImports.contains(descr)) {
-                addFunctionImport(descr);
-                descr.setResource(resource);
-            }
+            addFunctionImport(descr);
+            descr.setResource(resource);
         }
-        
-        List<AccumulateImportDescr> accumulateImports = getAccumulateImports();
+
         for (AccumulateImportDescr descr : packageDescr.getAccumulateImports()) {
-            if (!accumulateImports.contains(descr)) {
-                addAccumulateImport(descr);
-                descr.setResource(resource);
-            }
+            addAccumulateImport(descr);
+            descr.setResource(resource);
         }
 
-        List<AttributeDescr> currentAttributeDescrs = getAttributes();
         for (AttributeDescr descr : packageDescr.getAttributes()) {
-            if (!currentAttributeDescrs.contains(descr)) {
-                addAttribute(descr);
-                descr.setResource(resource);
-            }
+            addAttribute(descr);
+            descr.setResource(resource);
         }
 
-        List<GlobalDescr> currentGlobalDescrs = getGlobals();
         for (GlobalDescr descr : packageDescr.getGlobals()) {
-            if (!currentGlobalDescrs.contains(descr)) {
-                addGlobal(descr);
-                descr.setResource(resource);
-            }
+            addGlobal(descr);
+            descr.setResource(resource);
         }
 
-        List<FunctionDescr> currentFunctionDescrs = getFunctions();
         for (FunctionDescr descr : packageDescr.getFunctions()) {
-            if (!currentFunctionDescrs.contains(descr)) {
-                addFunction(descr);
-                descr.setResource(resource);
-            }
+            addFunction(descr);
+            descr.setResource(resource);
         }
 
-        List<RuleDescr> ruleDescrs = getRules();
         for (RuleDescr descr : packageDescr.getRules()) {
-            if (!ruleDescrs.contains(descr)) {
-                addRule(descr);
-                descr.setResource(resource);
-            }
+            addRule(descr);
+            descr.setResource(resource);
         }
 
-        List<TypeDeclarationDescr> typeDeclarationDescrs = getTypeDeclarations();
+        // Avoid adding the same type declaration twice, see
+        // TypeDeclarationTest.testDuplicatedTypeDeclarationInDifferentResources
+        // IncrementalCompilationTest.testIncrementalCompilationWithAmbiguousRedeclares
+        // RHDM-1738
+        Set<TypeDeclarationDescr> typeDeclarationDescrs = new HashSet<>(getTypeDeclarations());
         for (TypeDeclarationDescr descr : packageDescr.getTypeDeclarations()) {
             if (!typeDeclarationDescrs.contains(descr)) {
                 addTypeDeclaration(descr);
                 descr.setResource(resource);
             }
-
         }
 
-        List<EnumDeclarationDescr> enumDeclarationDescrs = getEnumDeclarations();
         for (EnumDeclarationDescr enumDescr : packageDescr.getEnumDeclarations()) {
-            if (!enumDeclarationDescrs.contains(enumDescr)) {
-                addEnumDeclaration(enumDescr);
-                enumDescr.setResource(resource);
-            }
+            addEnumDeclaration(enumDescr);
+            enumDescr.setResource(resource);
         }
 
-        Set<EntryPointDeclarationDescr> entryPointDeclarationDescrs = getEntryPointDeclarations();
         for (EntryPointDeclarationDescr descr : packageDescr.getEntryPointDeclarations()) {
-            if (!entryPointDeclarationDescrs.contains(descr)) {
-                addEntryPointDeclaration(descr);
-                descr.setResource(resource);
-            }
+            addEntryPointDeclaration(descr);
+            descr.setResource(resource);
         }
 
-        Set<WindowDeclarationDescr> windowDeclarationDescrs = getWindowDeclarations();
         for (WindowDeclarationDescr descr : packageDescr.getWindowDeclarations()) {
-            if (!windowDeclarationDescrs.contains(descr)) {
-                addWindowDeclaration(descr);
-                descr.setResource(resource);
-            }
+            addWindowDeclaration(descr);
+            descr.setResource(resource);
         }
+        packageDescr.getPreferredPkgUUID().ifPresent(pkgUUID -> {
+            if (getPreferredPkgUUID().isPresent() && !pkgUUID.equals(getPreferredPkgUUID().get())) {
+                throw new RuntimeException(String.format("Trying to overwrite preferredPkgUUID %s with a different value %s", getPreferredPkgUUID().get(), pkgUUID));
+            }
+            setPreferredPkgUUID(pkgUUID);
+        });
     }
     
     public CompositeAssetFilter getFilter() {
         return filter;
     }
     
-    public void addFilter( KnowledgeBuilderImpl.AssetFilter f ) {
+    public void addFilter( AssetFilter f ) {
         if( f != null ) {
             if( filter == null ) {
                 this.filter = new CompositeAssetFilter();
@@ -147,12 +146,12 @@ public class CompositePackageDescr extends PackageDescr {
         }
     }
     
-    public static class CompositeAssetFilter implements KnowledgeBuilderImpl.AssetFilter {
-        public List<KnowledgeBuilderImpl.AssetFilter> filters = new ArrayList<KnowledgeBuilderImpl.AssetFilter>();
+    public static class CompositeAssetFilter implements AssetFilter {
+        public List<AssetFilter> filters = new ArrayList<>();
 
         @Override
         public Action accept(ResourceChange.Type type, String pkgName, String assetName) {
-            for( KnowledgeBuilderImpl.AssetFilter filter : filters ) {
+            for( AssetFilter filter : filters ) {
                 Action result = filter.accept(type, pkgName, assetName);
                 if( !Action.DO_NOTHING.equals( result ) ) {
                     return result;

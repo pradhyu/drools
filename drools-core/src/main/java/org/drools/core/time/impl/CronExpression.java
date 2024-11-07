@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.time.impl;
 
 import java.text.ParseException;
@@ -182,7 +184,7 @@ import java.util.TimeZone;
  * </ul>
  * </p>
  */
-public class CronExpression extends org.kie.soup.commons.cron.CronExpression implements Cloneable {
+public class CronExpression extends KieCronExpression implements Cloneable {
 
     private TimeZone timeZone = null;
 
@@ -249,7 +251,7 @@ public class CronExpression extends org.kie.soup.commons.cron.CronExpression imp
         adjustCal.set(Calendar.MILLISECOND, 0);
         Date lastDate = adjustCal.getTime();
 
-        Date newDate = null;
+        Date newDate;
 
         //TODO: (QUARTZ-481) IMPROVE THIS! The following is a BAD solution to this problem. Performance will be very bad here, depending on the cron expression. It is, however A solution.
 
@@ -315,8 +317,8 @@ public class CronExpression extends org.kie.soup.commons.cron.CronExpression imp
                 return null;
             }
 
-            SortedSet st = null;
-            int t = 0;
+            SortedSet st;
+            int t;
 
             int sec = cl.get(Calendar.SECOND);
             int min = cl.get(Calendar.MINUTE);
@@ -728,29 +730,20 @@ public class CronExpression extends org.kie.soup.commons.cron.CronExpression imp
 
         switch (monthNum) {
             case 1:
+            case 3:
+            case 5:
+            case 7:
+            case 8:
+            case 10:
+            case 12:
                 return 31;
             case 2:
                 return (isLeapYear(year)) ? 29 : 28;
-            case 3:
-                return 31;
             case 4:
-                return 30;
-            case 5:
-                return 31;
             case 6:
-                return 30;
-            case 7:
-                return 31;
-            case 8:
-                return 31;
             case 9:
-                return 30;
-            case 10:
-                return 31;
             case 11:
                 return 30;
-            case 12:
-                return 31;
             default:
                 throw new IllegalArgumentException("Illegal month number: "
                         + monthNum);
@@ -769,11 +762,12 @@ public class CronExpression extends org.kie.soup.commons.cron.CronExpression imp
     }
 
     public Object clone() {
-        CronExpression copy = null;
+        CronExpression copy;
         try {
             copy = new CronExpression(getCronExpression());
-            if(getTimeZone() != null)
+            if(getTimeZone() != null) {
                 copy.setTimeZone((TimeZone) getTimeZone().clone());
+            }
         } catch (ParseException ex) { // never happens since the source is valid...
             throw new IncompatibleClassChangeError("Not Cloneable.");
         }

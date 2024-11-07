@@ -1,28 +1,29 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.doc;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.text.ParseException;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
 
-import org.drools.verifier.doc.DroolsDocsBuilder;
+import java.io.*;
+import java.nio.file.Files;
+import java.text.ParseException;
 
 /**
  * Stand alone to test writing to a file.
@@ -31,7 +32,12 @@ public class StandaloneDocBuilder {
 
     public static void main(String[] args) throws FileNotFoundException,
                                           ParseException {
+        StandaloneDocBuilder docBuilder = new StandaloneDocBuilder();
+        docBuilder.buildDoc();
+    }
 
+    @Test
+    public void buildDoc() throws FileNotFoundException, ParseException {
         String drl = "";
         drl += "# important information\n";
         drl += "# about this package\n";
@@ -42,7 +48,7 @@ public class StandaloneDocBuilder {
         drl += "# Another line because one was not enough \n";
         drl += "#  \n";
         drl += "# @author: trikkola \n";
-        drl += "rule \"First\" \n";
+        drl += "rule \"First\" extends \"OtherRule\" \n";
         drl += "	dialect \"mvel\" \n";
         drl += "	when \n ";
         drl += "		Person() \n ";
@@ -83,9 +89,15 @@ public class StandaloneDocBuilder {
 
         DroolsDocsBuilder ddBuilder = DroolsDocsBuilder.getInstance( drl );
 
-        File file = new File( "/Users/rikkola/Desktop/DroolsDoc.pdf" );
+        File file = new File( "DroolsDoc.pdf" );
         OutputStream out = new FileOutputStream( file );
 
         ddBuilder.writePDF( out );
     }
+
+    @AfterAll
+    static void cleanup() throws IOException {
+        Files.delete(new File( "DroolsDoc.pdf" ).toPath());
+    }
+
 }

@@ -1,23 +1,26 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.decisiontable.parser.xls;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,7 +41,7 @@ public class PropertiesSheetListener implements DataListener {
 
     private static final String EMPTY_STRING   = "";
 
-    private final Map<Integer, String[]> _rowProperties = new HashMap<Integer, String[]>();
+    private final Map<Integer, String[]> _rowProperties = new LinkedHashMap<>();
 
     private final CaseInsensitiveMap _properties = new CaseInsensitiveMap();
 
@@ -103,9 +106,9 @@ public class PropertiesSheetListener implements DataListener {
         if ( emptyCellValue( value ) ) {
             return;
         }
-        final Integer rowInt = new Integer( row );
+        final Integer rowInt = Integer.valueOf( row );
         if ( this._rowProperties.containsKey( rowInt ) ) {
-            final String[] keyValue = (String[]) this._rowProperties.get( rowInt );
+            final String[] keyValue = this._rowProperties.get(rowInt);
             if ( PropertiesSheetListener.EMPTY_STRING.equals( keyValue[1] ) ) {
                 keyValue[1] = value;
                 keyValue[2] = RuleSheetParserUtil.rc2name(row, column);
@@ -132,7 +135,7 @@ public class PropertiesSheetListener implements DataListener {
             key = key.toLowerCase();
             List<String[]> r  = getPropertyCell( key );
             if( r == null ){
-                r = new ArrayList<String[]>();
+                r = new ArrayList<>();
             }
             r.add( value );
             super.put( key, r );
@@ -140,8 +143,10 @@ public class PropertiesSheetListener implements DataListener {
 
         private List<String> getList( String key, int index ) {
             List<String[]> pcList  = getPropertyCell( key );
-            if( pcList == null ) return null;
-            List<String> r = new ArrayList<String>();
+            if( pcList == null ) {
+                return null;
+            }
+            List<String> r = new ArrayList<>();
             for( String[] pc: pcList ){
                 r.add( pc[index] );
             }
@@ -158,7 +163,9 @@ public class PropertiesSheetListener implements DataListener {
 
         private String getSingle( String key, int index ){
             List<String[]> r  = getPropertyCell( key );
-            if( r == null || r.size() == 0 ) return null;
+            if( r == null || r.size() == 0 ) {
+                return null;
+            }
             return r.get( 0 )[index];
         }
 
@@ -172,7 +179,9 @@ public class PropertiesSheetListener implements DataListener {
 
         public String getSingleProperty( String key, String defaultValue ){
             String r = getSingleProperty( key );
-            if( r == null || "".equals( r ) ) r = defaultValue;
+            if( r == null || "".equals( r ) ) {
+                r = defaultValue;
+            }
             return r;
         }
 

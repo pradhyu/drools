@@ -1,8 +1,27 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.modelcompiler.domain;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +37,7 @@ public class Person extends AbstractReactiveObject {
     @Position(1)
     private int age;
 
-
+    public int publicAge;
     private long ageLong;
 
     private Address address;
@@ -28,13 +47,18 @@ public class Person extends AbstractReactiveObject {
 
     private List<Address> addresses = new ArrayList<>();
 
+    private Integer salary;
 
     private BigDecimal money;
+    private BigDecimal otherBigDecimalField;
 
     private BigInteger ageInSeconds;
 
     private Map<Integer, Integer> items = new HashMap<>();
     private Map<String, String> itemsString = new HashMap<>();
+    private Map<String, Person> childrenMap = new HashMap<>();
+
+    private Date birthDay;
 
     public static int countItems(Map<?, ?> items) {
         return items.size();
@@ -73,6 +97,12 @@ public class Person extends AbstractReactiveObject {
         this.age = age;
     }
 
+    public Person(String name, int age, BigDecimal money) {
+        this.name = name;
+        this.age = age;
+        this.money = money;
+    }
+
     public Person(String name, int age, Address address) {
         this.name = name;
         this.age = age;
@@ -87,7 +117,16 @@ public class Person extends AbstractReactiveObject {
         this.name = name;
     }
 
+    public void setNameAndAge(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+
     public int getAge() {
+        return age;
+    }
+
+    public int calcAge() {
         return age;
     }
 
@@ -99,9 +138,10 @@ public class Person extends AbstractReactiveObject {
         return (short)age;
     }
 
-    public void setAge(int age) {
+    public Person setAge(int age) {
         this.age = age;
         notifyModification();
+        return this;
     }
 
     public Address getAddress() {
@@ -141,8 +181,9 @@ public class Person extends AbstractReactiveObject {
         return employed;
     }
 
-    public void setEmployed(Boolean employed) {
+    public Person setEmployed(Boolean employed) {
         this.employed = employed;
+        return this;
     }
 
     /**
@@ -162,7 +203,23 @@ public class Person extends AbstractReactiveObject {
         return this;
     }
 
-    public void setItems(Map<Integer, Integer> items) {
+    public BigDecimal getOtherBigDecimalField() {
+        return otherBigDecimalField;
+    }
+
+    public void setOtherBigDecimalField(BigDecimal otherBigDecimalField) {
+        this.otherBigDecimalField = otherBigDecimalField;
+    }
+
+    public Integer getSalary() {
+        return salary;
+    }
+
+    public void setSalary( Integer salary ) {
+        this.salary = salary;
+    }
+
+    public void setItems( Map<Integer, Integer> items) {
         this.items = items;
     }
 
@@ -208,6 +265,22 @@ public class Person extends AbstractReactiveObject {
         this.itemsString = itemsString;
     }
 
+    public Date getBirthDay() {
+        return birthDay;
+    }
+
+    public void setBirthDay(Date birthDay) {
+        this.birthDay = birthDay;
+    }
+
+    public Map<String, Person> getChildrenMap() {
+        return childrenMap;
+    }
+
+    public void setChildrenMap(Map<String, Person> childrenMap) {
+        this.childrenMap = childrenMap;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -223,5 +296,33 @@ public class Person extends AbstractReactiveObject {
         int result = name != null ? name.hashCode() : 0;
         result = 31 * result + age;
         return result;
+    }
+
+    public static int sumAges(Person p1, Person p2) {
+        return p1.getAge() + p2.getAge();
+    }
+
+    public static BigDecimal identityBigDecimal( BigDecimal bd){
+        return new BigDecimal(bd.toString());
+    }
+
+    public static Person identityFunction(Person p) {
+        return p;
+    }
+
+    public static boolean isEven( int i ){
+        return (i % 2) == 0;
+    }
+
+    public static boolean isEvenShort( short i ){
+        return (i % 2) == 0;
+    }
+
+    public static boolean isEvenDouble( double i ){
+        return (i % 2) == 0;
+    }
+
+    public static boolean isEvenFloat( float i ){
+        return (i % 2) == 0;
     }
 }

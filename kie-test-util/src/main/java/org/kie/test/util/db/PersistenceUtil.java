@@ -1,18 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.kie.test.util.db;
 
 import java.io.IOException;
@@ -22,8 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
 
 import org.h2.tools.DeleteDbFiles;
 import org.h2.tools.Server;
@@ -75,7 +78,7 @@ public class PersistenceUtil {
         // Setup the datasource
         PoolingDataSourceWrapper ds1 = setupPoolingDataSource(getDatasourceProperties(), dataSourceName);
 
-        Map<String, Object> context = new HashMap<String, Object>();
+        Map<String, Object> context = new HashMap<>();
         context.put(DATASOURCE, ds1);
         EntityManagerFactory emf = Persistence.createEntityManagerFactory(persistenceUnitName);
         context.put(ENTITY_MANAGER_FACTORY, emf);
@@ -100,7 +103,7 @@ public class PersistenceUtil {
                     EntityManagerFactory emf = (EntityManagerFactory) emfObject;
                     emf.close();
                 } catch (Throwable t) {
-                    t.printStackTrace();
+                    logger.error("Exception", t);
                 }
             }
 
@@ -110,7 +113,7 @@ public class PersistenceUtil {
                     PoolingDataSourceWrapper ds1 = (PoolingDataSourceWrapper) ds1Object;
                     ds1.close();
                 } catch (Throwable t) {
-                    t.printStackTrace();
+                    logger.error("Exception", t);
                 }
             }
 
@@ -147,10 +150,11 @@ public class PersistenceUtil {
         if (driverClass.startsWith("org.h2")) {
             String jdbcUrl = dsProps.getProperty("url");
             // fix an incomplete JDBC URL used by some tests
-            if (jdbcUrl.startsWith("jdbc:h2:") && !jdbcUrl.contains("tcp://")) {
-                dsProps.put("url", jdbcUrl + "tcp://localhost/target/persistence-test");
+            if (jdbcUrl.startsWith("jdbc:h2:") && !jdbcUrl.contains("tcp://") && !jdbcUrl.contains("mem:")) {
+                dsProps.put("url", jdbcUrl + "tcp://localhost/target/./persistence-test");
             }
-            h2Server.start();
+
+            h2Server.start(dsProps.getProperty("h2Args"));
         }
         return DataSourceFactory.setupPoolingDataSource(datasourceName, dsProps);
     }
@@ -205,7 +209,7 @@ public class PersistenceUtil {
         } catch (IOException ioe) {
             propertiesNotFound = true;
             logger.warn("Unable to find properties, using default H2 properties: " + ioe.getMessage());
-            ioe.printStackTrace();
+            logger.error("Exception", ioe);
         }
 
         String password = props.getProperty("password");
@@ -236,23 +240,35 @@ public class PersistenceUtil {
     }
 
     /**
-     * An class responsible for starting and stopping the H2 database (tcp)
+     * A class responsible for starting and stopping the H2 database (tcp)
      * server
      */
     private static class H2Server {
         private Server realH2Server;
 
-        public void start() {
+        /**
+         * Starts the H2 server in the TCP mode.
+         * @param h2Args startup arguments separated by white chars; if {@code null} or empty, no arguments are passed
+         */
+        public void start(String h2Args) {
             System.out.println("running H2 server");
             if (realH2Server == null || !realH2Server.isRunning(false)) {
                 try {
                     DeleteDbFiles.execute("", "JPADroolsFlow", true);
-                    realH2Server = Server.createTcpServer(new String[0]);
+                    realH2Server = Server.createTcpServer(parseArgs(h2Args));
                     realH2Server.start();
                 } catch (SQLException e) {
                     throw new RuntimeException("Can't start h2 server db", e);
                 }
             }
+        }
+
+        private String [] parseArgs(String args) {
+            if (args == null || args.trim().isEmpty()) {
+                return new String[0];
+            }
+
+            return args.trim().split("\\s+");
         }
 
         @Override

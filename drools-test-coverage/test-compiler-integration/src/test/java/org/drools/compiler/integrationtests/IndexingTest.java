@@ -1,58 +1,63 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-import org.drools.core.base.ClassObjectType;
-import org.drools.core.base.DroolsQuery;
+import org.drools.ancompiler.CompiledNetwork;
+import org.drools.base.base.DroolsQuery;
+import org.drools.base.base.ClassObjectType;
+import org.drools.core.common.BetaConstraints;
 import org.drools.core.common.DoubleNonIndexSkipBetaConstraints;
+import org.drools.core.common.EmptyBetaConstraints;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.SingleBetaConstraints;
 import org.drools.core.common.TripleNonIndexSkipBetaConstraints;
-import org.drools.core.impl.KnowledgeBaseImpl;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
+import org.drools.core.impl.InternalRuleBase;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.BetaMemory;
 import org.drools.core.reteoo.CompositeObjectSinkAdapter;
 import org.drools.core.reteoo.JoinNode;
 import org.drools.core.reteoo.LeftInputAdapterNode;
 import org.drools.core.reteoo.NotNode;
-import org.drools.core.reteoo.ObjectSinkNodeList;
+import org.drools.core.reteoo.ObjectSinkPropagator;
 import org.drools.core.reteoo.ObjectTypeNode;
-import org.drools.core.reteoo.ReteDumper;
 import org.drools.core.reteoo.RightTuple;
+import org.drools.core.reteoo.TupleMemory;
 import org.drools.core.util.FastIterator;
-import org.drools.core.util.index.TupleIndexHashTable;
-import org.drools.core.util.index.TupleList;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
+import org.drools.testcoverage.common.model.Address;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.definition.rule.Rule;
 import org.kie.api.definition.type.FactType;
@@ -62,29 +67,18 @@ import org.kie.api.runtime.rule.Row;
 import org.kie.api.runtime.rule.Variable;
 import org.kie.api.runtime.rule.ViewChangedEventListener;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.drools.core.util.DroolsTestUtil.rulestoMap;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 
-@RunWith(Parameterized.class)
 public class IndexingTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public IndexingTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test()
-    public void testAlphaNodeSharing() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAlphaNodeSharing(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "package org.drools.compiler.test\n" +
                         "import " + Person.class.getCanonicalName() + "\n" +
@@ -115,27 +109,29 @@ public class IndexingTest {
             final Map<String, Rule> rules = rulestoMap(kbase);
 
             final ObjectTypeNode otn = KieUtil.getObjectTypeNode(kbase, Person.class);
-            assertNotNull(otn);
-            assertEquals(2, otn.getObjectSinkPropagator().size());
+            assertThat(otn).isNotNull();
+            assertThat(otn.getObjectSinkPropagator().size()).isEqualTo(2);
 
             final AlphaNode a1 = (AlphaNode) otn.getObjectSinkPropagator().getSinks()[0];
-            assertEquals(3, a1.getObjectSinkPropagator().size());
-            assertEquals(3, a1.getAssociationsSize());
-            assertTrue(a1.isAssociatedWith(rules.get("r1")));
-            assertTrue(a1.isAssociatedWith(rules.get("r2")));
-            assertTrue(a1.isAssociatedWith(rules.get("r3")));
+            assertThat(a1.getObjectSinkPropagator().size()).isEqualTo(3);
+            assertThat(a1.getAssociationsSize()).isEqualTo(3);
+            assertThat(a1.isAssociatedWith(rules.get("r1"))).isTrue();
+            assertThat(a1.isAssociatedWith(rules.get("r2"))).isTrue();
+            assertThat(a1.isAssociatedWith(rules.get("r3"))).isTrue();
 
             final AlphaNode a2 = (AlphaNode) otn.getObjectSinkPropagator().getSinks()[1];
-            assertEquals(1, a2.getAssociationsSize());
-            assertEquals(1, a2.getObjectSinkPropagator().size());
-            assertTrue(a2.isAssociatedWith(rules.get("r4")));
+            assertThat(a2.getAssociationsSize()).isEqualTo(1);
+            assertThat(a2.getObjectSinkPropagator().size()).isEqualTo(1);
+            assertThat(a2.isAssociatedWith(rules.get("r4"))).isTrue();
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testBuildsIndexedAlphaNodes() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testBuildsIndexedAlphaNodes(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "package org.drools.compiler.test\n" +
                         "import " + Person.class.getCanonicalName() + "\n" +
@@ -150,25 +146,27 @@ public class IndexingTest {
         final InternalWorkingMemory wm = (InternalWorkingMemory) kbase.newKieSession();
         try {
             final ObjectTypeNode otn = KieUtil.getObjectTypeNode(kbase, Person.class);
-            assertNotNull(otn);
+            assertThat(otn).isNotNull();
             final AlphaNode alphaNode1 = (AlphaNode) otn.getObjectSinkPropagator().getSinks()[0];
             final CompositeObjectSinkAdapter sinkAdapter = (CompositeObjectSinkAdapter) alphaNode1.getObjectSinkPropagator();
-            final ObjectSinkNodeList hashableSinks = sinkAdapter.getHashableSinks();
-            assertNotNull(hashableSinks);
-            assertEquals(2, hashableSinks.size());
+            final List<AlphaNode> hashableSinks = sinkAdapter.getHashableSinks();
+            assertThat(hashableSinks).isNotNull();
+            assertThat(hashableSinks.size()).isEqualTo(2);
 
             final AlphaNode alphaNode2 = (AlphaNode) alphaNode1.getObjectSinkPropagator().getSinks()[0];
-            assertSame(hashableSinks.getFirst(), alphaNode2);
+            assertThat(alphaNode2).isSameAs(hashableSinks.get(0));
 
             final AlphaNode alphaNode3 = (AlphaNode) alphaNode1.getObjectSinkPropagator().getSinks()[1];
-            assertSame(hashableSinks.getLast(), alphaNode3);
+            assertThat(alphaNode3).isSameAs(hashableSinks.get(1));
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testBuildsIndexedMemory() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testBuildsIndexedMemory(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // tests indexes are correctly built        
         final String drl =
                 "package org.drools.compiler.test\n" +
@@ -183,6 +181,7 @@ public class IndexingTest {
                         "   $p5 : Person(address.street == $p1.name)\n" + // indexed
                         "   $p6 : Person(addresses[0].street == $p1.name)\n" +  // indexed
                         "   $p7 : Person(name == $p1.address.street)\n" + //not indexed
+                        "   $p8 : Person(addresses[0].street == null)\n" +  // not indexed
                         "then\n" +
                         "end\n";
 
@@ -190,7 +189,7 @@ public class IndexingTest {
         final InternalWorkingMemory wm = (InternalWorkingMemory) kbase.newKieSession();
         try {
             final ObjectTypeNode node = KieUtil.getObjectTypeNode(kbase, Person.class);
-            assertNotNull(node);
+            assertThat(node).isNotNull();
             final LeftInputAdapterNode liaNode = (LeftInputAdapterNode) node.getObjectSinkPropagator().getSinks()[0];
             final JoinNode j2 = (JoinNode) liaNode.getSinkPropagator().getSinks()[0];
             final JoinNode j3 = (JoinNode) j2.getSinkPropagator().getSinks()[0];
@@ -198,49 +197,57 @@ public class IndexingTest {
             final JoinNode j5 = (JoinNode) j4.getSinkPropagator().getSinks()[0];
             final JoinNode j6 = (JoinNode) j5.getSinkPropagator().getSinks()[0];
             final JoinNode j7 = (JoinNode) j6.getSinkPropagator().getSinks()[0];
+            final JoinNode j8 = (JoinNode) j7.getSinkPropagator().getSinks()[0];
 
             SingleBetaConstraints c = (SingleBetaConstraints) j2.getRawConstraints();
-            assertTrue(c.isIndexed());
+            assertThat(c.isIndexed()).isTrue();
             BetaMemory bm = (BetaMemory) wm.getNodeMemory(j2);
-            assertTrue(bm.getLeftTupleMemory() instanceof TupleIndexHashTable);
-            assertTrue(bm.getRightTupleMemory() instanceof TupleIndexHashTable);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isTrue();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isTrue();
 
             c = (SingleBetaConstraints) j3.getRawConstraints();
-            assertTrue(c.isIndexed());
+            assertThat(c.isIndexed()).isTrue();
             bm = (BetaMemory) wm.getNodeMemory(j3);
-            assertTrue(bm.getLeftTupleMemory() instanceof TupleIndexHashTable);
-            assertTrue(bm.getRightTupleMemory() instanceof TupleIndexHashTable);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isTrue();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isTrue();
 
             c = (SingleBetaConstraints) j4.getRawConstraints();
-            assertFalse(c.isIndexed());
+            assertThat(c.isIndexed()).isFalse();
             bm = (BetaMemory) wm.getNodeMemory(j4);
-            assertTrue(bm.getLeftTupleMemory() instanceof TupleList);
-            assertTrue(bm.getRightTupleMemory() instanceof TupleList);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isFalse();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isFalse();
 
             c = (SingleBetaConstraints) j5.getRawConstraints();
-            assertTrue(c.isIndexed());
+            assertThat(c.isIndexed()).isTrue();
             bm = (BetaMemory) wm.getNodeMemory(j5);
-            assertTrue(bm.getLeftTupleMemory() instanceof TupleIndexHashTable);
-            assertTrue(bm.getRightTupleMemory() instanceof TupleIndexHashTable);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isTrue();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isTrue();
 
             c = (SingleBetaConstraints) j6.getRawConstraints();
-            assertTrue(c.isIndexed());
+            assertThat(c.isIndexed()).isTrue();
             bm = (BetaMemory) wm.getNodeMemory(j6);
-            assertTrue(bm.getLeftTupleMemory() instanceof TupleIndexHashTable);
-            assertTrue(bm.getRightTupleMemory() instanceof TupleIndexHashTable);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isTrue();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isTrue();
 
             c = (SingleBetaConstraints) j7.getRawConstraints();
-            assertFalse(c.isIndexed());
+            assertThat(c.isIndexed()).isFalse();
             bm = (BetaMemory) wm.getNodeMemory(j7);
-            assertTrue(bm.getLeftTupleMemory() instanceof TupleList);
-            assertTrue(bm.getRightTupleMemory() instanceof TupleList);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isFalse();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isFalse();
+
+            assertThat(j8.getRawConstraints()).isInstanceOf(EmptyBetaConstraints.class);
+            bm = (BetaMemory) wm.getNodeMemory(j8);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isFalse();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isFalse();
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testIndexingOnQueryUnification() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testIndexingOnQueryUnification(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "package org.drools.compiler.test  \n" +
                         "import " + Person.class.getCanonicalName() + "\n" +
@@ -251,7 +258,7 @@ public class IndexingTest {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
         final InternalWorkingMemory wm = (InternalWorkingMemory) kbase.newKieSession();
         try {
-            final List<ObjectTypeNode> nodes = ((KnowledgeBaseImpl) kbase).getRete().getObjectTypeNodes();
+            final List<ObjectTypeNode> nodes = ((InternalRuleBase) kbase).getRete().getObjectTypeNodes();
             ObjectTypeNode node = null;
             for (final ObjectTypeNode n : nodes) {
                 if (((ClassObjectType) n.getObjectType()).getClassType() == DroolsQuery.class) {
@@ -260,23 +267,25 @@ public class IndexingTest {
                 }
             }
 
-            assertNotNull(node);
+            assertThat(node).isNotNull();
             final AlphaNode alphanode = (AlphaNode) node.getObjectSinkPropagator().getSinks()[0];
             final LeftInputAdapterNode liaNode = (LeftInputAdapterNode) alphanode.getObjectSinkPropagator().getSinks()[0];
             final JoinNode j = (JoinNode) liaNode.getSinkPropagator().getSinks()[0]; // $p2
 
             final TripleNonIndexSkipBetaConstraints c = (TripleNonIndexSkipBetaConstraints) j.getRawConstraints();
-            assertTrue(c.isIndexed());
+            assertThat(c.isIndexed()).isTrue();
             final BetaMemory bm = (BetaMemory) wm.getNodeMemory(j);
-            assertTrue(bm.getLeftTupleMemory() instanceof TupleIndexHashTable);
-            assertTrue(bm.getRightTupleMemory() instanceof TupleIndexHashTable);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isTrue();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isTrue();
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testIndexingOnQueryUnificationWithNot() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testIndexingOnQueryUnificationWithNot(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "package org.drools.compiler.test  \n" +
                         "import " + Person.class.getCanonicalName() + "\n" +
@@ -286,9 +295,8 @@ public class IndexingTest {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
         final StatefulKnowledgeSessionImpl wm = (StatefulKnowledgeSessionImpl) kbase.newKieSession();
-        ReteDumper.dumpRete( wm );
         try {
-            final List<ObjectTypeNode> nodes = ((KnowledgeBaseImpl) kbase).getRete().getObjectTypeNodes();
+            final List<ObjectTypeNode> nodes = ((InternalRuleBase) kbase).getRete().getObjectTypeNodes();
             ObjectTypeNode node = null;
             for (final ObjectTypeNode n : nodes) {
                 if (((ClassObjectType) n.getObjectType()).getClassType() == DroolsQuery.class) {
@@ -297,17 +305,17 @@ public class IndexingTest {
                 }
             }
 
-            assertNotNull(node);
+            assertThat(node).isNotNull();
             final AlphaNode alphanode = (AlphaNode) node.getObjectSinkPropagator().getSinks()[0];
             final LeftInputAdapterNode liaNode = (LeftInputAdapterNode) alphanode.getObjectSinkPropagator().getSinks()[0];
 
             final NotNode n = (NotNode) liaNode.getSinkPropagator().getSinks()[0];
 
             final DoubleNonIndexSkipBetaConstraints c = (DoubleNonIndexSkipBetaConstraints) n.getRawConstraints();
-            assertTrue(c.isIndexed());
+            assertThat(c.isIndexed()).isTrue();
             final BetaMemory bm = (BetaMemory) wm.getNodeMemory(n);
-            assertTrue(bm.getLeftTupleMemory() instanceof TupleIndexHashTable);
-            assertTrue(bm.getRightTupleMemory() instanceof TupleIndexHashTable);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isTrue();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isTrue();
 
             final Map<String, Integer> map = new HashMap<>();
             map.put("inserted", 0);
@@ -361,7 +369,7 @@ public class IndexingTest {
                 p.setAge(90);
                 wm.update(fh, p);
                 wm.fireAllRules();
-                assertEquals("i=" + i, 1, map.get("inserted").intValue()); // make sure this doesn't change
+                assertThat(map.get("inserted").intValue()).as("i=" + i).isEqualTo(1); // make sure this doesn't change
             }
 
             // no change
@@ -374,7 +382,7 @@ public class IndexingTest {
                 p.setAge(102);
                 wm.update(fh, p);
                 wm.fireAllRules();
-                assertEquals("i=" + i, 1, map.get("inserted").intValue()); // make sure this doesn't change
+                assertThat(map.get("inserted").intValue()).as("i=" + i).isEqualTo(1); // make sure this doesn't change
             }
 
             // no change
@@ -387,7 +395,7 @@ public class IndexingTest {
                 p.setAge(90);
                 wm.update(fh, p);
                 wm.fireAllRules();
-                assertEquals("i=" + i, 1, map.get("inserted").intValue()); // make sure this doesn't change
+                assertThat(map.get("inserted").intValue()).as("i=" + i).isEqualTo(1); // make sure this doesn't change
             }
 
             // move x99, should no longer be a blocker, now it can increase
@@ -396,7 +404,7 @@ public class IndexingTest {
             p.setAge(90);
             wm.update(fh, p);
             wm.fireAllRules();
-            assertEquals(2, map.get("inserted").intValue());
+            assertThat(map.get("inserted").intValue()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
@@ -404,13 +412,15 @@ public class IndexingTest {
 
     private void assertInsertedUpdatedDeleted(final Map<String, Integer> insertUpdateDeleteMap, final int expectedInserted,
                                               final int expectedUpdated, final int expectedDeleted) {
-        assertEquals(expectedInserted, insertUpdateDeleteMap.get("inserted").intValue());
-        assertEquals(expectedUpdated, insertUpdateDeleteMap.get("updated").intValue());
-        assertEquals(expectedDeleted, insertUpdateDeleteMap.get("deleted").intValue());
+        assertThat(insertUpdateDeleteMap.get("inserted").intValue()).isEqualTo(expectedInserted);
+        assertThat(insertUpdateDeleteMap.get("updated").intValue()).isEqualTo(expectedUpdated);
+        assertThat(insertUpdateDeleteMap.get("deleted").intValue()).isEqualTo(expectedDeleted);
     }
 
-    @Test(timeout = 10000)
-    public void testFullFastIteratorResume() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testFullFastIteratorResume(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "package org.drools.compiler.test  \n" +
                         "import " + Person.class.getCanonicalName() + "\n" +
@@ -421,7 +431,7 @@ public class IndexingTest {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
         final StatefulKnowledgeSessionImpl wm = (StatefulKnowledgeSessionImpl) kbase.newKieSession();
         try {
-            final List<ObjectTypeNode> nodes = ((KnowledgeBaseImpl) kbase).getRete().getObjectTypeNodes();
+            final List<ObjectTypeNode> nodes = ((InternalRuleBase) kbase).getRete().getObjectTypeNodes();
             ObjectTypeNode node = null;
             for (final ObjectTypeNode n : nodes) {
                 if (((ClassObjectType) n.getObjectType()).getClassType() == DroolsQuery.class) {
@@ -430,17 +440,17 @@ public class IndexingTest {
                 }
             }
 
-            assertNotNull(node);
+            assertThat(node).isNotNull();
             final AlphaNode alphanode = (AlphaNode) node.getObjectSinkPropagator().getSinks()[0];
             final LeftInputAdapterNode liaNode = (LeftInputAdapterNode) alphanode.getObjectSinkPropagator().getSinks()[0];
 
             final NotNode n = (NotNode) liaNode.getSinkPropagator().getSinks()[0];
 
             final DoubleNonIndexSkipBetaConstraints c = (DoubleNonIndexSkipBetaConstraints) n.getRawConstraints();
-            assertTrue(c.isIndexed());
+            assertThat(c.isIndexed()).isTrue();
             final BetaMemory bm = (BetaMemory) wm.getNodeMemory(n);
-            assertTrue(bm.getLeftTupleMemory() instanceof TupleIndexHashTable);
-            assertTrue(bm.getRightTupleMemory() instanceof TupleIndexHashTable);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isTrue();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isTrue();
 
             wm.openLiveQuery("peeps", new Object[]{Variable.v, 99}, new ViewChangedEventListener() {
                 @Override
@@ -467,19 +477,20 @@ public class IndexingTest {
             }
 
             final List<RightTuple> list = new ArrayList<>(100);
-            FastIterator it = n.getRightIterator(bm.getRightTupleMemory());
-            for (RightTuple rt = n.getFirstRightTuple(null, bm.getRightTupleMemory(), null, it); rt != null; rt = (RightTuple) it.next(rt)) {
+            FastIterator           it   = n.getRightIterator(bm.getRightTupleMemory());
+            for (RightTuple rt = n.getFirstRightTuple(null, bm.getRightTupleMemory(), it); rt != null; rt = (RightTuple) it.next(rt)) {
                 list.add(rt);
             }
-            assertEquals(100, list.size());
+            assertThat(list.size()).isEqualTo(100);
 
             // check we can resume from each entry in the list above.
             for (int i = 0; i < 100; i++) {
-                final RightTuple rightTuple = list.get(i);
-                it = n.getRightIterator(bm.getRightTupleMemory(), rightTuple); // resumes from the current rightTuple
+                final RightTuple rightTuple       = list.get(i);
+                TupleMemory      rightTupleMemory = bm.getRightTupleMemory();
+                it = (rightTupleMemory).fullFastIterator(rightTuple); // resumes from the current rightTuple
                 int j = i + 1;
                 for (RightTuple rt = (RightTuple) it.next(rightTuple); rt != null; rt = (RightTuple) it.next(rt)) {
-                    assertSame(list.get(j), rt);
+                    assertThat(rt).isSameAs(list.get(j));
                     j++;
                 }
             }
@@ -488,8 +499,10 @@ public class IndexingTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testRangeIndex() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testRangeIndex(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "rule R1\n" +
                 "when\n" +
@@ -505,14 +518,16 @@ public class IndexingTest {
             ksession.insert("gorgonzola");
             ksession.insert("stilton");
             ksession.insert(new Cheese("gorgonzola", 10));
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testRangeIndex2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testRangeIndex2(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "rule R1\n" +
                 "when\n" +
@@ -528,14 +543,16 @@ public class IndexingTest {
             ksession.insert(new Cheese("cheddar", 10));
             ksession.insert(new Cheese("gorgonzola", 10));
             ksession.insert(new Cheese("stilton", 10));
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testNotNode() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testNotNode(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
                 "rule R1 salience 10\n" +
@@ -556,14 +573,16 @@ public class IndexingTest {
         try {
             ksession.insert(new Person("mario", 10));
             ksession.insert(new Cheese("gorgonzola", 20));
-            assertEquals(3, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(3);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testNotNodeModifyRight() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testNotNodeModifyRight(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
                 "rule R1 salience 10 when\n" +
@@ -583,14 +602,16 @@ public class IndexingTest {
             ksession.insert(new Person("A", 10));
             ksession.insert(new Cheese("C1", 20));
             ksession.insert(new Cheese("C2", 8));
-            assertEquals(2, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testRange() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testRange(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
                 "rule R1 salience 10 when\n" +
@@ -610,14 +631,16 @@ public class IndexingTest {
             ksession.insert(new Person("A", 10));
             ksession.insert(new Cheese("C1", 30));
             ksession.insert(new Cheese("C2", 15));
-            assertEquals(2, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testRange2() throws IllegalAccessException, InstantiationException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testRange2(KieBaseTestConfiguration kieBaseTestConfiguration) throws IllegalAccessException, InstantiationException {
         final String drl = "package org.drools.compiler.test\n" +
                 "declare A\n" +
                 "    a: int\n" +
@@ -666,8 +689,9 @@ public class IndexingTest {
         }
     }
 
-    @Test
-    public void testHashingAfterRemoveRightTuple() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testHashingAfterRemoveRightTuple(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1326
         final String drl = "package " + this.getClass().getPackage().getName() + ";\n" +
                 "import " + MyPojo.class.getCanonicalName() + "\n" +
@@ -703,7 +727,7 @@ public class IndexingTest {
             final FactHandle fh_c = session.insert(c);
 
             session.fireAllRules();
-            assertFalse(check.contains("A"));         // A should be blocked by B.
+            assertThat(check.contains("A")).isFalse();         // A should be blocked by B.
 
             c.setVBoolean(true);
             c.setVString("x");
@@ -714,7 +738,7 @@ public class IndexingTest {
             session.update(fh_b, b);
 
             session.fireAllRules();
-            assertFalse(check.contains("A"));       // A is no longer blocked by B, *however* it is now blocked by C !
+            assertThat(check.contains("A")).isFalse();       // A is no longer blocked by B, *however* it is now blocked by C !
         } finally {
             session.dispose();
         }
@@ -768,8 +792,9 @@ public class IndexingTest {
         }
     }
 
-    @Test
-    public void testRequireLeftReorderingWithRangeIndex() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testRequireLeftReorderingWithRangeIndex(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1326
         final String drl = "import " + Queen.class.getCanonicalName() + ";\n"
                 + "rule \"multipleQueensHorizontal\"\n"
@@ -790,19 +815,19 @@ public class IndexingTest {
             final FactHandle fq1 = kieSession.insert(queen1);
             final FactHandle fq2 = kieSession.insert(queen2);
             // initially both queens have null row
-            assertEquals(0, kieSession.fireAllRules());
+            assertThat(kieSession.fireAllRules()).isEqualTo(0);
 
             // now Q1 is the only queen on row1
             kieSession.update(fq1, queen1.setRow(row1));
-            assertEquals(0, kieSession.fireAllRules());
+            assertThat(kieSession.fireAllRules()).isEqualTo(0);
 
             // Q1 moved to row2 but it's still alone
             kieSession.update(fq1, queen1.setRow(row2));
-            assertEquals(0, kieSession.fireAllRules());
+            assertThat(kieSession.fireAllRules()).isEqualTo(0);
 
             // now Q2 is on row2 together with Q1 -> rule should fire
             kieSession.update(fq2, queen2.setRow(row2));
-            assertEquals(1, kieSession.fireAllRules());
+            assertThat(kieSession.fireAllRules()).isEqualTo(1);
         } finally {
             kieSession.dispose();
         }
@@ -836,5 +861,390 @@ public class IndexingTest {
             }
             return row;
         }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testBuildsIndexedMemoryWithThis(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        // tests indexes are correctly built
+        final String drl =
+                "package org.drools.compiler.test\n" +
+                           "import " + Person.class.getCanonicalName() + "\n" +
+                           "global java.util.List list\n" +
+                           "rule test1\n" +
+                           "when\n" +
+                           "   $p1  : Person()\n" +
+                           "   $p2 : String(this == $p1.name)\n" + //indexed
+                           "then\n" +
+                           "end\n";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
+        InternalWorkingMemory wm = (InternalWorkingMemory) kbase.newKieSession();
+
+        try {
+            final ObjectTypeNode node = KieUtil.getObjectTypeNode(wm.getKnowledgeBase(), Person.class);
+            assertThat(node).isNotNull();
+            final LeftInputAdapterNode liaNode = (LeftInputAdapterNode) node.getObjectSinkPropagator().getSinks()[0];
+            final JoinNode j2 = (JoinNode) liaNode.getSinkPropagator().getSinks()[0];
+
+            SingleBetaConstraints c = (SingleBetaConstraints) j2.getRawConstraints();
+            assertThat(c.isIndexed()).isTrue();
+            BetaMemory bm = (BetaMemory) wm.getNodeMemory(j2);
+            assertThat(bm.getLeftTupleMemory().isIndexed()).isTrue();
+            assertThat(bm.getRightTupleMemory().isIndexed()).isTrue();
+        } finally {
+            wm.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAlphaIndexWithBigDecimalCoercion(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        final String drl =
+                "package org.drools.compiler.test\n" +
+                        "import " + Person.class.getCanonicalName() + "\n" +
+                        "global java.util.List list\n" +
+                        "rule R1\n" +
+                        "    when\n" +
+                        "        Person( salary == 10 )\n" +
+                        "    then\n" +
+                        "        list.add(\"R1\");\n" +
+                        "end\n" +
+                        "rule R2\n" +
+                        "    when\n" +
+                        "        Person( salary == 20 )\n" +
+                        "    then\n" +
+                        "        list.add(\"R2\");\n" +
+                        "end\n" +
+                        "rule R3\n" +
+                        "    when\n" +
+                        "        Person( salary == 30 )\n" +
+                        "    then\n" +
+                        "        list.add(\"R3\");\n" +
+                        "end";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
+        KieSession ksession = kbase.newKieSession();
+
+        try {
+            // BigDecimal Index is disabled
+            assertAlphaIndex(kieBaseTestConfiguration, kbase, Person.class, 0);
+
+            List<String> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+            Person john = new Person("John");
+            john.setSalary(new BigDecimal("10"));
+            ksession.insert(john);
+            ksession.fireAllRules();
+
+            assertThat(list).containsExactly("R1");
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testBeta(KieBaseTestConfiguration kieBaseTestConfiguration) {
+
+        final String drl =
+                "package org.drools.compiler.test\n" +
+                "import " + Person.class.getCanonicalName() + "\n" +
+                "import " + Address.class.getCanonicalName() + "\n" +
+                "global java.util.List list\n" +
+                "rule R1\n" +
+                "    when\n" +
+                "        a : Address()\n" +
+                "        Person( name == a.street )\n" +
+                "    then\n" +
+                "        list.add(\"R1\");\n" +
+                "end\n";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
+        KieSession ksession = kbase.newKieSession();
+
+        try {
+            // BigDecimal Index is disabled
+            //assertAlphaIndex(kbase, Person.class, 0);
+
+            List<String> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+            Person person = new Person("London");
+            Address address = new Address("London");
+
+            ksession.insert(person);
+            ksession.insert(address);
+            ksession.fireAllRules();
+
+            assertThat(list).containsExactly("R1");
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    private void assertAlphaIndex(KieBaseTestConfiguration kieBaseTestConfiguration, KieBase kbase, Class<?> clazz, int hashedSize) {
+        final ObjectTypeNode otn = KieUtil.getObjectTypeNode(kbase, clazz);
+        assertThat(otn).isNotNull();
+        ObjectSinkPropagator objectSinkPropagator = otn.getObjectSinkPropagator();
+        if (kieBaseTestConfiguration.useAlphaNetworkCompiler()) {
+            objectSinkPropagator = ((CompiledNetwork) objectSinkPropagator).getOriginalSinkPropagator();
+        }
+        CompositeObjectSinkAdapter sinkAdapter = (CompositeObjectSinkAdapter) objectSinkPropagator;
+        if (hashedSize == 0) {
+            assertThat(sinkAdapter.getHashedSinkMap()).isNull();
+        } else {
+            assertThat(sinkAdapter.getHashedSinkMap()).isNotNull();
+            assertThat(sinkAdapter.getHashedSinkMap().size()).isEqualTo(hashedSize);
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAlphaIndexWithBigDecimalDifferentScale(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        final String drl =
+                "package org.drools.compiler.test\n" +
+                        "import " + Person.class.getCanonicalName() + "\n" +
+                        "global java.util.List list\n" +
+                        "rule R1\n" +
+                        "    when\n" +
+                        "        Person( salary == 10 )\n" +
+                        "    then\n" +
+                        "        list.add(\"R1\");\n" +
+                        "end\n" +
+                        "rule R2\n" +
+                        "    when\n" +
+                        "        Person( salary == 20 )\n" +
+                        "    then\n" +
+                        "        list.add(\"R2\");\n" +
+                        "end\n" +
+                        "rule R3\n" +
+                        "    when\n" +
+                        "        Person( salary == 30 )\n" +
+                        "    then\n" +
+                        "        list.add(\"R3\");\n" +
+                        "end";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
+        KieSession ksession = kbase.newKieSession();
+
+        try {
+            // BigDecimal Index is disabled
+            assertAlphaIndex(kieBaseTestConfiguration, kbase, Person.class, 0);
+
+            List<String> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+            Person john = new Person("John");
+            john.setSalary(new BigDecimal("10.00"));
+            ksession.insert(john);
+            ksession.fireAllRules();
+
+            assertThat(list).containsExactly("R1");
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testBetaIndexWithBigDecimalDifferentScale(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        final String drl =
+                "package org.drools.compiler.test\n" +
+                        "import " + Person.class.getCanonicalName() + "\n" +
+                        "global java.util.List list\n" +
+                        "rule R1\n" +
+                        "    when\n" +
+                        "        $p1 : Person( name == \"John\" )\n" +
+                        "        $p2 : Person( name == \"Paul\", salary == $p1.salary )\n" +
+                        "    then\n" +
+                        "        list.add(\"R1\");\n" +
+                        "end";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
+        KieSession ksession = kbase.newKieSession();
+
+        try {
+            List<String> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+            Person john = new Person("John");
+            john.setSalary(new BigDecimal("10"));
+            Person paul = new Person("Paul");
+            paul.setSalary(new BigDecimal("10.00"));
+            ksession.insert(john);
+            ksession.insert(paul);
+            ksession.fireAllRules();
+
+            assertThat(list).containsExactly("R1");
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAlphaIndexOnField(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        final String drl =
+                "package org.drools.compiler.test\n" +
+                "import " + Person.class.getCanonicalName() + "\n" +
+                "global java.util.List list\n" +
+                "rule R1\n" +
+                "    when\n" +
+                "        Person( age == 10 )\n" +
+                "    then\n" +
+                "        list.add(\"R1\");\n" +
+                "end\n" +
+                "rule R2\n" +
+                "    when\n" +
+                "        Person( age == 20 )\n" +
+                "    then\n" +
+                "        list.add(\"R2\");\n" +
+                "end\n" +
+                "rule R3\n" +
+                "    when\n" +
+                "        Person( age == 30 )\n" +
+                "    then\n" +
+                "        list.add(\"R3\");\n" +
+                "end";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
+        KieSession ksession = kbase.newKieSession();
+
+        try {
+            assertAlphaIndex(kieBaseTestConfiguration, kbase, Person.class, 3);
+
+            List<String> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+            Person john = new Person("John", 10);
+            ksession.insert(john);
+            ksession.fireAllRules();
+
+            assertThat(list).containsExactly("R1");
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAlphaIndexOnThis(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        final String drl =
+                "package org.drools.compiler.test\n" +
+                "global java.util.List list\n" +
+                "rule R1\n" +
+                "    when\n" +
+                "        Integer( this == 10 )\n" +
+                "    then\n" +
+                "        list.add(\"R1\");\n" +
+                "end\n" +
+                "rule R2\n" +
+                "    when\n" +
+                "        Integer( this == 20 )\n" +
+                "    then\n" +
+                "        list.add(\"R2\");\n" +
+                "end\n" +
+                "rule R3\n" +
+                "    when\n" +
+                "        Integer( this == 30 )\n" +
+                "    then\n" +
+                "        list.add(\"R3\");\n" +
+                "end";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
+        KieSession ksession = kbase.newKieSession();
+
+        try {
+            assertAlphaIndex(kieBaseTestConfiguration, kbase, Integer.class, 3);
+
+            List<String> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+            ksession.insert(10);
+            ksession.fireAllRules();
+
+            assertThat(list).containsExactly("R1");
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")    
+    public void betaIndexWithBigDecimalAndInt(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        String constraints = "salary == $p1.salary, age == $p1.age";
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10")), new Person("Paul", 30, new BigDecimal("10")), true, 1);
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10")), new Person("Paul", 28, new BigDecimal("10")), false, 1);
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void betaIndexWithIntAndBigDecimal(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        String constraints = "age == $p1.age, salary == $p1.salary";
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10")), new Person("Paul", 30, new BigDecimal("10")), true, 1);
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10")), new Person("Paul", 28, new BigDecimal("10")), false, 1);
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void betaIndexWithIntAndBigDecimalAndString(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        String constraints = "age == $p1.age, salary == $p1.salary, likes == $p1.likes";
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10"), "dog"), new Person("Paul", 30, new BigDecimal("10"), "dog"), true, 2);
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10"), "dog"), new Person("Paul", 30, new BigDecimal("10"), "cat"), false, 2);
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void betaIndexWithIntInequalityAndBigDecimal(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        String constraints = "age > $p1.age, salary == $p1.salary";
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10")), new Person("Paul", 40, new BigDecimal("10")), true, 0);
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10")), new Person("Paul", 28, new BigDecimal("10")), false, 0);
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void betaIndexWithBigDecimalOnly(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        String constraints = "salary == $p1.salary";
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10")), new Person("Paul", 28, new BigDecimal("10")), true, 0);
+        betaIndexWithBigDecimalWithAdditionalBetaConstraint(kieBaseTestConfiguration, constraints, new Person("John", 30, new BigDecimal("10")), new Person("Paul", 28, new BigDecimal("20")), false, 0);
+    }
+
+    private void betaIndexWithBigDecimalWithAdditionalBetaConstraint(KieBaseTestConfiguration kieBaseTestConfiguration, String constraints, Person firstPerson, Person secondPerson, boolean shouldMatch, int expectedIndexCount) {
+        final String drl =
+                "package org.drools.compiler.test\n" +
+                           "import " + Person.class.getCanonicalName() + "\n" +
+                           "global java.util.List list\n" +
+                           "rule R1\n" +
+                           "    when\n" +
+                           "        $p1 : Person( name == \"John\" )\n" +
+                           "        $p2 : Person( name == \"Paul\", " + constraints + " )\n" +
+                           "    then\n" +
+                           "        list.add(\"R1\");\n" +
+                           "end";
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("indexing-test", kieBaseTestConfiguration, drl);
+
+        assertBetaIndex(kbase, Person.class, expectedIndexCount);
+
+        KieSession ksession = kbase.newKieSession();
+
+        try {
+            List<String> list = new ArrayList<>();
+            ksession.setGlobal("list", list);
+            ksession.insert(firstPerson);
+            ksession.insert(secondPerson);
+            ksession.fireAllRules();
+
+            if (shouldMatch) {
+                assertThat(list).as("These constraints should match : " + constraints).containsExactly("R1");
+            } else {
+                assertThat(list).as("These constraints should not match : " + constraints).isEmpty();
+            }
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    private void assertBetaIndex(KieBase kbase, Class<?> clazz, int expectedIndexCount) {
+        final JoinNode joinNode = KieUtil.getJoinNode(kbase, clazz);
+        BetaConstraints betaConstraints = joinNode.getRawConstraints();
+        assertThat(betaConstraints.getIndexCount()).as("IndexCount represents how many constrains are indexed").isEqualTo(expectedIndexCount);
     }
 }

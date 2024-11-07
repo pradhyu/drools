@@ -1,17 +1,33 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.scenariosimulation.backend.runner.model;
 
-import java.util.List;
-
-import org.drools.scenariosimulation.api.model.AuditLogLine;
 import org.drools.scenariosimulation.api.model.Scenario;
 import org.drools.scenariosimulation.api.model.ScenarioWithIndex;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.drools.scenariosimulation.backend.TestUtils.commonCheckAuditLogLine;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.kie.dmn.api.core.DMNDecisionResult.DecisionEvaluationStatus.FAILED;
+import static org.kie.dmn.api.core.DMNDecisionResult.DecisionEvaluationStatus.SUCCEEDED;
 
 public class ScenarioResultMetadataTest {
 
@@ -28,14 +44,24 @@ public class ScenarioResultMetadataTest {
     }
 
     @Test
+    public void noLogLinesAtTheStart() {
+        assertThat(scenarioResultMetadata.getAuditLogLines()).isEmpty();
+    }
+
+    
+    @Test
     public void addAuditMessage() {
-        assertTrue(scenarioResultMetadata.getAuditLogLines().isEmpty());
-        int index = 1;
-        String message = "message";
-        String level = "INFO";
-        scenarioResultMetadata.addAuditMessage(index, message, level);
-        final List<AuditLogLine> retrieved = scenarioResultMetadata.getAuditLogLines();
-        assertEquals(1, retrieved.size());
-        commonCheckAuditLogLine(retrieved.get(0), message, level);
+        scenarioResultMetadata.addAuditMessage(1, "decisionName", SUCCEEDED.toString());
+        
+        assertThat(scenarioResultMetadata.getAuditLogLines()).hasSize(1);
+        commonCheckAuditLogLine(scenarioResultMetadata.getAuditLogLines().get(0), "decisionName", SUCCEEDED.toString());
+    }
+
+    @Test
+    public void addAuditMessageWithErrorMessage() {
+        scenarioResultMetadata.addAuditMessage(1, "decisionName", FAILED.toString(), "Message");
+        
+        assertThat(scenarioResultMetadata.getAuditLogLines()).hasSize(1);
+        commonCheckAuditLogLine(scenarioResultMetadata.getAuditLogLines().get(0), "decisionName", FAILED.toString(), "Message");
     }
 }

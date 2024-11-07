@@ -1,19 +1,21 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.scenariosimulation.backend.fluent;
 
 import java.util.HashSet;
@@ -22,9 +24,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
-import org.drools.scenariosimulation.backend.runner.model.ResultWrapper;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioResult;
+import org.drools.scenariosimulation.backend.runner.model.ValueWrapper;
 import org.kie.api.KieBase;
+import org.kie.api.definition.KieDefinition;
 import org.kie.api.definition.KiePackage;
 import org.kie.api.definition.rule.Rule;
 import org.kie.api.runtime.KieContainer;
@@ -48,7 +51,7 @@ public interface RuleScenarioExecutableBuilder {
     }
 
     void addInternalCondition(Class<?> clazz,
-                              Function<Object, ResultWrapper> checkFunction,
+                              Function<Object, ValueWrapper> checkFunction,
                               ScenarioResult scenarioResult);
 
     void setActiveAgendaGroup(String agendaGroup);
@@ -68,16 +71,15 @@ public interface RuleScenarioExecutableBuilder {
     default Set<String> getAvailableRules(KieBase kieBase, String activeAgendaGroup) {
         Set<String> toReturn = new HashSet<>();
         for (KiePackage kiePackage : kieBase.getKiePackages()) {
-            for (Rule rule : kiePackage.getRules()) {
-                InternalRule internalRule = (InternalRule) rule;
-
-                // main agenda group is always executed after the active one
-                if (internalRule.isMainAgendaGroup()) {
-                    toReturn.add(prettyFullyQualifiedName(internalRule));
-                } else if (Objects.equals(activeAgendaGroup, internalRule.getAgendaGroup())) {
-                    toReturn.add(prettyFullyQualifiedName(internalRule));
-                }
-            }
+            kiePackage.getRules().stream()
+                    .filter(rule -> KieDefinition.KnowledgeType.RULE.equals(rule.getKnowledgeType()))
+                    .map(rule -> (InternalRule) rule)
+                    .forEach(internalRule -> {
+                        // main agenda group is always executed after the active one
+                        if (internalRule.isMainAgendaGroup() || Objects.equals(activeAgendaGroup, internalRule.getAgendaGroup())) {
+                            toReturn.add(prettyFullyQualifiedName(internalRule));
+                        }
+                    });
         }
 
         return toReturn;

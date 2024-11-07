@@ -1,17 +1,20 @@
-/*
- * Copyright 2011 Red Hat Inc.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.persistence.session;
 
@@ -21,11 +24,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
+import org.drools.commands.impl.CommandBasedStatefulKnowledgeSessionImpl;
 import org.drools.core.common.InternalAgenda;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.io.impl.ClassPathResource;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.io.ClassPathResource;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.persistence.util.DroolsPersistenceUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -46,12 +49,12 @@ import org.kie.internal.persistence.jpa.JPAKnowledgeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
 import static org.drools.persistence.util.DroolsPersistenceUtil.OPTIMISTIC_LOCKING;
 import static org.drools.persistence.util.DroolsPersistenceUtil.PESSIMISTIC_LOCKING;
 import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 @RunWith(Parameterized.class)
 public class RuleFlowGroupRollbackTest {
@@ -87,14 +90,14 @@ public class RuleFlowGroupRollbackTest {
     @Test	
 	public void testRuleFlowGroupRollback() throws Exception {
 		
-		CommandBasedStatefulKnowledgeSession ksession = createSession();
+		CommandBasedStatefulKnowledgeSessionImpl ksession = createSession();
 		
 		List<String> list = new ArrayList<String>();
 		list.add("Test");
 		
 		ksession.insert(list);
 		ksession.execute(new ActivateRuleFlowCommand("ruleflow-group"));
-		assertEquals(1, ksession.fireAllRules());
+        assertThat(ksession.fireAllRules()).isEqualTo(1);
 		
 		try {
 			ksession.execute(new ExceptionCommand());
@@ -105,11 +108,11 @@ public class RuleFlowGroupRollbackTest {
 		
 		ksession.insert(list);
 		ksession.execute(new ActivateRuleFlowCommand("ruleflow-group"));
-		assertEquals(1, ksession.fireAllRules());
+        assertThat(ksession.fireAllRules()).isEqualTo(1);
 		
 	}
 	
-	private CommandBasedStatefulKnowledgeSession createSession() {
+	private CommandBasedStatefulKnowledgeSessionImpl createSession() {
 		
 		KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
         kbuilder.add( new ClassPathResource("ruleflowgroup_rollback.drl"), ResourceType.DRL );
@@ -125,7 +128,7 @@ public class RuleFlowGroupRollbackTest {
         if( locking ) { 
             env.set(EnvironmentName.USE_PESSIMISTIC_LOCKING, true);
         }
-        return (CommandBasedStatefulKnowledgeSession) JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
+        return (CommandBasedStatefulKnowledgeSessionImpl) JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
 	}
 	
 	@SuppressWarnings("serial")

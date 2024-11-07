@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.misc;
 
 import java.math.BigDecimal;
@@ -76,7 +78,7 @@ public class FindMissingNumber {
         if ( numbers == null || numbers.length < MIN_NUMBER_OF_RESTRICTIONS ) {
             return null;
         }
-        BigDecimal gap = null;
+        BigDecimal gap;
         Number missingNumber = null;
 
         BigDecimal a = numbers[0];
@@ -101,12 +103,14 @@ public class FindMissingNumber {
             BigDecimal first = numbers[i];
             BigDecimal second = numbers[i + 1];
 
-            if ( missingNumber == null && !second.subtract( first ).equals( gap ) ) {
-                missingNumber = second.subtract( gap );
-            } else if ( !second.subtract( first ).equals( gap ) && missingNumber != null ) {
-                // Happends if there is no pattern found, or more than 1
-                // missing number.
-                return null;
+            if (!second.subtract( first ).equals( gap )) {
+                if (missingNumber == null) {
+                    missingNumber = second.subtract(gap);
+                } else {
+                    // Happends if there is no pattern found, or more than 1
+                    // missing number.
+                    return null;
+                }
             }
         }
 
@@ -126,7 +130,7 @@ public class FindMissingNumber {
         }
         try {
 
-            BigDecimal gap = null;
+            BigDecimal gap;
             Number missingNumber = null;
 
             BigDecimal a = numbers[0];
@@ -147,18 +151,20 @@ public class FindMissingNumber {
                 return null;
             }
 
-            BigDecimal first = null;
-            BigDecimal second = null;
+            BigDecimal first;
+            BigDecimal second;
             for ( int i = 0; i < (numbers.length - 1); i++ ) {
                 first = numbers[i];
                 second = numbers[i + 1];
 
-                if ( missingNumber == null && !second.divide( first ).equals( gap ) ) {
-                    missingNumber = first.multiply( gap );
-                } else if ( !second.divide( first ).equals( gap ) && missingNumber != null ) {
-                    // Happends if there is no pattern found, or more than 1
-                    // missing number.
-                    return null;
+                if (!second.divide( first ).equals( gap )) {
+                    if (missingNumber == null) {
+                        missingNumber = first.multiply(gap);
+                    } else {
+                        // Happends if there is no pattern found, or more than 1
+                        // missing number.
+                        return null;
+                    }
                 }
             }
             return missingNumber;

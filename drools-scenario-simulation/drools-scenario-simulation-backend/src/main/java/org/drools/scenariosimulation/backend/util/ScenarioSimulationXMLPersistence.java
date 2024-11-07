@@ -1,19 +1,21 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.scenariosimulation.backend.util;
 
 import java.util.regex.Matcher;
@@ -21,6 +23,7 @@ import java.util.regex.Pattern;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.xml.DomDriver;
+import com.thoughtworks.xstream.security.WildcardTypePermission;
 import org.drools.scenariosimulation.api.model.Background;
 import org.drools.scenariosimulation.api.model.BackgroundData;
 import org.drools.scenariosimulation.api.model.ExpressionElement;
@@ -34,12 +37,13 @@ import org.drools.scenariosimulation.api.model.ScenarioSimulationModel;
 import org.drools.scenariosimulation.api.model.ScesimModelDescriptor;
 import org.drools.scenariosimulation.api.model.Settings;
 import org.drools.scenariosimulation.api.model.Simulation;
+import org.drools.scenariosimulation.api.model.imports.Import;
 import org.drools.scenariosimulation.backend.interfaces.ThrowingConsumer;
-import org.kie.soup.commons.xstream.XStreamUtils;
-import org.kie.soup.project.datamodel.imports.Import;
+import org.kie.utll.xml.XStreamUtils;
 import org.w3c.dom.Document;
 
 import static org.drools.scenariosimulation.api.utils.ConstantsHolder.BACKGROUND_NODE;
+import static org.drools.scenariosimulation.api.utils.ConstantsHolder.SCENARIO_SIMULATION_MODEL_NODE;
 import static org.drools.scenariosimulation.api.utils.ConstantsHolder.SCESIM_MODEL_DESCRIPTOR_NODE;
 import static org.drools.scenariosimulation.api.utils.ConstantsHolder.SETTINGS;
 import static org.drools.scenariosimulation.api.utils.ConstantsHolder.SIMULATION_DESCRIPTOR_NODE;
@@ -49,13 +53,18 @@ public class ScenarioSimulationXMLPersistence {
 
     private static final ScenarioSimulationXMLPersistence INSTANCE = new ScenarioSimulationXMLPersistence();
     private static final String CURRENT_VERSION = new ScenarioSimulationModel().getVersion();
-    private static final Pattern p = Pattern.compile("version=\"([0-9]+\\.[0-9]+)");
+    private static final Pattern p = Pattern.compile(SCENARIO_SIMULATION_MODEL_NODE + " version=\"([0-9]+\\.[0-9]+)");
 
     private XStream xt;
     private MigrationStrategy migrationStrategy = new InMemoryMigrationStrategy();
 
     private ScenarioSimulationXMLPersistence() {
-        xt = XStreamUtils.createTrustingXStream(new DomDriver());
+        xt = XStreamUtils.createNonTrustingXStream(new DomDriver());
+
+        xt.addPermission(new WildcardTypePermission( new String[] {
+                "org.drools.scenariosimulation.api.model.*",
+                "org.drools.scenariosimulation.api.model.imports.*",
+        }));
 
         xt.setMode(XStream.NO_REFERENCES);
         xt.autodetectAnnotations(true);
@@ -128,11 +137,8 @@ public class ScenarioSimulationXMLPersistence {
     }
 
     public ScenarioSimulationModel unmarshal(final String rawXml, boolean migrate) throws Exception {
-        if (rawXml == null) {
-            return new ScenarioSimulationModel();
-        }
-        if (rawXml.trim().equals("")) {
-            return new ScenarioSimulationModel();
+        if (rawXml == null || rawXml.trim().equals("")) {
+            throw new IllegalArgumentException("Malformed file, content is empty!");
         }
 
         String xml = migrate ? migrateIfNecessary(rawXml) : rawXml;

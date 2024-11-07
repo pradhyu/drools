@@ -1,19 +1,21 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.decisiontable.parser.csv;
 
 import java.util.ArrayList;
@@ -83,7 +85,7 @@ public class CsvLineParser {
         }
 
         /** The fields in the current String */
-        protected List<String> list = new ArrayList<String>();
+        protected List<String> list = new ArrayList<>();
 
         /** the separator char for this parser */
         protected char fieldSep;
@@ -95,7 +97,7 @@ public class CsvLineParser {
          *         a String, in order.
          */
         public List<String> parse(final String line) {
-            final StringBuffer sb = new StringBuffer();
+            final StringBuilder sb = new StringBuilder();
             this.list.clear(); // recycle to initial state
             int i = 0;
 
@@ -124,7 +126,7 @@ public class CsvLineParser {
 
         /** advQuoted: quoted field; return index of next separator */
         protected int advQuoted(final String s,
-                                final StringBuffer sb,
+                                final StringBuilder sb,
                                 final int i) {
             int j;
             final int len = s.length();
@@ -146,7 +148,7 @@ public class CsvLineParser {
 
         /** advPlain: unquoted field; return index of next separator */
         protected int advPlain(final String s,
-                               final StringBuffer sb,
+                               final StringBuilder sb,
                                final int i) {
             int j;
 

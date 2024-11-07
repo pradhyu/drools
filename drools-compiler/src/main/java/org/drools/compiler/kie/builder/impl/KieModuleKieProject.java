@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.kie.builder.impl;
 
 import java.io.InputStream;
@@ -22,7 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.builder.model.KieBaseModel;
 import org.kie.api.builder.model.KieSessionModel;
@@ -41,7 +44,7 @@ public class KieModuleKieProject extends AbstractKieProject {
 
     private List<InternalKieModule>        kieModules;
 
-    private Map<String, InternalKieModule> kJarFromKBaseName = new HashMap<String, InternalKieModule>();
+    private Map<String, InternalKieModule> kJarFromKBaseName = new HashMap<>();
 
     private InternalKieModule              kieModule;
 
@@ -60,7 +63,7 @@ public class KieModuleKieProject extends AbstractKieProject {
         if ( kieModules == null ) {
             Collection<InternalKieModule> depKieModules = kieModule.getKieDependencies().values();
             indexParts( kieModule, depKieModules, kJarFromKBaseName );
-            kieModules = new ArrayList<InternalKieModule>();
+            kieModules = new ArrayList<>();
             kieModules.addAll( depKieModules );
             kieModules.add( kieModule );
             cl.storeClasses( getClassesMap() );
@@ -68,7 +71,7 @@ public class KieModuleKieProject extends AbstractKieProject {
     }
 
     private Map<String, byte[]> getClassesMap() {
-        Map<String, byte[]> classes = new HashMap<String, byte[]>();
+        Map<String, byte[]> classes = new HashMap<>();
         for ( InternalKieModule kModule : kieModules ) {
             classes.putAll( kModule.getClassesMap() );
         }
@@ -99,8 +102,12 @@ public class KieModuleKieProject extends AbstractKieProject {
         return this.cl;
     }
 
+    public boolean hasDynamicClassLoader() {
+        return this.cl.isDynamic();
+    }
+
     public Map<String, KieBaseModel> updateToModule(InternalKieModule updatedKieModule) {
-        Map<String, KieBaseModel> oldKieBaseModels = new HashMap<String, KieBaseModel>();
+        Map<String, KieBaseModel> oldKieBaseModels = new HashMap<>();
         oldKieBaseModels.putAll( kBaseModels );
 
         this.kieModules = null;
@@ -112,7 +119,7 @@ public class KieModuleKieProject extends AbstractKieProject {
         if (currentReleaseId.getGroupId().equals(updatingReleaseId.getGroupId()) &&
             currentReleaseId.getArtifactId().equals(updatingReleaseId.getArtifactId())) {
             this.kieModule = updatedKieModule;
-        } else if (this.kieModule.getKieDependencies().keySet().contains(updatingReleaseId)) {
+        } else if (this.kieModule.getKieDependencies().containsKey(updatingReleaseId)) {
             this.kieModule.addKieDependency(updatedKieModule);
         }
 
@@ -124,6 +131,10 @@ public class KieModuleKieProject extends AbstractKieProject {
         }
 
         return oldKieBaseModels;
+    }
+
+    public BuildContext createBuildContext(ResultsImpl results) {
+        return new BuildContext(results);
     }
 
     @Override

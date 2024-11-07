@@ -1,58 +1,57 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
+import org.drools.base.base.ObjectType;
+import org.drools.base.common.NetworkNode;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.From;
+import org.drools.base.rule.Pattern;
+import org.drools.base.rule.accessor.DataProvider;
+import org.drools.base.rule.constraint.AlphaNodeFieldConstraint;
 import org.drools.core.RuleBaseConfiguration;
-import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.BetaConstraints;
 import org.drools.core.common.EmptyBetaConstraints;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.rule.From;
-import org.drools.core.rule.Pattern;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.ClassWireable;
-import org.drools.core.spi.DataProvider;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.spi.Tuple;
-import org.drools.core.util.AbstractBaseLinkedListNode;
-import org.drools.core.util.bitmask.AllSetBitMask;
-import org.drools.core.util.bitmask.BitMask;
+import org.drools.core.util.AbstractLinkedListNode;
 import org.drools.core.util.index.TupleList;
+import org.drools.util.bitmask.AllSetBitMask;
+import org.drools.util.bitmask.BitMask;
 
-import static org.drools.core.reteoo.PropertySpecificUtil.calculateNegativeMask;
-import static org.drools.core.reteoo.PropertySpecificUtil.calculatePositiveMask;
-import static org.drools.core.reteoo.PropertySpecificUtil.getAccessibleProperties;
-import static org.drools.core.reteoo.PropertySpecificUtil.isPropertyReactive;
-import static org.drools.core.util.ClassUtils.areNullSafeEquals;
+import static org.drools.base.reteoo.PropertySpecificUtil.calculateNegativeMask;
+import static org.drools.base.reteoo.PropertySpecificUtil.calculatePositiveMask;
+import static org.drools.base.reteoo.PropertySpecificUtil.getAccessibleProperties;
+import static org.drools.base.reteoo.PropertySpecificUtil.isPropertyReactive;
 
 public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     implements
@@ -68,7 +67,6 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     protected LeftTupleSinkNode          nextTupleSinkNode;
     
     protected From                       from;
-    protected Class<?>                   resultClass;
 
     protected boolean                    tupleMemoryEnabled;
 
@@ -88,36 +86,17 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
         super(id, context);
         this.dataProvider = dataProvider;
         setLeftTupleSource(tupleSource);
+        this.setObjectCount(leftInput.getObjectCount() + 1); // 'from' node increases the object count
+
         this.alphaConstraints = constraints;
         this.betaConstraints = (binder == null) ? EmptyBetaConstraints.getInstance() : binder;
         this.betaConstraints.init(context, getType());
         this.tupleMemoryEnabled = tupleMemoryEnabled;
         this.from = from;
-        resultClass = this.from.getResultClass();
 
         initMasks(context, tupleSource);
 
         hashcode = calculateHashCode();
-    }
-
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        super.readExternal( in );
-        dataProvider = (DataProvider) in.readObject();
-        alphaConstraints = (AlphaNodeFieldConstraint[]) in.readObject();
-        betaConstraints = (BetaConstraints) in.readObject();
-        tupleMemoryEnabled = in.readBoolean();
-        from = (From) in.readObject();
-        resultClass = from.getResultClass();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( dataProvider );
-        out.writeObject( alphaConstraints );
-        out.writeObject( betaConstraints );
-        out.writeBoolean( tupleMemoryEnabled );
-        out.writeObject( from );
     }
 
     private int calculateHashCode() {
@@ -140,7 +119,7 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
             return true;
         }
 
-        if (object == null || !(object instanceof FromNode ) || this.hashCode() != object.hashCode() ) {
+        if (((NetworkNode)object).getType() != NodeTypeEnums.FromNode || this.hashCode() != object.hashCode()) {
             return false;
         }
 
@@ -148,7 +127,7 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
 
         return this.leftInput.getId() == other.leftInput.getId() &&
                dataProvider.equals( other.dataProvider ) &&
-               areNullSafeEquals(from.getResultPattern(), other.from.getResultPattern() ) &&
+               Objects.equals(from.getResultPattern(), other.from.getResultPattern() ) &&
                Arrays.equals( alphaConstraints, other.alphaConstraints ) &&
                betaConstraints.equals( other.betaConstraints );
     }
@@ -187,15 +166,12 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
 
         ObjectType objectType = pattern.getObjectType();
 
-        if ( objectType instanceof ClassObjectType ) {
-            Class objectClass = (( ClassWireable ) objectType).getClassType();
-            // if pattern is null (e.g. for eval or query nodes) we cannot calculate the mask, so we set it all
-            if ( isPropertyReactive( context, objectClass ) ) {
-                Collection<String> leftListenedProperties = pattern.getListenedProperties();
-                List<String> accessibleProperties = getAccessibleProperties( context.getKnowledgeBase(), objectClass );
-                leftDeclaredMask = leftDeclaredMask.setAll( calculatePositiveMask( objectClass, leftListenedProperties, accessibleProperties ) );
-                leftNegativeMask = leftNegativeMask.setAll( calculateNegativeMask( objectClass, leftListenedProperties, accessibleProperties ) );
-            }
+        // if pattern is null (e.g. for eval or query nodes) we cannot calculate the mask, so we set it all
+        if ( isPropertyReactive( context.getRuleBase(), objectType ) ) {
+            Collection<String> leftListenedProperties = pattern.getListenedProperties();
+            List<String> accessibleProperties = getAccessibleProperties( context.getRuleBase(), objectType );
+            leftDeclaredMask = leftDeclaredMask.setAll( calculatePositiveMask( objectType, leftListenedProperties, accessibleProperties ) );
+            leftNegativeMask = leftNegativeMask.setAll( calculateNegativeMask( objectType, leftListenedProperties, accessibleProperties ) );
         }
     }
 
@@ -205,15 +181,15 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     }
 
     @Override
-    protected BitMask setNodeConstraintsPropertyReactiveMask( BitMask mask, Class objectClass, List<String> accessibleProperties) {
+    protected BitMask setNodeConstraintsPropertyReactiveMask( BitMask mask, ObjectType objectType, List<String> accessibleProperties) {
         for (int i = 0; i < alphaConstraints.length; i++) {
-            mask = mask.setAll(alphaConstraints[i].getListenedPropertyMask(objectClass, accessibleProperties));
+            mask = mask.setAll(alphaConstraints[i].getListenedPropertyMask(Optional.empty(), objectType, accessibleProperties));
         }
         return mask;
     }
 
     public Class< ? > getResultClass() {
-        return resultClass;
+        return from.getResultClass();
     }
 
     public void networkUpdated(UpdateContext updateContext) {
@@ -221,23 +197,25 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     }
 
     @SuppressWarnings("unchecked")
-    public RightTuple createRightTuple( final LeftTuple leftTuple,
-                                        final PropagationContext context,
-                                        final InternalWorkingMemory workingMemory,
-                                        final Object object ) {
-        return new RightTupleImpl( createFactHandle( leftTuple, context, workingMemory, object ) );
+    public RightTuple createRightTuple(final TupleImpl leftTuple,
+                                       final PropagationContext context,
+                                       final ReteEvaluator reteEvaluator,
+                                       final Object object) {
+        return new RightTuple(createFactHandle(reteEvaluator, object) );
     }
 
-    public InternalFactHandle createFactHandle( Tuple leftTuple, PropagationContext context, InternalWorkingMemory workingMemory, Object object ) {
-        if ( objectTypeConf == null ) {
-            // use default entry point and object class. Notice that at this point object is assignable to resultClass
-            objectTypeConf = new ClassObjectTypeConf( workingMemory.getEntryPoint(), resultClass, workingMemory.getKnowledgeBase() );
+    public InternalFactHandle createFactHandle( ReteEvaluator reteEvaluator, Object object ) {
+        InternalFactHandle handle = reteEvaluator.getFactHandle(object);
+        if (handle != null && handle.getObject() == object) {
+            return handle;
         }
 
-        return workingMemory.getFactHandleFactory().newFactHandle(object,
-                                                                  objectTypeConf,
-                                                                  workingMemory,
-                                                                  null );
+        if ( objectTypeConf == null ) {
+            // use default entry point and object class. Notice that at this point object is assignable to resultClass
+            objectTypeConf = new ClassObjectTypeConf( reteEvaluator.getDefaultEntryPointId(), getResultClass(), reteEvaluator.getKnowledgeBase() );
+        }
+
+        return reteEvaluator.createFactHandle(object, objectTypeConf, null );
     }
 
 
@@ -246,12 +224,12 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
         if ( rightTuple.getFactHandle().isValid() ) {
             Object object = rightTuple.getFactHandle().getObject();
             // keeping a list of matches
-            RightTuple existingMatch = matches.get( object );
+            RightTuple existingMatch = matches.get(object);
             if ( existingMatch != null ) {
                 // this is for the obscene case where two or more objects returned by "from"
                 // have the same hash code and evaluate equals() to true, so we need to preserve
                 // all of them to avoid leaks
-                rightTuple.setNext( existingMatch );
+                rightTuple.setNext(existingMatch);
             }
             matches.put( object,
                          rightTuple );
@@ -259,30 +237,17 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
     }
 
 
-    public T createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
-        BetaMemory beta = new BetaMemory( new TupleList(),
-                                          null,
-                                          this.betaConstraints.createContext(),
-                                          NodeTypeEnums.FromNode );
+    public T createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
+        BetaMemory beta = new BetaMemory(new TupleList(),
+                                         null,
+                                         this.betaConstraints.createContext(),
+                                         NodeTypeEnums.FromNode );
         return (T) new FromMemory( beta,
                                    this.dataProvider );
     }
-   
-
-    @Override
-    public LeftTuple createPeer(LeftTuple original) {
-        FromNodeLeftTuple peer = new FromNodeLeftTuple();
-        peer.initPeer( (BaseLeftTuple) original, this );
-        original.setPeer( peer );
-        return peer;
-    }    
 
     public boolean isLeftTupleMemoryEnabled() {
         return tupleMemoryEnabled;
-    }
-
-    public void setLeftTupleMemoryEnabled(boolean tupleMemoryEnabled) {
-        this.tupleMemoryEnabled = tupleMemoryEnabled;
     }
 
     /**
@@ -321,11 +286,11 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
         this.previousTupleSinkNode = previous;
     }
 
-    public short getType() {
+    public int getType() {
         return NodeTypeEnums.FromNode;
     } 
 
-    public static class FromMemory extends AbstractBaseLinkedListNode<Memory>
+    public static class FromMemory extends AbstractLinkedListNode<Memory>
         implements
         Serializable,
         SegmentNodeMemory {
@@ -333,8 +298,8 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
 
         private DataProvider      dataProvider;
 
-        private final BetaMemory         betaMemory;
-        public Object                    providerContext;
+        private final BetaMemory betaMemory;
+        public        Object         providerContext;
 
         public FromMemory(BetaMemory betaMemory,
                           DataProvider dataProvider) {
@@ -343,7 +308,7 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
             this.providerContext = dataProvider.createContext();
         }
 
-        public short getNodeType() {
+        public int getNodeType() {
             return NodeTypeEnums.FromNode;
         }
 
@@ -355,7 +320,7 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
             betaMemory.setSegmentMemory(segmentMemory);
         }
 
-        public BetaMemory getBetaMemory() {
+        public BetaMemory<Object> getBetaMemory() {
             return betaMemory;
         }
 
@@ -384,47 +349,14 @@ public class FromNode<T extends FromNode.FromMemory> extends LeftTupleSource
             betaMemory.setNodeCleanWithoutNotify();
         }
     }
-    
-    public LeftTuple createLeftTuple(InternalFactHandle factHandle,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new FromNodeLeftTuple(factHandle, sink, leftTupleMemoryEnabled );
-    }
-
-    public LeftTuple createLeftTuple(final InternalFactHandle factHandle,
-                                     final LeftTuple leftTuple,
-                                     final Sink sink) {
-        return new FromNodeLeftTuple(factHandle,leftTuple, sink );
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     Sink sink,
-                                     PropagationContext pctx, boolean leftTupleMemoryEnabled) {
-        return new FromNodeLeftTuple(leftTuple, sink, pctx,
-                                     leftTupleMemoryEnabled );
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     Sink sink) {
-        return new FromNodeLeftTuple(leftTuple, rightTuple, sink );
-    }   
-    
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     LeftTuple currentLeftChild,
-                                     LeftTuple currentRightChild,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new FromNodeLeftTuple(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );        
-    }
 
     @Override
     public ObjectTypeNode getObjectTypeNode() {
         return leftInput.getObjectTypeNode();
     }
 
-    public void attach( BuildContext context ) {
+    public void doAttach( BuildContext context ) {
+        super.doAttach(context);
         this.leftInput.addTupleSink( this, context );
     }
 

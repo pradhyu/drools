@@ -1,28 +1,22 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.time.impl;
-
-import org.drools.core.base.mvel.MVELObjectExpression;
-import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.rule.ConditionalElement;
-import org.drools.core.rule.Declaration;
-import org.drools.core.spi.Tuple;
-import org.drools.core.time.Trigger;
-import org.kie.api.runtime.Calendars;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -31,14 +25,26 @@ import java.io.ObjectOutput;
 import java.text.ParseException;
 import java.util.Map;
 
-import static org.drools.core.time.TimeUtils.evalDateExpression;
+import org.drools.base.base.ValueResolver;
+import org.drools.base.reteoo.BaseTuple;
+import org.drools.base.rule.ConditionalElement;
+import org.drools.base.rule.Declaration;
+import org.drools.base.time.JobHandle;
+import org.drools.base.time.Trigger;
+import org.drools.base.time.impl.Timer;
+import org.drools.core.time.TimerExpression;
+import org.kie.api.runtime.Calendars;
+
+import static org.drools.core.time.TimerExpressionUtil.evalDateExpression;
+
+//import static org.drools.core.time.TimerExpressionUtils.evalDateExpression;
 
 public class CronTimer extends BaseTimer
     implements
-    Timer,
+        Timer,
     Externalizable {
-    private MVELObjectExpression startTime;
-    private MVELObjectExpression endTime;
+    private TimerExpression startTime;
+    private TimerExpression endTime;
     private int                  repeatLimit;
     private CronExpression       cronExpression;
     
@@ -46,8 +52,8 @@ public class CronTimer extends BaseTimer
         
     }
 
-    public CronTimer(MVELObjectExpression startTime,
-                     MVELObjectExpression endTime,
+    public CronTimer(TimerExpression startTime,
+                     TimerExpression endTime,
                      int repeatLimit,
                      CronExpression cronExpression) {
         this.startTime = startTime;
@@ -65,8 +71,8 @@ public class CronTimer extends BaseTimer
 
     public void readExternal(ObjectInput in) throws IOException,
                                             ClassNotFoundException {
-        this.startTime = (MVELObjectExpression) in.readObject();
-        this.endTime = (MVELObjectExpression) in.readObject();
+        this.startTime = (TimerExpression) in.readObject();
+        this.endTime = (TimerExpression) in.readObject();
         this.repeatLimit = in.readInt();
         String string = (String) in.readObject();
         try {
@@ -77,12 +83,12 @@ public class CronTimer extends BaseTimer
         }
     }
 
-    public Declaration[] getStartDeclarations() {
-        return this.startTime != null ? this.startTime.getMVELCompilationUnit().getPreviousDeclarations() : null;
+    private Declaration[] getStartDeclarations() {
+        return this.startTime != null ? this.startTime.getDeclarations() : null;
     }
 
-    public Declaration[] getEndDeclarations() {
-        return this.endTime != null ? this.endTime.getMVELCompilationUnit().getPreviousDeclarations() : null;
+    private Declaration[] getEndDeclarations() {
+        return this.endTime != null ? this.endTime.getDeclarations() : null;
     }
 
     public Declaration[][] getTimerDeclarations(Map<String, Declaration> outerDeclrs) {
@@ -95,17 +101,17 @@ public class CronTimer extends BaseTimer
     }
 
     public Trigger createTrigger(long timestamp,
-                                 Tuple leftTuple,
-                                 DefaultJobHandle jh,
+                                 BaseTuple leftTuple,
+                                 JobHandle jh,
                                  String[] calendarNames,
                                  Calendars calendars,
                                  Declaration[][] declrs,
-                                 InternalWorkingMemory wm) {
+                                 ValueResolver valueResolver) {
         Declaration[] startDeclarations = declrs[0];
 
         return new CronTrigger( timestamp,
-                                evalDateExpression( this.startTime, leftTuple, startDeclarations, wm ),
-                                evalDateExpression( this.endTime, leftTuple, startDeclarations, wm ),
+                                evalDateExpression( this.startTime, leftTuple, startDeclarations, valueResolver ),
+                                evalDateExpression( this.endTime, leftTuple, startDeclarations, valueResolver ),
                                 this.repeatLimit,
                                 this.cronExpression,
                                 calendarNames,
@@ -137,20 +143,40 @@ public class CronTimer extends BaseTimer
 
     @Override
     public boolean equals(Object obj) {
-        if ( this == obj ) return true;
-        if ( obj == null ) return false;
-        if ( getClass() != obj.getClass() ) return false;
+        if ( this == obj ) {
+            return true;
+        }
+        if ( obj == null ) {
+            return false;
+        }
+        if ( getClass() != obj.getClass() ) {
+            return false;
+        }
         CronTimer other = (CronTimer) obj;
-        if ( repeatLimit != other.repeatLimit ) return false;
+        if ( repeatLimit != other.repeatLimit ) {
+            return false;
+        }
         if ( cronExpression.getCronExpression() == null ) {
-            if ( other.cronExpression.getCronExpression() != null ) return false;
-        } else if ( !cronExpression.getCronExpression().equals( other.cronExpression.getCronExpression() ) ) return false;
+            if ( other.cronExpression.getCronExpression() != null ) {
+                return false;
+            }
+        } else if ( !cronExpression.getCronExpression().equals( other.cronExpression.getCronExpression() ) ) {
+            return false;
+        }
         if ( endTime == null ) {
-            if ( other.endTime != null ) return false;
-        } else if ( !endTime.equals( other.endTime ) ) return false;
+            if ( other.endTime != null ) {
+                return false;
+            }
+        } else if ( !endTime.equals( other.endTime ) ) {
+            return false;
+        }
         if ( startTime == null ) {
-            if ( other.startTime != null ) return false;
-        } else if ( !startTime.equals( other.startTime ) ) return false;
+            if ( other.startTime != null ) {
+                return false;
+            }
+        } else if ( !startTime.equals( other.startTime ) ) {
+            return false;
+        }
         return true;
     }
 

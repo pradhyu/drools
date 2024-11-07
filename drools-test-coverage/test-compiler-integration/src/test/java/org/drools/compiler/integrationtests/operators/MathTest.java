@@ -1,56 +1,50 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.operators;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Stream;
 
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class MathTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public MathTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test
-    public void testAddition() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAddition(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -83,8 +77,8 @@ public class MathTest {
             ksession.insert(jane);
             ksession.fireAllRules();
 
-            assertEquals(jane, ((List) ksession.getGlobal("list")).get(0));
-            assertEquals(peter, ((List) ksession.getGlobal("list")).get(1));
+            assertThat(((List) ksession.getGlobal("list")).get(0)).isEqualTo(jane);
+            assertThat(((List) ksession.getGlobal("list")).get(1)).isEqualTo(peter);
         } finally {
             ksession.dispose();
         }
@@ -116,8 +110,9 @@ public class MathTest {
 
     }
 
-    @Test
-    public void testNumberComparisons() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNumberComparisons(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + RandomNumber.class.getCanonicalName() + ";\n" +
                 "import " + Guess.class.getCanonicalName() + ";\n" +
@@ -170,8 +165,8 @@ public class MathTest {
             ksession.fireAllRules();
 
             // HIGHER
-            assertEquals(1, list.size());
-            assertEquals("HIGHER", list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo("HIGHER");
 
             guess.setValue(15);
             ksession.update(handle, guess);
@@ -179,8 +174,8 @@ public class MathTest {
             ksession.fireAllRules();
 
             // LOWER
-            assertEquals(2, list.size());
-            assertEquals("LOWER", list.get(1));
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list.get(1)).isEqualTo("LOWER");
 
             guess.setValue(10);
             ksession.update(handle, guess);
@@ -188,15 +183,16 @@ public class MathTest {
             ksession.fireAllRules();
 
             // CORRECT
-            assertEquals(3, list.size());
-            assertEquals("CORRECT", list.get(2));
+            assertThat(list.size()).isEqualTo(3);
+            assertThat(list.get(2)).isEqualTo("CORRECT");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testShiftOperator()  {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testShiftOperator(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "dialect \"mvel\"\n" +
                 "rule kickOff\n" +
                 "when\n" +
@@ -254,7 +250,7 @@ public class MathTest {
         final KieSession ksession = kbase.newKieSession();
         try {
             final int rules = ksession.fireAllRules();
-            assertEquals(13, rules);
+            assertThat(rules).isEqualTo(13);
         } finally {
             ksession.dispose();
         }

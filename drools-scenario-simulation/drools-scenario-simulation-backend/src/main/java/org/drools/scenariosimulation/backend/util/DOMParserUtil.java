@@ -1,17 +1,20 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.scenariosimulation.backend.util;
 
@@ -34,6 +37,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
@@ -116,7 +120,7 @@ public class DOMParserUtil {
      * @param childNodeNameReplacement
      * @return
      */
-    public static String replaceNodeName(Document document, String containerNodeName, String childNodeNameToReplace, String childNodeNameReplacement) throws Exception {
+    public static String replaceNodeName(Document document, String containerNodeName, String childNodeNameToReplace, String childNodeNameReplacement) throws TransformerException {
         final NodeList containerNodes = document.getElementsByTagName(containerNodeName);
         if (containerNodes != null) {
             for (int i = 0; i < containerNodes.getLength(); i++) {
@@ -229,6 +233,17 @@ public class DOMParserUtil {
     }
 
     /**
+     * Create a <b>nodeToCreateName</b> <code>Node</code> and appends it inside <b>containerNode</b>.
+     * @param containerNode
+     * @param nodeToCreateName
+     * @param nodeContent
+     * @return
+     */
+    public static Node createNodeAndAppend(Node containerNode, String nodeToCreateName, String nodeContent) {
+        return createNodeAtPosition(containerNode, nodeToCreateName, nodeContent, null);
+    }
+
+    /**
      * Create a <b>nodeToCreateName</b> <code>Node</code> inside <b>containerNode</b>.
      * If <b>nodeContent</b> is not null, add it as text content.
      * If <b>position</b> is not null, put the created node at position 0
@@ -331,15 +346,18 @@ public class DOMParserUtil {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
         factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        factory.setIgnoringComments(true);
         DocumentBuilder dBuilder = factory.newDocumentBuilder();
         try (InputStream inputStream = new ByteArrayInputStream(xml.getBytes())) {
             return dBuilder.parse(inputStream);
         }
     }
 
-    public static String getString(Document toRead) throws Exception {
+    public static String getString(Document toRead) throws TransformerException {
         DOMSource domSource = new DOMSource(toRead);
         TransformerFactory factory = TransformerFactory.newInstance();
+        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
         factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         Transformer transformer = factory.newTransformer();
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");

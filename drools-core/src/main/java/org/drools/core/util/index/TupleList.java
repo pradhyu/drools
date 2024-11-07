@@ -1,152 +1,64 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.util.index;
 
 import java.io.Serializable;
 
 import org.drools.core.common.InternalFactHandle;
+import org.drools.core.reteoo.TupleImpl;
 import org.drools.core.reteoo.TupleMemory;
-import org.drools.core.spi.Tuple;
-import org.drools.core.util.Entry;
+import org.drools.core.util.SingleLinkedEntry;
 import org.drools.core.util.FastIterator;
-import org.drools.core.util.Iterator;
 import org.drools.core.util.LinkedList;
 
-public class TupleList implements TupleMemory, Entry<TupleList>, Serializable {
+public class TupleList extends LinkedList<TupleImpl> implements TupleMemory, SingleLinkedEntry<TupleList>, Serializable {
 
     public static final long       serialVersionUID = 510l;
 
-    private TupleList              next;
-
-    private Tuple                  first;
-    private Tuple                  last;
-
-    private TupleHashTableIterator iterator;
-
-    private int                    size;
+    private TupleList           next;
 
     public TupleList() {
     }
 
-    public TupleList( Tuple first, Tuple last, int size ) {
-        this.first = first;
-        this.last = last;
-        this.size = size;
+    public TupleList( TupleImpl first, TupleImpl last, int size ) {
+        super(first, last, size);
     }
 
-    public boolean isEmpty() {
-        return size == 0;
+    @Override
+    public void add(TupleImpl node) {
+        super.add(node);
+        node.setMemory(this);
     }
 
-    public Tuple getFirst(Tuple rightTuple) {
-        return this.first;
-    }
-    
-    public Tuple getFirst() {
-        return this.first;
-    }
-    
-    public Tuple getLast() {
-        return this.last;
-    }
-    
-    public void clear() {
-        this.first = null;
-        this.last = null;
-        size = 0;
-    }    
-    
-    public void removeAdd(Tuple tuple) {
-        remove(tuple);
-        add(tuple);
+    @Override
+    public void remove(TupleImpl node) {
+        super.remove(node);
+        node.clear();
     }
 
-    public void add(final Tuple tuple) {
-        if ( this.last != null ) {
-            this.last.setNext( tuple );
-            tuple.setPrevious( this.last );
-            this.last = tuple;
-        } else {
-            this.first = tuple;
-            this.last = tuple;
-        }
-        tuple.setMemory( this );
-        this.size++;
-
+    @Override
+    public TupleImpl getFirst(TupleImpl tuple) {
+        return getFirst();
     }
 
-    public void remove(final Tuple tuple) {
-        Tuple previous = tuple.getPrevious();
-        Tuple next = tuple.getNext();
-
-        if ( previous != null && next != null ) {
-            // remove from middle
-            previous.setNext( next );
-            next.setPrevious( previous );
-        } else if ( next != null ) {
-            // remove from first
-            this.first = next;
-            next.setPrevious( null );
-        } else if ( previous != null ) {
-            // remove from end
-            this.last = previous;
-            previous.setNext( null );
-        } else {
-            // remove everything
-            this.last = null;
-            this.first = null;
-        }        
-        tuple.clear();
-        this.size--;
-    }
-
-    public Tuple removeFirst() {
-        Tuple tuple = this.first;
-        if ( this.last == tuple ) {
-            this.last = null;
-            this.first = null;
-        }  else {
-            this.first = tuple.getNext();
-            if ( this.first != null ) {
-                this.first.setPrevious(null);
-            }
-        }
-        tuple.clear();
-        this.size--;
-        return tuple;
-    }
-
-    public boolean contains(final Tuple tuple) {
-        return get( tuple ) != null;
-    }
-
-    public Tuple get(final Tuple tuple) {
-        Tuple current = this.first;
-        while ( current != null ) {
-            if ( tuple.equals( current ) ) {
-                return current;
-            }
-            current = current.getNext();
-        }
-        return null;
-    }
-
-    public Tuple get(final InternalFactHandle handle) {
-        Tuple current = this.first;
+    public TupleImpl get(final InternalFactHandle handle) {
+        TupleImpl current = getFirst();
         while ( current != null ) {
             if ( handle == current.getFactHandle() ) {
                 return current;
@@ -156,20 +68,16 @@ public class TupleList implements TupleMemory, Entry<TupleList>, Serializable {
         return null;
     }
 
-    public int size() {
-        return this.size;
+    public TupleImpl removeFirst() {
+        TupleImpl node = super.removeFirst();
+        node.clear();
+        return node;
     }
 
-    public Tuple[] toArray() {
-        Tuple[] tuples = new Tuple[this.size];
-
-        Tuple current = first;
-        for ( int i = 0; i < this.size; i++ ) {
-            tuples[i] = current;
-            current = current.getNext();
-        }
-
-        return tuples;
+    public TupleImpl removeLast() {
+        TupleImpl node = super.removeLast();
+        node.clear();
+        return node;
     }
 
     @Override
@@ -177,51 +85,22 @@ public class TupleList implements TupleMemory, Entry<TupleList>, Serializable {
         return TupleMemory.IndexType.NONE;
     }
 
-    public FastIterator fastIterator() {
+    @Override
+    public FastIterator<TupleImpl> fastIterator() {
         return LinkedList.fastIterator; // contains no state, so ok to be static
     }
-    
-    public FastIterator fullFastIterator() {
+
+    @Override
+    public FastIterator<TupleImpl> fullFastIterator() {
         return LinkedList.fastIterator; // contains no state, so ok to be static
     }
-    
 
-    public FastIterator fullFastIterator(Tuple tuple) {
+    @Override
+    public FastIterator<TupleImpl> fullFastIterator(TupleImpl tuple) {
         return LinkedList.fastIterator; // contains no state, so ok to be static
-    }    
-
-    public Iterator<Tuple> iterator() {
-        if ( this.iterator == null ) {
-            this.iterator = new TupleHashTableIterator();
-        }
-        this.iterator.reset( this.first );
-        return this.iterator;
     }
 
-    public static class TupleHashTableIterator
-        implements
-        Iterator<Tuple> {
-        private Tuple current;
-
-        public void reset(Tuple first) {
-            this.current = first;
-        }
-
-        public Tuple next() {
-            if ( this.current != null ) {
-                Tuple returnValue = this.current;
-                this.current = current.getNext();
-                return returnValue;
-            } else {
-                return null;
-            }
-        }
-
-        public void remove() {
-            // do nothing
-        }
-    }
-
+    @Override
     public boolean isIndexed() {
         return false;
     }
@@ -236,8 +115,8 @@ public class TupleList implements TupleMemory, Entry<TupleList>, Serializable {
 
     public String toString() {
         StringBuilder builder = new StringBuilder();
-        Iterator it = iterator();
-        for ( Tuple tuple = (Tuple) it.next(); tuple != null; tuple = (Tuple) it.next() ) {
+        FastIterator<TupleImpl> it = super.fastIterator();
+        for ( TupleImpl tuple = getFirst(); tuple != null; tuple = it.next(tuple) ) {
             builder.append(tuple).append("\n");
         }
 
@@ -245,13 +124,9 @@ public class TupleList implements TupleMemory, Entry<TupleList>, Serializable {
     }
 
     protected void copyStateInto(TupleList other) {
-        other.next = next;
-        other.first = first;
-        other.last = last;
-        other.iterator = iterator;
-        other.size = size;
+        super.copyStateInto(other);
 
-        for ( Tuple current = first; current != null; current = current.getNext() ) {
+        for ( TupleImpl current = getFirst(); current != null; current = current.getNext() ) {
             current.setMemory(other);
         }
     }

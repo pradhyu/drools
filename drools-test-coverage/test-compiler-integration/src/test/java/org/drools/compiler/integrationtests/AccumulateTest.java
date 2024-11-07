@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests;
 
 import java.io.ObjectInput;
@@ -28,12 +31,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
 import org.drools.compiler.integrationtests.incrementalcompilation.TestUtil;
-import org.drools.compiler.kproject.ReleaseIdImpl;
-import org.drools.core.command.runtime.rule.InsertElementsCommand;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.RuleSessionConfiguration;
+import org.drools.commands.runtime.rule.InsertElementsCommand;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Cheesery;
 import org.drools.testcoverage.common.model.Order;
@@ -44,10 +47,10 @@ import org.drools.testcoverage.common.model.StockTick;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
@@ -55,44 +58,35 @@ import org.kie.api.builder.Message;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.event.rule.AfterMatchFiredEvent;
 import org.kie.api.event.rule.AgendaEventListener;
-import org.kie.api.io.ResourceType;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
+import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.rule.AccumulateFunction;
 import org.kie.api.runtime.rule.FactHandle;
 import org.kie.api.runtime.rule.Match;
 import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.runtime.rule.Variable;
-import org.kie.internal.utils.KieHelper;
+import org.kie.internal.runtime.conf.ForceEagerActivationOption;
+import org.kie.util.maven.support.ReleaseIdImpl;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import static java.util.Arrays.asList;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-@RunWith(Parameterized.class)
 public class AccumulateTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public AccumulateTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test(timeout = 10000)
-    public void testAccumulateModify() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateModify(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests;\n" +
                 "\n" +
@@ -140,7 +134,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0, results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -149,8 +143,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1, results.size());
-            assertEquals(24, ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(24);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -158,22 +152,24 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2, results.size());
-            assertEquals(31, ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(31);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2, results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_Accumulate.drl");
         final KieSession wm = kbase.newKieSession();
@@ -198,21 +194,22 @@ public class AccumulateTest {
 
             System.out.println(results);
 
-            assertEquals(5,
-                         results.size());
+            assertThat(results.size()).isEqualTo(5);
 
-            assertEquals(165, results.get(0));
-            assertEquals(10, results.get(1));
-            assertEquals(150, results.get(2));
-            assertEquals(10, results.get(3));
-            assertEquals(210, results.get(4));
+            assertThat(results.get(0)).isEqualTo(165);
+            assertThat(results.get(1)).isEqualTo(10);
+            assertThat(results.get(2)).isEqualTo(150);
+            assertThat(results.get(3)).isEqualTo(10);
+            assertThat(results.get(4)).isEqualTo(210);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateModifyMVEL() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateModifyMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.test;\n" +
                 "\n" +
@@ -260,8 +257,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0,
-                         results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -271,10 +267,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1,
-                         results.size());
-            assertEquals(24,
-                         ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(24);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -283,26 +277,24 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(31,
-                         ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(31);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
 
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateReverseModify() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAccumulateReverseModify(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.test;\n" +
                 "\n" +
@@ -353,8 +345,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0,
-                         results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -364,10 +355,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1,
-                         results.size());
-            assertEquals(24,
-                         ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(24);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -379,25 +368,24 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(36,
-                         ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(36);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateReverseModify2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateReverseModify2(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.test;\n" +
                 "\n" +
@@ -448,8 +436,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0,
-                         results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -459,10 +446,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1,
-                         results.size());
-            assertEquals(24,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(24);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -474,25 +459,24 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(36,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(36);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateReverseModifyInsertLogical2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateReverseModifyInsertLogical2(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_AccumulateReverseModifyInsertLogical2.drl");
@@ -526,19 +510,21 @@ public class AccumulateTest {
             // alice = 31, bob = 17, doug = 17
             // !alice = 34, !bob = 31, !doug = 31
             wm.fireAllRules();
-            assertEquals(31, ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(31);
 
             // delete stilton=2 ==> bob = 15, doug = 15, !alice = 30
             wm.delete(cheeseHandles[1]);
             wm.fireAllRules();
-            assertEquals(30, ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(30);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateReverseModifyMVEL() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateReverseModifyMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.test;\n" +
                 "\n" +
@@ -590,8 +576,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0,
-                         results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -601,10 +586,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1,
-                         results.size());
-            assertEquals(24,
-                         ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(24);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -613,25 +596,24 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(31,
-                         ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(31);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateReverseModifyMVEL2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateReverseModifyMVEL2(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.test;\n" +
                 "\n" +
@@ -683,8 +665,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0,
-                         results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -694,10 +675,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1,
-                         results.size());
-            assertEquals(24,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(24);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -706,25 +685,24 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(31,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(31);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateWithFromChaining() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateWithFromChaining(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler\n" +
                 "\n" +
@@ -783,10 +761,8 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // one fire, as per rule constraints
-            assertEquals(1,
-                         results.size());
-            assertEquals(3,
-                         ((List) results.get(results.size() - 1)).size());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((List) results.get(results.size() - 1)).size()).isEqualTo(3);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -796,8 +772,7 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // no fire
-            assertEquals(1,
-                         results.size());
+            assertThat(results.size()).isEqualTo(1);
             System.out.println(results);
 
             // ---------------- 3rd scenario
@@ -807,10 +782,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(3,
-                         ((List) results.get(results.size() - 1)).size());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((List) results.get(results.size() - 1)).size()).isEqualTo(3);
 
             // ---------------- 4th scenario
             cheesery.getCheeses().remove(cheese[3]);
@@ -819,15 +792,16 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateInnerClass() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateInnerClass(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler\n" +
                 "\n" +
@@ -860,14 +834,16 @@ public class AccumulateTest {
 
             wm.fireAllRules();
 
-            assertEquals(15, results.get(0));
+            assertThat(results.get(0)).isEqualTo(15);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateReturningNull() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateReturningNull(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler\n" +
                 "\n" +
@@ -899,108 +875,150 @@ public class AccumulateTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateSumJava() {
-        execTestAccumulateSum("org/drools/compiler/integrationtests/test_AccumulateSum.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateSumJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateSum(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateSum.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateSumMVEL() {
-        execTestAccumulateSum("org/drools/compiler/integrationtests/test_AccumulateSumMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateSumMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateSum(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateSumMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMultiPatternWithFunctionJava() {
-        execTestAccumulateSum("org/drools/compiler/integrationtests/test_AccumulateMultiPatternFunctionJava.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMultiPatternWithFunctionJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateSum(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMultiPatternFunctionJava.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMultiPatternWithFunctionMVEL() {
-        execTestAccumulateSum("org/drools/compiler/integrationtests/test_AccumulateMultiPatternFunctionMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMultiPatternWithFunctionMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateSum(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMultiPatternFunctionMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateCountJava() {
-        execTestAccumulateCount("org/drools/compiler/integrationtests/test_AccumulateCount.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateCountJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateCount(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateCount.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateCountMVEL() {
-        execTestAccumulateCount("org/drools/compiler/integrationtests/test_AccumulateCountMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateCountMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateCount(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateCountMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateAverageJava() {
-        execTestAccumulateAverage("org/drools/compiler/integrationtests/test_AccumulateAverage.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateAverageJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateAverage(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateAverage.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateAverageMVEL() {
-        execTestAccumulateAverage("org/drools/compiler/integrationtests/test_AccumulateAverageMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateAverageMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateAverage(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateAverageMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMinJava() {
-        execTestAccumulateMin("org/drools/compiler/integrationtests/test_AccumulateMin.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMinJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateMin(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMin.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMinMVEL() {
-        execTestAccumulateMin("org/drools/compiler/integrationtests/test_AccumulateMinMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMinMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateMin(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMinMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMaxJava() {
-        execTestAccumulateMax("org/drools/compiler/integrationtests/test_AccumulateMax.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMaxJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateMax(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMax.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMaxMVEL() {
-        execTestAccumulateMax("org/drools/compiler/integrationtests/test_AccumulateMaxMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMaxMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateMax(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMaxMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMultiPatternJava() {
-        execTestAccumulateReverseModifyMultiPattern("org/drools/compiler/integrationtests/test_AccumulateMultiPattern.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMultiPatternJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateReverseModifyMultiPattern(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMultiPattern.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMultiPatternMVEL() {
-        execTestAccumulateReverseModifyMultiPattern("org/drools/compiler/integrationtests/test_AccumulateMultiPatternMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMultiPatternMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateReverseModifyMultiPattern(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMultiPatternMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateCollectListJava() {
-        execTestAccumulateCollectList("org/drools/compiler/integrationtests/test_AccumulateCollectList.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateCollectListJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateCollectList(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateCollectList.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateCollectListMVEL() {
-        execTestAccumulateCollectList("org/drools/compiler/integrationtests/test_AccumulateCollectListMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateCollectListMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateCollectList(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateCollectListMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateCollectSetJava() {
-        execTestAccumulateCollectSet("org/drools/compiler/integrationtests/test_AccumulateCollectSet.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateCollectSetJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateCollectSet(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateCollectSet.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateCollectSetMVEL() {
-        execTestAccumulateCollectSet("org/drools/compiler/integrationtests/test_AccumulateCollectSetMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateCollectSetMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateCollectSet(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateCollectSetMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMultipleFunctionsJava() {
-        execTestAccumulateMultipleFunctions("org/drools/compiler/integrationtests/test_AccumulateMultipleFunctions.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMultipleFunctionsJava(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateMultipleFunctions(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMultipleFunctions.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMultipleFunctionsMVEL() {
-        execTestAccumulateMultipleFunctions("org/drools/compiler/integrationtests/test_AccumulateMultipleFunctionsMVEL.drl");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMultipleFunctionsMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        execTestAccumulateMultipleFunctions(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_AccumulateMultipleFunctionsMVEL.drl");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMultipleFunctionsConstraint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMultipleFunctionsConstraint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_AccumulateMultipleFunctionsConstraint.drl");
         final KieSession ksession = kbase.newKieSession();
@@ -1031,12 +1049,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             Match activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(18));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(3));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(6));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(18);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(3);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(6);
 
             Mockito.reset(ael);
             // ---------------- 2nd scenario
@@ -1058,19 +1073,18 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(20));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(3));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(10));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(20);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(3);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(10);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateWithAndOrCombinations() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateWithAndOrCombinations(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3482
         // once this compils, update it to actually assert on correct outputs.
 
@@ -1099,7 +1113,7 @@ public class AccumulateTest {
         }
     }
 
-    private void execTestAccumulateSum(final String fileName) {
+    private void execTestAccumulateSum(KieBaseTestConfiguration kieBaseTestConfiguration, final String fileName) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            fileName);
@@ -1128,10 +1142,8 @@ public class AccumulateTest {
 
             // ---------------- 1st scenario
             session.fireAllRules();
-            assertEquals(1,
-                         data.results.size());
-            assertEquals(27,
-                         ((Number) data.results.get(data.results.size() - 1)).intValue());
+            assertThat(data.results.size()).isEqualTo(1);
+            assertThat(((Number) data.results.get(data.results.size() - 1)).intValue()).isEqualTo(27);
 
             updateReferences(session,
                              data);
@@ -1142,12 +1154,10 @@ public class AccumulateTest {
             session.update(data.cheeseHandles[index],
                            data.cheese[index]);
             final int count = session.fireAllRules();
-            assertEquals(1, count);
+            assertThat(count).isEqualTo(1);
 
-            assertEquals(2,
-                         data.results.size());
-            assertEquals(20,
-                         ((Number) data.results.get(data.results.size() - 1)).intValue());
+            assertThat(data.results.size()).isEqualTo(2);
+            assertThat(((Number) data.results.get(data.results.size() - 1)).intValue()).isEqualTo(20);
 
             // ---------------- 3rd scenario
             data.bob.setLikes("brie");
@@ -1155,18 +1165,15 @@ public class AccumulateTest {
                            data.bob);
             session.fireAllRules();
 
-            assertEquals(3,
-                         data.results.size());
-            assertEquals(15,
-                         ((Number) data.results.get(data.results.size() - 1)).intValue());
+            assertThat(data.results.size()).isEqualTo(3);
+            assertThat(((Number) data.results.get(data.results.size() - 1)).intValue()).isEqualTo(15);
 
             // ---------------- 4th scenario
             session.delete(data.cheeseHandles[3]);
             session.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(3,
-                         data.results.size());
+            assertThat(data.results.size()).isEqualTo(3);
         } finally {
             session.dispose();
         }
@@ -1180,7 +1187,7 @@ public class AccumulateTest {
                 final Cheese c = (Cheese) next;
                 data.cheese[c.getOldPrice()] = c;
                 data.cheeseHandles[c.getOldPrice()] = session.getFactHandle(c);
-                assertNotNull(data.cheeseHandles[c.getOldPrice()]);
+                assertThat(data.cheeseHandles[c.getOldPrice()]).isNotNull();
             } else if (next instanceof Person) {
                 data.bob = (Person) next;
                 data.bobHandle = session.getFactHandle(data.bob);
@@ -1188,7 +1195,7 @@ public class AccumulateTest {
         }
     }
 
-    private void execTestAccumulateCount(final String fileName) {
+    private void execTestAccumulateCount(KieBaseTestConfiguration kieBaseTestConfiguration, final String fileName) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            fileName);
@@ -1218,10 +1225,8 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(1,
-                         results.size());
-            assertEquals(3,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(3);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -1231,10 +1236,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(2,
-                         results.size());
-            assertEquals(3,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(3);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -1243,24 +1246,21 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(3,
-                         results.size());
-            assertEquals(2,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(3);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(2);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(3,
-                         results.size());
+            assertThat(results.size()).isEqualTo(3);
         } finally {
             wm.dispose();
         }
     }
 
-    private void execTestAccumulateAverage(final String fileName) {
+    private void execTestAccumulateAverage(KieBaseTestConfiguration kieBaseTestConfiguration, final String fileName) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            fileName);
@@ -1290,8 +1290,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0,
-                         results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -1301,10 +1300,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1,
-                         results.size());
-            assertEquals(10,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(10);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -1313,10 +1310,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(16,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(16);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
@@ -1324,14 +1319,13 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    private void execTestAccumulateMin(final String fileName) {
+    private void execTestAccumulateMin(KieBaseTestConfiguration kieBaseTestConfiguration, final String fileName) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            fileName);
@@ -1361,8 +1355,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0,
-                         results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -1372,10 +1365,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1,
-                         results.size());
-            assertEquals(3,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(3);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -1384,10 +1375,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(1,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(1);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
@@ -1395,14 +1384,13 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    private void execTestAccumulateMax(final String fileName) {
+    private void execTestAccumulateMax(KieBaseTestConfiguration kieBaseTestConfiguration, final String fileName) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            fileName);
@@ -1432,8 +1420,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0,
-                         results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -1443,10 +1430,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1,
-                         results.size());
-            assertEquals(9,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(9);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -1455,10 +1440,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(17,
-                         ((Number) results.get(results.size() - 1)).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Number) results.get(results.size() - 1)).intValue()).isEqualTo(17);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
@@ -1466,14 +1449,13 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    private void execTestAccumulateCollectList(final String fileName) {
+    private void execTestAccumulateCollectList(KieBaseTestConfiguration kieBaseTestConfiguration, final String fileName) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            fileName);
@@ -1498,10 +1480,8 @@ public class AccumulateTest {
 
             // ---------------- 1st scenario
             wm.fireAllRules();
-            assertEquals(1,
-                         results.size());
-            assertEquals(6,
-                         ((List) results.get(results.size() - 1)).size());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((List) results.get(results.size() - 1)).size()).isEqualTo(6);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -1511,10 +1491,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // fire again
-            assertEquals(2,
-                         results.size());
-            assertEquals(6,
-                         ((List) results.get(results.size() - 1)).size());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((List) results.get(results.size() - 1)).size()).isEqualTo(6);
 
             // ---------------- 3rd scenario
             wm.delete(cheeseHandles[3]);
@@ -1522,14 +1500,13 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    private void execTestAccumulateCollectSet(final String fileName) {
+    private void execTestAccumulateCollectSet(KieBaseTestConfiguration kieBaseTestConfiguration, final String fileName) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            fileName);
@@ -1554,10 +1531,8 @@ public class AccumulateTest {
 
             // ---------------- 1st scenario
             wm.fireAllRules();
-            assertEquals(1,
-                         results.size());
-            assertEquals(3,
-                         ((Set) results.get(results.size() - 1)).size());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Set) results.get(results.size() - 1)).size()).isEqualTo(3);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -1567,33 +1542,28 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // fire again
-            assertEquals(2,
-                         results.size());
-            assertEquals(3,
-                         ((Set) results.get(results.size() - 1)).size());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Set) results.get(results.size() - 1)).size()).isEqualTo(3);
 
             // ---------------- 3rd scenario
             wm.delete(cheeseHandles[3]);
             wm.fireAllRules();
             // fire again
-            assertEquals(3,
-                         results.size());
-            assertEquals(3,
-                         ((Set) results.get(results.size() - 1)).size());
+            assertThat(results.size()).isEqualTo(3);
+            assertThat(((Set) results.get(results.size() - 1)).size()).isEqualTo(3);
 
             // ---------------- 4rd scenario
             wm.delete(cheeseHandles[4]);
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(3,
-                         results.size());
+            assertThat(results.size()).isEqualTo(3);
         } finally {
             wm.dispose();
         }
     }
 
-    private void execTestAccumulateReverseModifyMultiPattern(final String fileName) {
+    private void execTestAccumulateReverseModifyMultiPattern(KieBaseTestConfiguration kieBaseTestConfiguration, final String fileName) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            fileName);
@@ -1626,8 +1596,7 @@ public class AccumulateTest {
             // ---------------- 1st scenario
             wm.fireAllRules();
             // no fire, as per rule constraints
-            assertEquals(0,
-                         results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             // ---------------- 2nd scenario
             final int index = 1;
@@ -1637,10 +1606,8 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 1 fire
-            assertEquals(1,
-                         results.size());
-            assertEquals(32,
-                         ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(32);
 
             // ---------------- 3rd scenario
             bob.setLikes("brie");
@@ -1649,25 +1616,24 @@ public class AccumulateTest {
             wm.fireAllRules();
 
             // 2 fires
-            assertEquals(2,
-                         results.size());
-            assertEquals(39,
-                         ((Cheesery) results.get(results.size() - 1)).getTotalAmount());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Cheesery) results.get(results.size() - 1)).getTotalAmount()).isEqualTo(39);
 
             // ---------------- 4th scenario
             wm.delete(cheeseHandles[3]);
             wm.fireAllRules();
 
             // should not have fired as per constraint
-            assertEquals(2,
-                         results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateWithPreviouslyBoundVariables() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateWithPreviouslyBoundVariables(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler\n" +
                 "\n" +
@@ -1708,17 +1674,17 @@ public class AccumulateTest {
 
             wm.fireAllRules();
 
-            assertEquals(1,
-                         results.size());
-            assertEquals(45,
-                         results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isEqualTo(45);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMVELWithModify() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMVELWithModify(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler\n" +
                 "\n" +
@@ -1767,20 +1733,18 @@ public class AccumulateTest {
             wm.insert(item2);
             wm.fireAllRules();
 
-            assertEquals(1,
-                         results.size());
-            assertEquals(15,
-                         results.get(0).intValue());
-            assertEquals(15.0,
-                         order.getTotal(),
-                         0.0);
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0).intValue()).isEqualTo(15);
+            assertThat(order.getTotal()).isCloseTo(15.0, within(0.0));
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateGlobals() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateGlobals(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "global java.util.List results;\n" +
@@ -1819,17 +1783,17 @@ public class AccumulateTest {
 
             wm.fireAllRules();
 
-            assertEquals(1,
-                         results.size());
-            assertEquals(100,
-                         results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isEqualTo(100);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateNonExistingFunction() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateNonExistingFunction(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
@@ -1854,15 +1818,17 @@ public class AccumulateTest {
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration,
                                                                     false,
                                                                     drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
-                .anySatisfy(text -> Assertions.assertThat(text).contains("Unknown accumulate function: 'nonExistingFunction' on rule 'Accumulate non existing function - Java'."));
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
-                .anySatisfy(text -> Assertions.assertThat(text).contains("Unknown accumulate function: 'nonExistingFunction' on rule 'Accumulate non existing function - MVEL'."));
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
+                .anySatisfy(text -> assertThat(text).contains("Unknown accumulate function: 'nonExistingFunction' on rule 'Accumulate non existing function - Java'."));
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
+                .anySatisfy(text -> assertThat(text).contains("Unknown accumulate function: 'nonExistingFunction' on rule 'Accumulate non existing function - MVEL'."));
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateZeroParams() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateZeroParams(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "global java.util.List list;\n" +
                 "rule fromIt\n" +
                 "when\n" +
@@ -1884,14 +1850,14 @@ public class AccumulateTest {
 
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals(3, list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo(3);
         } finally {
             ksession.dispose();
         }
     }
 
-    private void execTestAccumulateMultipleFunctions(final String fileName) {
+    private void execTestAccumulateMultipleFunctions(KieBaseTestConfiguration kieBaseTestConfiguration, final String fileName) {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("accumulate-test", kieBaseTestConfiguration,
                                                                            fileName);
@@ -1923,12 +1889,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             Match activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(18));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(3));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(6));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(18);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(3);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(6);
 
             Mockito.reset(ael);
             // ---------------- 2nd scenario
@@ -1941,12 +1904,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(24));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(5));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(8));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(24);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(5);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(8);
 
             Mockito.reset(ael);
             // ---------------- 3rd scenario
@@ -1958,12 +1918,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(32));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(15));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(16));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(32);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(15);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(16);
 
             Mockito.reset(ael);
             // ---------------- 4th scenario
@@ -1973,12 +1930,9 @@ public class AccumulateTest {
             Mockito.verify(ael).afterMatchFired(cap.capture());
 
             activation = cap.getValue().getMatch();
-            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue(),
-                       is(17));
-            assertThat(((Number) activation.getDeclarationValue("$min")).intValue(),
-                       is(17));
-            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue(),
-                       is(17));
+            assertThat(((Number) activation.getDeclarationValue("$sum")).intValue()).isEqualTo(17);
+            assertThat(((Number) activation.getDeclarationValue("$min")).intValue()).isEqualTo(17);
+            assertThat(((Number) activation.getDeclarationValue("$avg")).intValue()).isEqualTo(17);
         } finally {
             ksession.dispose();
         }
@@ -1993,8 +1947,10 @@ public class AccumulateTest {
         public List<?> results;
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateMinMax() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateMinMax(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.test \n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "global java.util.List results \n " +
@@ -2025,16 +1981,18 @@ public class AccumulateTest {
             }
 
             ksession.fireAllRules();
-            assertEquals(2, results.size());
-            assertEquals(results.get(0).intValue(), 2);
-            assertEquals(results.get(1).intValue(), 17);
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(2).isEqualTo(results.get(0).intValue());
+            assertThat(17).isEqualTo(results.get(1).intValue());
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateCE() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateCE(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "global java.util.List results\n" +
@@ -2065,15 +2023,17 @@ public class AccumulateTest {
             }
 
             ksession.fireAllRules();
-            assertEquals(1, results.size());
-            assertEquals("7 facts", results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isEqualTo("7 facts");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateAndRetract() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateAndRetract(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler;\n" +
                 "\n" +
                 "import java.util.ArrayList;\n" +
@@ -2126,14 +2086,16 @@ public class AccumulateTest {
             ks.insert(list);
             ks.fireAllRules();
 
-            assertEquals(3L, resList.get(0));
+            assertThat(resList.get(0)).isEqualTo(3L);
         } finally {
             ks.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateWithNull() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateWithNull(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "rule foo\n" +
                 "when\n" +
                 "Object() from accumulate( Object(),\n" +
@@ -2175,8 +2137,10 @@ public class AccumulateTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateWithBoundExpression() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateWithBoundExpression(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler;\n" +
                 "import " + MyObj.class.getCanonicalName() + ";\n" +
                 "global java.util.List results\n" +
@@ -2204,17 +2168,17 @@ public class AccumulateTest {
                                results);
             ksession.fireAllRules();
             ksession.dispose();
-            assertEquals(1,
-                         results.size());
-            assertEquals(9L,
-                         results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isEqualTo(9L);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testInfiniteLoopAddingPkgAfterSession() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testInfiniteLoopAddingPkgAfterSession(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3488
         final String drl = "package org.drools.compiler.test;\n" +
                 "import " + Triple.class.getCanonicalName() + ";\n" +
@@ -2276,8 +2240,10 @@ public class AccumulateTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateWithVarsOutOfHashOrder() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateWithVarsOutOfHashOrder(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3494
         final String drl = "package com.sample;\n" +
                 "\n" +
@@ -2309,18 +2275,20 @@ public class AccumulateTest {
             ksession.fireAllRules();
 
             final QueryResults res = ksession.getQueryResults("getResults", "1", Variable.v);
-            assertEquals(1, res.size());
+            assertThat(res.size()).isEqualTo(1);
 
             final Object o = res.iterator().next().get("$holders");
-            assertTrue(o instanceof List);
-            assertEquals(1, ((List) o).size());
+            assertThat(o instanceof List).isTrue();
+            assertThat(((List) o).size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateWithWindow() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateWithWindow(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "global java.util.Map map;\n" +
                 " \n" +
                 "declare Double\n" +
@@ -2342,11 +2310,13 @@ public class AccumulateTest {
                 "    System.out.println( \"We have a sum \" + $a );\n" +
                 "end\n";
 
-        testAccumulateEntryPointWindow(drl, null);
+        testAccumulateEntryPointWindow(kieBaseTestConfiguration, drl, null);
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateWithEntryPoint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateWithEntryPoint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "global java.util.Map map;\n" +
                 " \n" +
                 "declare Double\n" +
@@ -2364,11 +2334,13 @@ public class AccumulateTest {
                 "    System.out.println( \"We have a sum \" + $a );\n" +
                 "end\n";
 
-        testAccumulateEntryPointWindow(drl, "data");
+        testAccumulateEntryPointWindow(kieBaseTestConfiguration, drl, "data");
     }
 
-    @Test(timeout = 10000)
-    public void testAccumulateWithWindowAndEntryPoint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAccumulateWithWindowAndEntryPoint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "global java.util.Map map;\n" +
                 " \n" +
                 "declare Double\n" +
@@ -2390,10 +2362,10 @@ public class AccumulateTest {
                 "    System.out.println( \"We have a sum \" + $a );\n" +
                 "end\n";
 
-        testAccumulateEntryPointWindow(drl, "data");
+        testAccumulateEntryPointWindow(kieBaseTestConfiguration, drl, "data");
     }
 
-    private void testAccumulateEntryPointWindow(final String drl, final String entryPointName) {
+    private void testAccumulateEntryPointWindow(KieBaseTestConfiguration kieBaseTestConfiguration, final String drl, final String entryPointName) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration,
                                                                          drl);
         final KieSession ksession = kbase.newKieSession();
@@ -2415,8 +2387,10 @@ public class AccumulateTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void test2AccumulatesWithOr() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void test2AccumulatesWithOr(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3538
         final String drl =
                 "import java.util.*;\n" +
@@ -2475,22 +2449,22 @@ public class AccumulateTest {
 
             ksession.fireAllRules();
 
-            assertEquals(2, map.get("count"));
+            assertThat(map.get("count")).isEqualTo(2);
             Map pMap = (Map) map.get("Jos Jr Jr");
-            assertEquals(50.0, ((Number)pMap.get("total")).doubleValue(), 1);
+            assertThat(((Number) pMap.get("total")).doubleValue()).isCloseTo(50.0, within(1.0));
             List kids = (List) pMap.get("k");
-            assertEquals(1, kids.size());
-            assertEquals("John Jr Jrx", ((MyPerson) kids.get(0)).getName());
-            assertEquals(josJr, pMap.get("p"));
-            assertEquals(josJr, pMap.get("r"));
+            assertThat(kids.size()).isEqualTo(1);
+            assertThat(((MyPerson) kids.get(0)).getName()).isEqualTo("John Jr Jrx");
+            assertThat(pMap.get("p")).isEqualTo(josJr);
+            assertThat(pMap.get("r")).isEqualTo(josJr);
 
             pMap = (Map) map.get("Jos");
-            assertEquals(50.0, ((Number)pMap.get("total")).doubleValue(), 1);
+            assertThat(((Number) pMap.get("total")).doubleValue()).isCloseTo(50.0, within(1.0));
             kids = (List) pMap.get("k");
-            assertEquals(1, kids.size());
-            assertEquals("John Jr Jrx", ((MyPerson) kids.get(0)).getName());
-            assertEquals(josJr, pMap.get("p"));
-            assertEquals(jos, pMap.get("r"));
+            assertThat(kids.size()).isEqualTo(1);
+            assertThat(((MyPerson) kids.get(0)).getName()).isEqualTo("John Jr Jrx");
+            assertThat(pMap.get("p")).isEqualTo(josJr);
+            assertThat(pMap.get("r")).isEqualTo(jos);
         } finally {
             ksession.dispose();
         }
@@ -2579,8 +2553,9 @@ public class AccumulateTest {
         }
     }
 
-    @Test
-    public void testAccumulateWithExists() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAccumulateWithExists(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "import " + Course.class.getCanonicalName() + "\n" +
                         "import " + Lecture.class.getCanonicalName() + "\n" +
@@ -2607,8 +2582,8 @@ public class AccumulateTest {
             final List list = new ArrayList();
             ksession.setGlobal("list", list);
 
-            final Integer day1 = 1;
-            final Integer day2 = 2;
+            final int day1 = 1;
+            final int day2 = 2;
             final Integer day3 = 3;
 
             final Course c = new Course(2);
@@ -2623,18 +2598,19 @@ public class AccumulateTest {
             ksession.insert(l1);
             ksession.insert(l2);
 
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
 
-            assertEquals(2, list.size());
-            assertEquals(c, list.get(0));
-            assertEquals(2L, list.get(1));
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list.get(0)).isEqualTo(c);
+            assertThat(list.get(1)).isEqualTo(2L);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testImportAccumulateFunction() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testImportAccumulateFunction(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.foo.bar\n"
                 + "import accumulate " + TestFunction.class.getCanonicalName() + " f\n"
                 + "rule X when\n"
@@ -2642,11 +2618,12 @@ public class AccumulateTest {
                 + "                $v : f( $s ) )\n"
                 + "then\n"
                 + "end\n";
-        testImportAccumulateFunction(drl);
+        testImportAccumulateFunction(kieBaseTestConfiguration, drl);
     }
 
-    @Test
-    public void testImportAccumulateFunctionWithDeclaration() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testImportAccumulateFunctionWithDeclaration(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-750
         final String drl = "package org.foo.bar\n"
                 + "import accumulate " + TestFunction.class.getCanonicalName() + " f;\n"
@@ -2660,10 +2637,10 @@ public class AccumulateTest {
                 + "then\n"
                 + "end\n";
 
-        testImportAccumulateFunction(drl);
+        testImportAccumulateFunction(kieBaseTestConfiguration, drl);
     }
 
-    private void testImportAccumulateFunction(final String drl) {
+    private void testImportAccumulateFunction(KieBaseTestConfiguration kieBaseTestConfiguration, final String drl) {
         final ReleaseId releaseId = new ReleaseIdImpl("foo", "bar", "1.0");
         KieUtil.getKieModuleFromDrls(releaseId, kieBaseTestConfiguration, drl);
         final KieContainer kc = KieServices.get().newKieContainer(releaseId);
@@ -2678,7 +2655,7 @@ public class AccumulateTest {
             final ArgumentCaptor<AfterMatchFiredEvent> ac = ArgumentCaptor.forClass(AfterMatchFiredEvent.class);
             verify(ael).afterMatchFired(ac.capture());
 
-            assertThat(ac.getValue().getMatch().getDeclarationValue("$v"), is(1));
+            assertThat(ac.getValue().getMatch().getDeclarationValue("$v")).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
@@ -2727,8 +2704,9 @@ public class AccumulateTest {
         }
     }
 
-    @Test
-    public void testAccumulateWithSharedNode() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAccumulateWithSharedNode(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-594
         final String drl =
                 "rule A when" +
@@ -2760,14 +2738,15 @@ public class AccumulateTest {
             ksession.insert("b");
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testEmptyAccumulateInSubnetwork() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEmptyAccumulateInSubnetwork(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-598
         final String drl =
                 "global java.util.List list;\n" +
@@ -2791,15 +2770,16 @@ public class AccumulateTest {
             ksession.insert(1);
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals(0, (long) list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat((long) list.get(0)).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testEmptyAccumulateInSubnetworkFollwedByPattern() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEmptyAccumulateInSubnetworkFollwedByPattern(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-627
         final String drl =
                 "global java.util.List list;\n" +
@@ -2825,15 +2805,16 @@ public class AccumulateTest {
             ksession.insert(1L);
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals(0, (long) list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat((long) list.get(0)).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testAccumulateWithoutSeparator() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAccumulateWithoutSeparator(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-602
         final String drl = "package org.drools.compiler\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -2851,11 +2832,12 @@ public class AccumulateTest {
                 "end  ";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
-    @Test
-    public void testFromAccumulateWithoutSeparator() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testFromAccumulateWithoutSeparator(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-602
         final String drl = "rule R when\n" +
                 "    $count : Number( ) from accumulate (\n" +
@@ -2867,7 +2849,7 @@ public class AccumulateTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     public static class ExpectedMessage {
@@ -2910,8 +2892,9 @@ public class AccumulateTest {
         }
     }
 
-    @Test
-    public void testReaccumulateForLeftTuple() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testReaccumulateForLeftTuple(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl =
                 "import " + ExpectedMessage.class.getCanonicalName() + ";\n"
@@ -2951,8 +2934,9 @@ public class AccumulateTest {
         }
     }
 
-    @Test
-    public void testNoLoopAccumulate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNoLoopAccumulate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-694
         final String drl =
                 "import " + AtomicInteger.class.getCanonicalName() + ";\n" +
@@ -2975,19 +2959,20 @@ public class AccumulateTest {
             ksession.insert("1");
             ksession.fireAllRules();
 
-            assertEquals(1, counter.get());
+            assertThat(counter.get()).isEqualTo(1);
 
             ksession.insert("2");
             ksession.fireAllRules();
 
-            assertEquals(2, counter.get());
+            assertThat(counter.get()).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testAccumulateWithOr() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAccumulateWithOr(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-839
         final String drl =
                 "import " + Converter.class.getCanonicalName() + ";\n" +
@@ -3003,11 +2988,12 @@ public class AccumulateTest {
                         "    list.add($result);\n" +
                         "end";
 
-        testAccumulateWithOr(drl);
+        testAccumulateWithOr(kieBaseTestConfiguration, drl);
     }
 
-    @Test
-    public void testMvelAccumulateWithOr() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMvelAccumulateWithOr(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-839
         final String drl =
                 "import " + Converter.class.getCanonicalName() + ";\n" +
@@ -3023,10 +3009,10 @@ public class AccumulateTest {
                         "    list.add($result);\n" +
                         "end";
 
-        testAccumulateWithOr(drl);
+        testAccumulateWithOr(kieBaseTestConfiguration, drl);
     }
 
-    private void testAccumulateWithOr(final String drl) {
+    private void testAccumulateWithOr(KieBaseTestConfiguration kieBaseTestConfiguration, final String drl) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration,
                                                                          drl);
         final KieSession ksession = kbase.newKieSession();
@@ -3039,8 +3025,8 @@ public class AccumulateTest {
             ksession.insert(new Converter());
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals(5, list.get(0).intValue());
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0).intValue()).isEqualTo(5);
         } finally {
             ksession.dispose();
         }
@@ -3053,8 +3039,9 @@ public class AccumulateTest {
         }
     }
 
-    @Test
-    public void testNormalizeStagedTuplesInAccumulate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNormalizeStagedTuplesInAccumulate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-998
         final String drl =
                 "global java.util.List list;\n" +
@@ -3078,14 +3065,15 @@ public class AccumulateTest {
             ksession.setGlobal("list", list);
 
             ksession.fireAllRules();
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testIncompatibleTypeOnAccumulateFunction() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testIncompatibleTypeOnAccumulateFunction(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1243
         final String drl =
                 "import " + MyPerson.class.getCanonicalName() + ";\n" +
@@ -3099,11 +3087,12 @@ public class AccumulateTest {
                         "end\n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
-    @Test
-    public void testIncompatibleListOnAccumulateFunction() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testIncompatibleListOnAccumulateFunction(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1243
         final String drl =
                 "import " + MyPerson.class.getCanonicalName() + ";\n" +
@@ -3117,11 +3106,12 @@ public class AccumulateTest {
                         "end\n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
-    @Test
-    public void testTypedSumOnAccumulate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTypedSumOnAccumulate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1175
         final String drl =
                 "global java.util.List list;\n" +
@@ -3144,15 +3134,16 @@ public class AccumulateTest {
             ksession.insert("hi");
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals("hello".length() + "hi".length(), (int) list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat((int) list.get(0)).isEqualTo("hello".length() + "hi".length());
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSumAccumulateOnNullValue() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSumAccumulateOnNullValue(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1242
         final String drl =
                 "import " + PersonWithBoxedAge.class.getCanonicalName() + ";\n" +
@@ -3175,24 +3166,26 @@ public class AccumulateTest {
             ksession.insert(new PersonWithBoxedAge("she", null));
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals(70, (int) list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat((int) list.get(0)).isEqualTo(70);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testMinAccumulateOnComparable() {
-        testMinMaxAccumulateOnComparable("min", "she");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMinAccumulateOnComparable(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        testMinMaxAccumulateOnComparable(kieBaseTestConfiguration, "min", "she");
     }
 
-    @Test
-    public void testMaxAccumulateOnComparable() {
-        testMinMaxAccumulateOnComparable("max", "you");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMaxAccumulateOnComparable(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        testMinMaxAccumulateOnComparable(kieBaseTestConfiguration, "max", "you");
     }
 
-    private void testMinMaxAccumulateOnComparable(final String minMaxFunction, final String expectedResult) {
+    private void testMinMaxAccumulateOnComparable(KieBaseTestConfiguration kieBaseTestConfiguration, final String minMaxFunction, final String expectedResult) {
 
         final String drl =
                 "import " + PersonWithBoxedAge.class.getCanonicalName() + ";\n" +
@@ -3215,8 +3208,8 @@ public class AccumulateTest {
             ksession.insert(new PersonWithBoxedAge("she", 25));
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals(expectedResult, list.get(0).getName());
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0).getName()).isEqualTo(expectedResult);
         } finally {
             ksession.dispose();
         }
@@ -3246,8 +3239,9 @@ public class AccumulateTest {
         }
     }
 
-    @Test
-    public void testTypedMaxOnAccumulate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTypedMaxOnAccumulate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1175
         final String drl =
                 "global java.util.List list;\n" +
@@ -3270,15 +3264,16 @@ public class AccumulateTest {
             ksession.insert("hi");
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals("hello".length(), (int) list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat((int) list.get(0)).isEqualTo("hello".length());
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testVarianceDouble() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testVarianceDouble(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
                         "global java.util.List list;\n" +
@@ -3296,18 +3291,19 @@ public class AccumulateTest {
         final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration,
                                                                            drl);
 
-        assertEquals(0.00, cheeseInsertsFunction(kieBase, 3, 3, 3, 3, 3), 0.01);
-        assertEquals(0.80, cheeseInsertsFunction(kieBase, 4, 4, 3, 2, 2), 0.01);
-        assertEquals(1.20, cheeseInsertsFunction(kieBase, 5, 3, 3, 2, 2), 0.01);
-        assertEquals(2.80, cheeseInsertsFunction(kieBase, 5, 5, 2, 2, 1), 0.01);
-        assertEquals(2.80, cheeseInsertsFunction(kieBase, 6, 3, 3, 2, 1), 0.01);
-        assertEquals(4.40, cheeseInsertsFunction(kieBase, 6, 5, 2, 1, 1), 0.01);
-        assertEquals(16.00, cheeseInsertsFunction(kieBase, 11, 1, 1, 1, 1), 0.01);
-        assertEquals(36.00, cheeseInsertsFunction(kieBase, 15, 0, 0, 0, 0), 0.01);
+        assertThat(cheeseInsertsFunction(kieBase, 3, 3, 3, 3, 3)).isCloseTo(0.00, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 4, 4, 3, 2, 2)).isCloseTo(0.80, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 5, 3, 3, 2, 2)).isCloseTo(1.20, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 5, 5, 2, 2, 1)).isCloseTo(2.80, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 6, 3, 3, 2, 1)).isCloseTo(2.80, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 6, 5, 2, 1, 1)).isCloseTo(4.40, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 11, 1, 1, 1, 1)).isCloseTo(16.00, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 15, 0, 0, 0, 0)).isCloseTo(36.00, within(0.01));
     }
 
-    @Test
-    public void testStandardDeviationDouble() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testStandardDeviationDouble(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
                         "global java.util.List list;\n" +
@@ -3323,14 +3319,14 @@ public class AccumulateTest {
         final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration,
                                                                          drl);
 
-        assertEquals(0.00, cheeseInsertsFunction(kieBase, 3, 3, 3, 3, 3), 0.01);
-        assertEquals(0.89, cheeseInsertsFunction(kieBase, 4, 4, 3, 2, 2), 0.01);
-        assertEquals(1.10, cheeseInsertsFunction(kieBase, 5, 3, 3, 2, 2), 0.01);
-        assertEquals(1.67, cheeseInsertsFunction(kieBase, 5, 5, 2, 2, 1), 0.01);
-        assertEquals(1.67, cheeseInsertsFunction(kieBase, 6, 3, 3, 2, 1), 0.01);
-        assertEquals(2.10, cheeseInsertsFunction(kieBase, 6, 5, 2, 1, 1), 0.01);
-        assertEquals(4.00, cheeseInsertsFunction(kieBase, 11, 1, 1, 1, 1), 0.01);
-        assertEquals(6.00, cheeseInsertsFunction(kieBase, 15, 0, 0, 0, 0), 0.01);
+        assertThat(cheeseInsertsFunction(kieBase, 3, 3, 3, 3, 3)).isCloseTo(0.00, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 4, 4, 3, 2, 2)).isCloseTo(0.89, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 5, 3, 3, 2, 2)).isCloseTo(1.10, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 5, 5, 2, 2, 1)).isCloseTo(1.67, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 6, 3, 3, 2, 1)).isCloseTo(1.67, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 6, 5, 2, 1, 1)).isCloseTo(2.10, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 11, 1, 1, 1, 1)).isCloseTo(4.00, within(0.01));
+        assertThat(cheeseInsertsFunction(kieBase, 15, 0, 0, 0, 0)).isCloseTo(6.00, within(0.01));
     }
 
     private double cheeseInsertsFunction(final KieBase kieBase, final int... prices) {
@@ -3342,24 +3338,25 @@ public class AccumulateTest {
                 ksession.insert(new Cheese("stilton", price));
             }
             ksession.fireAllRules();
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
             final double result = list.get(0);
             final FactHandle triggerReverseHandle = ksession.insert(new Cheese("triggerReverse", 7));
             ksession.fireAllRules();
             ksession.delete(triggerReverseHandle);
             list.clear();
             ksession.fireAllRules();
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
             // Check that the reserse() does the opposite of the accumulate()
-            assertEquals(result, list.get(0), 0.001);
+            assertThat(list.get(0)).isCloseTo(result, within(0.001));
             return list.get(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testConcurrentLeftAndRightUpdate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testConcurrentLeftAndRightUpdate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1517
         final String drl = "package P;\n"
                 + "import " + Visit.class.getCanonicalName() + ";\n"
@@ -3399,19 +3396,19 @@ public class AccumulateTest {
             final FactHandle fhVisit4 = kieSession.insert(visit4);
 
             kieSession.fireAllRules();
-            assertTrue(containsExactlyAndClear(list, 9.0, 9.0, 9.0, 1.0));
+            assertThat(containsExactlyAndClear(list, 9.0, 9.0, 9.0, 1.0)).isTrue();
 
             kieSession.update(fhVisit4, visit4);
             kieSession.update(fhVisit3, visit3.setBucket(bucketA));
             kieSession.update(fhVisit1, visit1.setBucket(bucketB));
 
             kieSession.fireAllRules();
-            assertTrue(containsExactlyAndClear(list, 7.0, 7.0, 3.0, 7.0));
+            assertThat(containsExactlyAndClear(list, 7.0, 7.0, 3.0, 7.0)).isTrue();
 
             kieSession.update(fhVisit1, visit1.setBucket(bucketA));
 
             kieSession.fireAllRules();
-            assertTrue(list.containsAll(asList(6.0, 4.0, 6.0, 4.0)));
+            assertThat(list.containsAll(asList(6.0, 4.0, 6.0, 4.0))).isTrue();
         } finally {
             kieSession.dispose();
         }
@@ -3463,8 +3460,9 @@ public class AccumulateTest {
         return list.isEmpty();
     }
 
-    @Test
-    public void testDoubleAccumulate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDoubleAccumulate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1530
         final String drl = "package P;"
                 + "import " + BusStop.class.getCanonicalName() + ";\n"
@@ -3545,7 +3543,7 @@ public class AccumulateTest {
             kieSession.fireAllRules();
             final ArrayList<Integer> expected = new ArrayList<>(result);
             Collections.sort(expected);
-            assertEquals(expected, actual);
+            assertThat(actual).isEqualTo(expected);
         } finally {
             kieSession.dispose();
         }
@@ -3619,8 +3617,9 @@ public class AccumulateTest {
         }
     }
 
-    @Test
-    public void testCompileFailureOnMissingImport() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCompileFailureOnMissingImport(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1714
         final String drl = "import " + BusStop.class.getCanonicalName() + ";\n" +
                 "rule \"sample rule\"\n" +
@@ -3637,11 +3636,12 @@ public class AccumulateTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
-    @Test
-    public void testAccumulateWithFrom() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAccumulateWithFrom(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "import " + Person.class.getCanonicalName() + "\n" +
                         "global java.util.List persons;\n" +
@@ -3663,16 +3663,17 @@ public class AccumulateTest {
             final List<Person> persons = Arrays.asList(new Person("Mario", 42), new Person("Marilena", 44), new Person("Sofia", 4));
             kieSession.setGlobal("persons", persons);
 
-            assertEquals(1, kieSession.fireAllRules());
-            assertEquals(1, list.size());
-            assertEquals(86, (int) list.get(0));
+            assertThat(kieSession.fireAllRules()).isEqualTo(1);
+            assertThat(list.size()).isEqualTo(1);
+            assertThat((int) list.get(0)).isEqualTo(86);
         } finally {
             kieSession.dispose();
         }
     }
 
-    @Test
-    public void testAccumulateWith2EntryPoints() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAccumulateWith2EntryPoints(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "import " + Person.class.getCanonicalName() + "\n" +
                         "global java.util.List list;\n" +
@@ -3684,8 +3685,7 @@ public class AccumulateTest {
                         "   list.add($sum); \n" +
                         "end\n";
 
-        final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration,
-                                                                           drl);
+        final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration, drl);
         final KieSession kieSession = kieBase.newKieSession();
         try {
             final List<Integer> list = new ArrayList<>();
@@ -3696,27 +3696,29 @@ public class AccumulateTest {
             kieSession.getEntryPoint("persons").insert(new Person("Marilena", 44));
             kieSession.getEntryPoint("persons").insert(new Person("Sofia", 4));
 
-            assertEquals(1, kieSession.fireAllRules());
-            assertEquals(1, list.size());
-            assertEquals(86, (int) list.get(0));
+            assertThat(kieSession.fireAllRules()).isEqualTo(1);
+            assertThat(list.size()).isEqualTo(1);
+            assertThat((int) list.get(0)).isEqualTo(86);
         } finally {
             kieSession.dispose();
         }
     }
 
-    @Test
-    public void testNumericMax() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNumericMax(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-2519
-        assertEquals(44, (int) testMax("age"));
+        assertThat((int) testMax(kieBaseTestConfiguration, "age")).isEqualTo(44);
     }
 
-    @Test
-    public void testComparableMax() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testComparableMax(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-2519
-        assertEquals("Sofia", testMax("name"));
+        assertThat(testMax(kieBaseTestConfiguration, "name")).isEqualTo("Sofia");
     }
 
-    private Object testMax(final String fieldToUse) {
+    private Object testMax(KieBaseTestConfiguration kieBaseTestConfiguration, final String fieldToUse) {
         final String drl =
                 "import " + Person.class.getCanonicalName() + "\n" +
                         "global java.util.List list;\n" +
@@ -3738,16 +3740,17 @@ public class AccumulateTest {
             kieSession.insert(new Person("Marilena", 44));
             kieSession.insert(new Person("Sofia", 4));
 
-            assertEquals(1, kieSession.fireAllRules());
-            assertEquals(1, list.size());
+            assertThat(kieSession.fireAllRules()).isEqualTo(1);
+            assertThat(list.size()).isEqualTo(1);
             return list.get(0);
         } finally {
             kieSession.dispose();
         }
     }
 
-    @Test
-    public void testAccumlateResultCannotBeUsedInFunctions() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAccumlateResultCannotBeUsedInFunctions(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "import java.util.*;" +
                         "rule \"Rule X\" when\n" +
@@ -3760,13 +3763,14 @@ public class AccumulateTest {
                         "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
-                .anySatisfy(text -> Assertions.assertThat(text).contains("openAlarms"));
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText)
+                .anySatisfy(text -> assertThat(text).contains("openAlarms"));
     }
 
-    @Test
-    public void testAverageWithNoFacts() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAverageWithNoFacts(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         // DROOLS-2595
         final String drl =
                 "import " + Person.class.getCanonicalName() + "\n" +
@@ -3778,7 +3782,7 @@ public class AccumulateTest {
                         "   list.add($avg); \n" +
                         "end\n";
 
-        final KieBase kieBase = new KieHelper().addContent(drl, ResourceType.DRL).build();
+        final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration, drl);
         final KieSession kieSession = kieBase.newKieSession();
 
         final List<Integer> list = new ArrayList<>();
@@ -3786,19 +3790,27 @@ public class AccumulateTest {
 
         final FactHandle fh = kieSession.insert("test" );
 
-        assertEquals(1, kieSession.fireAllRules() );
-        assertEquals(1, list.size() );
-        assertEquals(4, ((Number)list.get(0)).intValue());
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        assertThat(list.size()).isEqualTo(1);
+        assertThat(((Number) list.get(0)).intValue()).isEqualTo(4);
 
         list.clear();
 
         kieSession.delete( fh );
-        assertEquals(0, kieSession.fireAllRules() );
-        assertEquals(0, list.size() );
+        // changed by DROOLS-6064
+        if ((kieSession.getSessionConfiguration().as(RuleSessionConfiguration.KEY)).isAccumulateNullPropagation()) {
+            assertThat(kieSession.fireAllRules()).isEqualTo(1);
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isNull();
+        } else {
+            assertThat(kieSession.fireAllRules()).isEqualTo(0);
+            assertThat(list.size()).isEqualTo(0);
+        }
     }
 
-    @Test
-    public void testAverageFunctionRounding() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAverageFunctionRounding(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "import java.math.BigDecimal; \n" +
                 "import java.util.List; \n" +
@@ -3812,7 +3824,7 @@ public class AccumulateTest {
                 "    resultList.add($ave);\n" +
                 "end";
 
-        final KieBase kieBase = new KieHelper().addContent(drl, ResourceType.DRL).build();
+        final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration, drl);
         final KieSession kieSession = kieBase.newKieSession();
         final List<BigDecimal> resultList = new ArrayList<>();
         kieSession.setGlobal("resultList", resultList);
@@ -3821,16 +3833,17 @@ public class AccumulateTest {
             kieSession.insert(new BigDecimal(0));
             kieSession.insert(new BigDecimal(1));
 
-            assertEquals(1, kieSession.fireAllRules());
-            assertEquals(1, resultList.size());
-            assertEquals(BigDecimal.ZERO, resultList.get(0));
+            assertThat(kieSession.fireAllRules()).isEqualTo(1);
+            assertThat(resultList.size()).isEqualTo(1);
+            assertThat(resultList.get(0)).isEqualTo(BigDecimal.ZERO);
         } finally {
             kieSession.dispose();
         }
     }
 
-    @Test
-    public void testNestedAccumulateWithPrefixAnd() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNestedAccumulateWithPrefixAnd(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "rule R when\n" +
                 "    String($l: length)\n" +
@@ -3846,20 +3859,21 @@ public class AccumulateTest {
                 "then\n " +
                 "end";
 
-        final KieBase kieBase = new KieHelper().addContent(drl, ResourceType.DRL).build();
+        final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration, drl);
         final KieSession kieSession = kieBase.newKieSession();
 
         try {
             kieSession.insert("test");
             kieSession.insert(4);
-            assertEquals(1, kieSession.fireAllRules());
+            assertThat(kieSession.fireAllRules()).isEqualTo(1);
         } finally {
             kieSession.dispose();
         }
     }
 
-    @Test
-    public void testNestedAccumulateWithInfixAnd() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNestedAccumulateWithInfixAnd(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "rule R when\n" +
                 "    String($l: length)\n" +
@@ -3875,13 +3889,54 @@ public class AccumulateTest {
                 "then\n " +
                 "end";
 
-        final KieBase kieBase = new KieHelper().addContent(drl, ResourceType.DRL).build();
+        final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("accumulate-test", kieBaseTestConfiguration, drl);
         final KieSession kieSession = kieBase.newKieSession();
 
         try {
             kieSession.insert("test");
             kieSession.insert(4);
-            assertEquals(1, kieSession.fireAllRules());
+            assertThat(kieSession.fireAllRules()).isEqualTo(1);
+        } finally {
+            kieSession.dispose();
+        }
+    }
+
+    public static final class PersonsContainer {
+        public List<Person> getPersons() {
+            List<Person> persons = new ArrayList<>();
+            persons.add(null);
+            persons.add(new Person("test"));
+            return persons;
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testPeerCollectWithEager(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        // DROOLS-6768
+        final String drl =
+                "import " + PersonsContainer.class.getCanonicalName() + ";\n" +
+                "import " + Person.class.getCanonicalName() + ";\n" +
+                "import " + List.class.getCanonicalName() + ";\n" +
+                "rule R1 when\n" +
+                "    $pc : PersonsContainer()\n" +
+                "    List(size == 0) from collect( Person( name.startsWith(\"t\") ) from $pc.persons )\n" +
+                "then\n" +
+                "end\n" +
+                "rule R2 when\n" +
+                "    $pc : PersonsContainer()\n" +
+                "    List(size == 0) from collect( Person( name.endsWith(\"x\") ) from $pc.persons )\n" +
+                "then\n" +
+                "end";
+
+        KieSessionConfiguration config = KieServices.Factory.get().newKieSessionConfiguration(null);
+        config.setOption( ForceEagerActivationOption.YES );
+
+        final KieBase kieBase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("collect-test", kieBaseTestConfiguration, drl);
+        final KieSession kieSession = kieBase.newKieSession(config, null);
+        try {
+            kieSession.insert(new PersonsContainer());
+            assertThat(kieSession.fireAllRules()).isEqualTo(1);
         } finally {
             kieSession.dispose();
         }

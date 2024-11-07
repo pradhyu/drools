@@ -1,19 +1,21 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.core.relations;
 
 import org.drools.verifier.core.AnalyzerConfigurationMock;
@@ -22,11 +24,10 @@ import org.drools.verifier.core.index.keys.Key;
 import org.drools.verifier.core.index.keys.UUIDKey;
 import org.drools.verifier.core.maps.InspectorList;
 import org.drools.verifier.core.maps.util.HasKeys;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -43,9 +44,8 @@ public class RelationResolverSubsumptionTest {
     private Person firstItemInB;
     private Person blockingItem;
 
-    @Before
-    public void setUp() throws
-            Exception {
+    @BeforeEach
+    public void setUp() throws Exception {
         configuration = new AnalyzerConfigurationMock();
 
         a = new InspectorList(configuration);
@@ -63,89 +63,77 @@ public class RelationResolverSubsumptionTest {
     }
 
     @Test
-    public void empty() throws
-            Exception {
+    void empty() throws Exception {
         relationResolver = new RelationResolver(new InspectorList(configuration));
-        assertTrue(relationResolver.subsumes(new InspectorList(configuration)));
+        assertThat(relationResolver.subsumes(new InspectorList(configuration))).isTrue();
     }
 
     @Test
-    public void emptyListWithItemsSubsumesEmptyLists() throws
-            Exception {
-        assertTrue(relationResolver.subsumes(new InspectorList(configuration)));
+    void emptyListWithItemsSubsumesEmptyLists() throws Exception {
+        assertThat(relationResolver.subsumes(new InspectorList(configuration))).isTrue();
     }
 
     @Test
-    public void recheck() throws
-            Exception {
+    void recheck() throws Exception {
 
-        assertFalse(relationResolver.subsumes(b));
+        assertThat(relationResolver.subsumes(b)).isFalse();
 
         verify(firstItemInB).subsumes(any());
 
         reset(firstItemInB);
 
-        assertFalse(relationResolver.subsumes(b));
+        assertThat(relationResolver.subsumes(b)).isFalse();
 
-        verify(firstItemInB,
-               never()).subsumes(any());
+        verify(firstItemInB, never()).subsumes(any());
     }
 
     @Test
-    public void recheckWithUpdate() throws
-            Exception {
+    void recheckWithUpdate() throws Exception {
 
-        assertFalse(relationResolver.subsumes(b));
+        assertThat(relationResolver.subsumes(b)).isFalse();
 
         reset(firstItemInB);
 
         // UPDATE
         blockingItem.setAge(15);
 
-        assertTrue(relationResolver.subsumes(b));
+        assertThat(relationResolver.subsumes(b)).isTrue();
 
         verify(firstItemInB).subsumes(any());
     }
 
     @Test
-    public void recheckConflictingItemRemoved() throws
-            Exception {
+    void recheckConflictingItemRemoved() throws Exception {
 
-        assertFalse(relationResolver.subsumes(b));
+        assertThat(relationResolver.subsumes(b)).isFalse();
 
         reset(firstItemInB);
 
         // UPDATE
         b.remove(blockingItem);
 
-        assertTrue(relationResolver.subsumes(b));
+        assertThat(relationResolver.subsumes(b)).isTrue();
 
         verify(firstItemInB).subsumes(any());
     }
 
     @Test
-    public void recheckOtherListBecomesEmpty() throws
-            Exception {
+    void recheckOtherListBecomesEmpty() throws Exception {
 
-        assertFalse(relationResolver.subsumes(b));
+        assertThat(relationResolver.subsumes(b)).isFalse();
 
-        reset(firstItemInB,
-              blockingItem);
+        reset(firstItemInB, blockingItem);
 
         // UPDATE
         b.clear();
 
-        assertTrue(relationResolver.subsumes(b));
+        assertThat(relationResolver.subsumes(b)).isTrue();
 
-        verify(firstItemInB,
-               never()).subsumes(any());
-        verify(blockingItem,
-               never()).subsumes(any());
+        verify(firstItemInB, never()).subsumes(any());
+        verify(blockingItem, never()).subsumes(any());
     }
 
-    public class Person
-            implements IsSubsuming,
-                       HasKeys {
+    public class Person implements IsSubsuming, HasKeys {
 
         int age;
 

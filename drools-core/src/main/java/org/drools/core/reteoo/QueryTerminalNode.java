@@ -1,33 +1,33 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Map;
 
+import org.drools.base.definitions.rule.impl.QueryImpl;
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.GroupElement;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.definitions.rule.impl.RuleImpl;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.rule.Declaration;
-import org.drools.core.rule.GroupElement;
-import org.drools.core.rule.QueryImpl;
-import org.drools.core.spi.PropagationContext;
 
 /**
  * Leaf Rete-OO node responsible for enacting <code>Action</code> s on a
@@ -37,25 +37,13 @@ import org.drools.core.spi.PropagationContext;
  */
 public class QueryTerminalNode extends AbstractTerminalNode implements LeftTupleSinkNode {
 
-    // ------------------------------------------------------------
-    // Instance members
-    // ------------------------------------------------------------
+
 
     private static final long serialVersionUID = 510l;
 
     public static final short type             = 8;
-
-    /** The rule to invoke upon match. */
-    protected QueryImpl query;
-    private GroupElement      subrule;
-    private int               subruleIndex;
-    private Declaration[]     allDeclarations;
-    private Declaration[]     requiredDeclarations;
-
-    private LeftTupleSinkNode previousTupleSinkNode;
-    private LeftTupleSinkNode nextTupleSinkNode;
     
-    private transient ObjectTypeNode.Id leftInputOtnId;
+    private transient ObjectTypeNodeId leftInputOtnId;
 
     // ------------------------------------------------------------
     // Constructors
@@ -80,187 +68,44 @@ public class QueryTerminalNode extends AbstractTerminalNode implements LeftTuple
                              final BuildContext context) {
         super( id,
                context.getPartitionId(),
-               context.getKnowledgeBase().getConfiguration().isMultithreadEvaluation(),
                source,
-               context);
-        this.query = (QueryImpl) rule;
-        this.subrule = subrule;
-        this.subruleIndex = subruleIndex;
-        
-        initDeclaredMask(context);        
-        initInferredMask();
-        initDeclarations();
-
-        hashcode = calculateHashCode();
-    }
-
-    // ------------------------------------------------------------
-    // Instance methods
-    // ------------------------------------------------------------
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        super.readExternal( in );
-        query = (QueryImpl) in.readObject();
-        subrule = (GroupElement) in.readObject();
-        subruleIndex = in.readInt();
-        initDeclarations();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( query );
-        out.writeObject( subrule );
-        out.writeInt(subruleIndex);
+               context,
+               rule, subrule, subruleIndex);
+        this.hashcode = calculateHashCode();
     }
 
     public QueryImpl getQuery() {
-        return query;
-    }
-
-    public RuleImpl getRule() {
-        return this.query;
-    }
-
-    private int calculateHashCode() {
-        return this.query.hashCode();
-    }
-
-    @Override
-    public boolean equals(final Object object) {
-        if (this == object) {
-            return true;
-        }
-
-        if ( object == null || !(object instanceof QueryTerminalNode) || this.hashCode() != object.hashCode() ) {
-            return false;
-        }
-        return query.equals(((QueryTerminalNode) object).query);
+        return (QueryImpl) getRule();
     }
 
     public String toString() {
-        return "[QueryTerminalNode(" + this.getId() + "): query=" + this.query.getName() + "]";
+        return "[QueryTerminalNode(" + this.getId() + "): query=" + this.getQuery().getName() + "]";
     }
 
-    /**
-     * @return the subrule
-     */
-    public GroupElement getSubRule() {
-        return this.subrule;
-    }
-    
     @Override
     public boolean isFireDirect() {
         return false;
     }
 
-    public Declaration[] getAllDeclarations() {
-        return this.allDeclarations;
-    }
-
-    public Declaration[] getRequiredDeclarations() {
-        return this.requiredDeclarations;
-    }
-
-    private void initDeclarations() {
-        Map<String, Declaration> declMap = subrule.getOuterDeclarations();
-        this.allDeclarations = declMap.values().toArray( new Declaration[declMap.size()] );
-
-        this.requiredDeclarations = new Declaration[ query.getParameters().length ];
+    void initDeclarations(Map<String, Declaration> decls, final BuildContext context) {
+        this.requiredDeclarations = new Declaration[ getQuery().getParameters().length ];
         int i = 0;
-        for ( Declaration declr : query.getParameters() ) {
-            this.requiredDeclarations[i++] =  declMap.get( declr.getIdentifier() );
+        for ( Declaration declr : getQuery().getParameters() ) {
+            this.requiredDeclarations[i++] =  decls.get( declr.getIdentifier() );
         }
     }
-    
-    public int getSubruleIndex() {
-        return this.subruleIndex;
-    }
 
-    /**
-     * Returns the previous node
-     * @return
-     *      The previous TupleSinkNode
-     */
-    public LeftTupleSinkNode getPreviousLeftTupleSinkNode() {
-        return this.previousTupleSinkNode;
-    }
-
-    /**
-     * Sets the previous node
-     * @param previous
-     *      The previous TupleSinkNode
-     */
-    public void setPreviousLeftTupleSinkNode(final LeftTupleSinkNode previous) {
-        this.previousTupleSinkNode = previous;
-    }
-
-    /**
-     * Returns the next node
-     * @return
-     *      The next TupleSinkNode
-     */
-    public LeftTupleSinkNode getNextLeftTupleSinkNode() {
-        return this.nextTupleSinkNode;
-    }
-
-    /**
-     * Sets the next node
-     * @param next
-     *      The next TupleSinkNode
-     */
-    public void setNextLeftTupleSinkNode(final LeftTupleSinkNode next) {
-        this.nextTupleSinkNode = next;
-    }
-
-    public short getType() {
+    public int getType() {
         return NodeTypeEnums.QueryTerminalNode;
     }
 
-    public LeftTuple createLeftTuple(InternalFactHandle factHandle,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new RuleTerminalNodeLeftTuple(factHandle, sink, leftTupleMemoryEnabled );
-    }
 
-    public LeftTuple createLeftTuple(final InternalFactHandle factHandle,
-                                     final LeftTuple leftTuple,
-                                     final Sink sink) {
-        return new RuleTerminalNodeLeftTuple(factHandle,leftTuple, sink );
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     Sink sink,
-                                     PropagationContext pctx,
-                                     boolean leftTupleMemoryEnabled) {
-        return new RuleTerminalNodeLeftTuple(leftTuple,sink, pctx, leftTupleMemoryEnabled );
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     Sink sink) {
-        return new RuleTerminalNodeLeftTuple(leftTuple, rightTuple, sink );
-    }   
-    
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     LeftTuple currentLeftChild,
-                                     LeftTuple currentRightChild,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new RuleTerminalNodeLeftTuple(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );        
-    }    
-    
-    
-    public ObjectTypeNode.Id getLeftInputOtnId() {
+    public ObjectTypeNodeId getLeftInputOtnId() {
         return leftInputOtnId;
     }
 
-    public void setLeftInputOtnId(ObjectTypeNode.Id leftInputOtnId) {
+    public void setLeftInputOtnId(ObjectTypeNodeId leftInputOtnId) {
         this.leftInputOtnId = leftInputOtnId;
-    }
-
-    public LeftTuple createPeer(LeftTuple original) {
-        return null;
     }
 
     @Override
@@ -268,7 +113,8 @@ public class QueryTerminalNode extends AbstractTerminalNode implements LeftTuple
         throw new UnsupportedOperationException();
     }
 
-    public void attach( BuildContext context ) {
+    public void doAttach( BuildContext context ) {
+        super.doAttach(context);
         getLeftTupleSource().addTupleSink( this, context );
         addAssociation( context, context.getRule() );
     }

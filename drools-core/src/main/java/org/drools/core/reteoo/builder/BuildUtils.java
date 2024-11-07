@@ -1,56 +1,49 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo.builder;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.drools.base.base.ObjectType;
+import org.drools.base.common.RuleBasePartitionId;
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.GroupElement;
+import org.drools.base.rule.IntervalProviderConstraint;
+import org.drools.base.rule.Pattern;
+import org.drools.base.rule.RuleConditionElement;
+import org.drools.base.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.base.rule.constraint.BetaConstraint;
+import org.drools.base.time.Interval;
+import org.drools.base.time.TimeUtils;
 import org.drools.core.common.BaseNode;
 import org.drools.core.common.BetaConstraints;
-import org.drools.core.common.DefaultBetaConstraints;
-import org.drools.core.common.DoubleBetaConstraints;
 import org.drools.core.common.EmptyBetaConstraints;
-import org.drools.core.common.QuadroupleBetaConstraints;
-import org.drools.core.common.RuleBasePartitionId;
-import org.drools.core.common.SingleBetaConstraints;
-import org.drools.core.common.TripleBetaConstraints;
-import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.reteoo.AlphaNode;
 import org.drools.core.reteoo.BetaNode;
 import org.drools.core.reteoo.EntryPointNode;
-import org.drools.core.reteoo.NodeTypeEnums;
 import org.drools.core.reteoo.ObjectTypeNode;
-import org.drools.core.rule.AbstractCompositeConstraint;
-import org.drools.core.rule.Declaration;
-import org.drools.core.rule.GroupElement;
-import org.drools.core.rule.IntervalProviderConstraint;
-import org.drools.core.rule.InvalidPatternException;
-import org.drools.core.rule.Pattern;
-import org.drools.core.rule.RuleConditionElement;
-import org.drools.core.rule.constraint.MvelConstraint;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.time.Interval;
 import org.drools.core.time.TemporalDependencyMatrix;
-import org.drools.core.time.TimeUtils;
 import org.kie.api.definition.rule.Rule;
 
 /**
@@ -58,7 +51,7 @@ import org.kie.api.definition.rule.Rule;
  */
 public class BuildUtils {
 
-    private final Map<Class< ? >, ReteooComponentBuilder> componentBuilders = new HashMap<Class< ? >, ReteooComponentBuilder>();
+    private final Map<Class< ? >, ReteooComponentBuilder> componentBuilders = new HashMap<>();
 
     /**
      * Adds the given builder for the given target to the builders map
@@ -98,12 +91,12 @@ public class BuildUtils {
         RuleBasePartitionId partition = null;
         if ( candidate.getType() == NodeTypeEnums.EntryPointNode ) {
             // entry point nodes are always shared
-            node = context.getKnowledgeBase().getRete().getEntryPointNode( ((EntryPointNode) candidate).getEntryPoint() );
+            node = context.getRuleBase().getRete().getEntryPointNode( ((EntryPointNode) candidate).getEntryPoint() );
             // all EntryPointNodes belong to the main partition
             partition = RuleBasePartitionId.MAIN_PARTITION;
         } else if ( candidate.getType() == NodeTypeEnums.ObjectTypeNode ) {
             // object type nodes are always shared
-            Map<ObjectType, ObjectTypeNode> map = context.getKnowledgeBase().getRete().getObjectTypeNodes( context.getCurrentEntryPoint() );
+            Map<ObjectType, ObjectTypeNode> map = context.getRuleBase().getRete().getObjectTypeNodes( context.getCurrentEntryPoint() );
             if ( map != null ) {
                 ObjectTypeNode otn = map.get( ((ObjectTypeNode) candidate).getObjectType() );
                 if ( otn != null ) {
@@ -125,7 +118,7 @@ public class BuildUtils {
             }
         }
 
-        if ( node != null && !areNodesCompatibleForSharing(context, node, candidate) ) {
+        if ( node != null && !areNodesCompatibleForSharing(context, node) ) {
             node = null;
         }
 
@@ -138,15 +131,13 @@ public class BuildUtils {
                 // if it does not has a predefined label
                 if ( context.getPartitionId() == null ) {
                     // if no label in current context, create one
-                    context.setPartitionId( context.getKnowledgeBase().createNewPartitionId() );
+                    context.setPartitionId( context.getRuleBase().createNewPartitionId() );
                 }
                 partition = context.getPartitionId();
             }
             // set node whit the actual partition label
             node.setPartitionId( context, partition );
             node.attach(context);
-            // adds the node to the context list to track all added nodes
-            context.getNodes().add( node );
         } else {
             // shared node found
             mergeNodes(node, candidate);
@@ -158,6 +149,8 @@ public class BuildUtils {
                 context.setPartitionId( partition );
             }
         }
+        // adds the node to the context list to track all added nodes
+        context.getNodes().add( node );
         node.addAssociation( context, context.getRule() );
         return (T)node;
     }
@@ -165,16 +158,14 @@ public class BuildUtils {
     private void mergeNodes(BaseNode node, BaseNode duplicate) {
         if (node instanceof AlphaNode) {
             AlphaNodeFieldConstraint alphaConstraint = ((AlphaNode) node).getConstraint();
-            if (alphaConstraint instanceof MvelConstraint) {
-                ((MvelConstraint)alphaConstraint).addPackageNames(((MvelConstraint)((AlphaNode) duplicate).getConstraint()).getPackageNames());
-            }
+            alphaConstraint.addPackageNames(((AlphaNode) duplicate).getConstraint().getPackageNames());
+            alphaConstraint.mergeEvaluationContext(((AlphaNode) duplicate).getConstraint());
         } else if (node instanceof BetaNode) {
-            BetaNodeFieldConstraint[] betaConstraints = ((BetaNode) node).getConstraints();
-            int i = 0;
-            for (BetaNodeFieldConstraint betaConstraint : betaConstraints) {
-                if (betaConstraint instanceof MvelConstraint) {
-                    ((MvelConstraint) betaConstraint).addPackageNames(((MvelConstraint) ((BetaNode) duplicate).getConstraints()[i]).getPackageNames());
-                }
+            BetaConstraint[] betaConstraints = ((BetaNode) node).getConstraints();
+            int              i               = 0;
+            for (BetaConstraint betaConstraint : betaConstraints) {
+                betaConstraint.addPackageNames(((BetaNode) duplicate).getConstraints()[i].getPackageNames());
+                betaConstraint.mergeEvaluationContext(((BetaNode) duplicate).getConstraints()[i]);
                 i++;
             }
         }
@@ -185,15 +176,15 @@ public class BuildUtils {
      */
     private boolean isSharingEnabledForNode(BuildContext context, BaseNode node) {
         if ( NodeTypeEnums.isLeftTupleSource( node )) {
-            return context.getKnowledgeBase().getConfiguration().isShareBetaNodes();
+            return context.getRuleBase().getRuleBaseConfiguration().isShareBetaNodes();
         } else if ( NodeTypeEnums.isObjectSource( node ) ) {
-            return context.getKnowledgeBase().getConfiguration().isShareAlphaNodes();
+            return context.getRuleBase().getRuleBaseConfiguration().isShareAlphaNodes();
         }
         return false;
     }
 
-    private boolean areNodesCompatibleForSharing(BuildContext context, BaseNode node, BaseNode candidate) {
-        if ( node.getType() == NodeTypeEnums.RightInputAdaterNode ) {
+    private boolean areNodesCompatibleForSharing(BuildContext context, BaseNode node) {
+        if ( node.getType() == NodeTypeEnums.RightInputAdapterNode) {
             // avoid subnetworks sharing when they belong to 2 different agenda-groups
             String agendaGroup = context.getRule().getAgendaGroup();
             for (Rule associatedRule : node.getAssociatedRules()) {
@@ -212,75 +203,44 @@ public class BuildUtils {
      * @param list the list of constraints
      */
     public BetaConstraints createBetaNodeConstraint(final BuildContext context,
-                                                    final List<BetaNodeFieldConstraint> list,
+                                                    final List<BetaConstraint> list,
                                                     final boolean disableIndexing) {
         BetaConstraints constraints;
+        if ( list.size() == 1 && list.get(0) instanceof BetaConstraints) {
+            // If the constraint also implements BetaConstraints us it directly, do not wrap.
+            return (BetaConstraints) list.get(0);
+        }
+
         switch ( list.size() ) {
             case 0 :
                 constraints = EmptyBetaConstraints.getInstance();
                 break;
             case 1 :
-                constraints = new SingleBetaConstraints( list.get( 0 ),
-                                                         context.getKnowledgeBase().getConfiguration(),
+                constraints = BetaNodeConstraintFactory.Factory.get().createSingleBetaConstraints( list.get( 0 ),
+                                                         context.getRuleBase().getRuleBaseConfiguration(),
                                                          disableIndexing );
                 break;
             case 2 :
-                constraints = new DoubleBetaConstraints( list.toArray( new BetaNodeFieldConstraint[list.size()] ),
-                                                         context.getKnowledgeBase().getConfiguration(),
+                constraints = BetaNodeConstraintFactory.Factory.get().createDoubleBetaConstraints( list.toArray( new BetaConstraint[list.size()]),
+                                                         context.getRuleBase().getRuleBaseConfiguration(),
                                                          disableIndexing );
                 break;
             case 3 :
-                constraints = new TripleBetaConstraints( list.toArray( new BetaNodeFieldConstraint[list.size()] ),
-                                                         context.getKnowledgeBase().getConfiguration(),
+                constraints = BetaNodeConstraintFactory.Factory.get().createTripleBetaConstraints( list.toArray( new BetaConstraint[list.size()]),
+                                                         context.getRuleBase().getRuleBaseConfiguration(),
                                                          disableIndexing );
                 break;
             case 4 :
-                constraints = new QuadroupleBetaConstraints( list.toArray( new BetaNodeFieldConstraint[list.size()] ),
-                                                             context.getKnowledgeBase().getConfiguration(),
+                constraints = BetaNodeConstraintFactory.Factory.get().createQuadroupleBetaConstraints( list.toArray( new BetaConstraint[list.size()]),
+                                                             context.getRuleBase().getRuleBaseConfiguration(),
                                                              disableIndexing );
                 break;
             default :
-                constraints = new DefaultBetaConstraints( list.toArray( new BetaNodeFieldConstraint[list.size()] ),
-                                                          context.getKnowledgeBase().getConfiguration(),
+                constraints = BetaNodeConstraintFactory.Factory.get().createDefaultBetaConstraints( list.toArray( new BetaConstraint[list.size()]),
+                                                          context.getRuleBase().getRuleBaseConfiguration(),
                                                           disableIndexing );
         }
         return constraints;
-    }
-
-    /**
-     * Make sure the required declarations are previously bound
-     *
-     * @param declarations
-     * @throws InvalidPatternException
-     */
-    public void checkUnboundDeclarations(final BuildContext context,
-                                         final Declaration[] declarations) throws InvalidPatternException {
-//        final List<String> list = new ArrayList<String>();
-//        for ( int i = 0, length = declarations.length; i < length; i++ ) {
-//            boolean resolved = false;
-//            for ( final ListIterator<RuleConditionElement> it = context.stackIterator(); it.hasPrevious(); ) {
-//                final RuleConditionElement rce = it.previous();
-//                final Declaration decl = rce.resolveDeclaration( declarations[i].getIdentifier() );
-//                if ( decl != null && decl.getPattern().getOffset() <= declarations[i].getPattern().getOffset() ) {
-//                    resolved = true;
-//                    break;
-//                }
-//            }
-//            if( ! resolved ) {
-//                list.add( declarations[i].getIdentifier() );
-//            }
-//        }
-//
-//        // Make sure the required declarations
-//        if ( list.size() != 0 ) {
-//            final StringBuilder buffer = new StringBuilder();
-//            buffer.append( list.get( 0 ) );
-//            for ( int i = 1, size = list.size(); i < size; i++ ) {
-//                buffer.append( ", " + list.get( i ) );
-//            }
-//
-//            throw new InvalidPatternException( "Rule: " + context.getRule().getName() + " - required Declarations not bound: '" + buffer + "'");
-//        }
     }
 
     /**
@@ -291,7 +251,7 @@ public class BuildUtils {
      */
     public TemporalDependencyMatrix calculateTemporalDistance(GroupElement groupElement) {
         // find the events
-        List<Pattern> events = new ArrayList<Pattern>();
+        List<Pattern> events = new ArrayList<>();
         selectAllEventPatterns( events,
                                 groupElement );
 
@@ -314,13 +274,13 @@ public class BuildUtils {
 
             Interval[][] result;
             if ( size > 1 ) {
-                List<Declaration> declarations = new ArrayList<Declaration>();
+                List<Declaration> declarations = new ArrayList<>();
                 int eventIndex = 0;
                 // populate the matrix
                 for ( Pattern event : events ) {
                     // references to other events are always backward references, so we can build the list as we go
                     declarations.add( event.getDeclaration() );
-                    Map<Declaration, Interval> temporal = new HashMap<Declaration, Interval>();
+                    Map<Declaration, Interval> temporal = new HashMap<>();
                     gatherTemporalRelationships( event.getConstraints(),
                                                  temporal );
                     // intersects default values with the actual constrained intervals
@@ -364,9 +324,6 @@ public class BuildUtils {
                         }
                     }
                 }
-            } else if ( obj instanceof AbstractCompositeConstraint ) {
-                gatherTemporalRelationships( Arrays.asList( ((AbstractCompositeConstraint) obj).getBetaConstraints() ),
-                                             temporal );
             }
         }
     }

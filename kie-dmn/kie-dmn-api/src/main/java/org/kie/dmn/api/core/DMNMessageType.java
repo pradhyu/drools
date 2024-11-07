@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.kie.dmn.api.core;
 
 public enum DMNMessageType {
@@ -22,6 +40,7 @@ public enum DMNMessageType {
     INVALID_HREF_SYNTAX( "The 'href' attribute requires the use of anchor syntax", Tag.VALIDATION, Tag.DMN_VALIDATOR ),
     DUPLICATED_PARAM( "The referenced param is duplicated", Tag.VALIDATION, Tag.DMN_VALIDATOR ),
     PARAMETER_MISMATCH( "The named parameter does not match", Tag.VALIDATION, Tag.DMN_VALIDATOR ),
+    TYPEREF_MISMATCH( "The typeRef does not match", Tag.COMPILATION, Tag.VALIDATION, Tag.DMN_VALIDATOR ),
     DUPLICATED_ITEM_DEF( "The referenced item definition or item component is duplicated", Tag.COMPILATION, Tag.VALIDATION, Tag.DMN_VALIDATOR, Tag.DMN_CORE ),
     DUPLICATED_RELATION_COLUMN( "The referenced relation column is duplicated", Tag.VALIDATION, Tag.DMN_VALIDATOR ),
     RELATION_CELL_NOT_LITERAL( "The referenced relation cell is not a literal expression", Tag.VALIDATION, Tag.DMN_VALIDATOR ),
@@ -52,7 +71,10 @@ public enum DMNMessageType {
     DECISION_TABLE_CONTRACTION_RULE("DMN Validation, Decision Table Analysis, Contraction Rule Analysis", Tag.DECISION_TABLE_ANALYSIS, Tag.DMN_VALIDATOR),
     DECISION_TABLE_1STNFVIOLATION("DMN Validation, Decision Table Analysis, First Normal Form Violation", Tag.DECISION_TABLE_ANALYSIS, Tag.DMN_VALIDATOR),
     DECISION_TABLE_2NDNFVIOLATION("DMN Validation, Decision Table Analysis, Second Normal Form Violation", Tag.DECISION_TABLE_ANALYSIS, Tag.DMN_VALIDATOR),
-    DECISION_TABLE_HITPOLICY_RECOMMENDER("DMN Validation, Decision Table Analysis, Hit Policy Recommender",Tag.DECISION_TABLE_ANALYSIS,Tag.DMN_VALIDATOR);
+    DECISION_TABLE_HITPOLICY_RECOMMENDER("DMN Validation, Decision Table Analysis, Hit Policy Recommender",Tag.DECISION_TABLE_ANALYSIS,Tag.DMN_VALIDATOR),
+
+    DMNDI_MISSING_DIAGRAM( "No DMNDiagramElement is associated with the element", Tag.VALIDATION, Tag.DMN_VALIDATOR ),
+    DMNDI_UNKNOWN_REF( "The referenced element could not be resolved", Tag.VALIDATION, Tag.DMN_VALIDATOR );
 
     private final Tag[]  tags;
     private final String description;

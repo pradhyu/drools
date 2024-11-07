@@ -1,39 +1,39 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Arrays;
-import java.util.Collection;
 
+import org.drools.base.common.NetworkNode;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.Pattern;
+import org.drools.base.time.impl.Timer;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.rule.Declaration;
-import org.drools.core.rule.Pattern;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.time.impl.Timer;
-import org.drools.core.util.AbstractBaseLinkedListNode;
+import org.drools.core.util.AbstractLinkedListNode;
 import org.drools.core.util.index.TupleList;
 
 public class TimerNode extends LeftTupleSource
@@ -45,7 +45,7 @@ public class TimerNode extends LeftTupleSource
     private Timer             timer;
     private String[]          calendarNames;
     private boolean           tupleMemoryEnabled;
-    private Declaration[][]   declarations;
+    private Declaration[][]   startEndDeclarations;
     private LeftTupleSinkNode previousTupleSinkNode;
     private LeftTupleSinkNode nextTupleSinkNode;
 
@@ -60,38 +60,24 @@ public class TimerNode extends LeftTupleSource
                      final LeftTupleSource tupleSource,
                      final Timer timer,
                      final String[] calendarNames,
-                     final Declaration[][]   declarations,
+                     final Declaration[][] startEndDeclarations,
                      final BuildContext context) {
         super(id, context);
         setLeftTupleSource(tupleSource);
+        this.setObjectCount(leftInput.getObjectCount()); // 'timer' node does increase the object count
         this.timer = timer;
         this.calendarNames = calendarNames;
-        this.declarations = declarations;
+        this.startEndDeclarations = startEndDeclarations;
         this.tupleMemoryEnabled = context.isTupleMemoryEnabled();
 
         initMasks(context, tupleSource);
 
         hashcode = calculateHashCode();
+
     }
 
-    public void readExternal(ObjectInput in) throws IOException,
-            ClassNotFoundException {
-        super.readExternal(in);
-        timer = (Timer) in.readObject();
-        calendarNames = (String[]) in.readObject();
-        tupleMemoryEnabled = in.readBoolean();
-        declarations = ( Declaration[][] ) in.readObject();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal(out);
-        out.writeObject(timer);
-        out.writeObject( calendarNames );
-        out.writeBoolean(tupleMemoryEnabled);
-        out.writeObject( declarations );
-    }
-
-    public void attach(BuildContext context) {
+    public void doAttach(BuildContext context) {
+        super.doAttach(context);
         this.leftInput.addTupleSink(this, context);
     }
 
@@ -107,8 +93,8 @@ public class TimerNode extends LeftTupleSource
         return this.calendarNames;
     }
 
-    public Declaration[][] getDeclarations() {
-        return this.declarations;
+    public Declaration[][] getStartEndDeclarations() {
+        return this.startEndDeclarations;
     }
 
     @Override
@@ -141,7 +127,7 @@ public class TimerNode extends LeftTupleSource
             return true;
         }
 
-        if ( object == null || !(object instanceof TimerNode) || this.hashCode() != object.hashCode() ) {
+        if (((NetworkNode)object).getType() != NodeTypeEnums.TimerConditionNode || this.hashCode() != object.hashCode()) {
             return false;
         }
 
@@ -161,24 +147,16 @@ public class TimerNode extends LeftTupleSource
             }
         }
 
-        return Arrays.deepEquals( declarations, other.declarations ) &&
-               this.timer.equals(other.timer);
+        return Arrays.deepEquals(startEndDeclarations, other.startEndDeclarations) &&
+                this.timer.equals(other.timer);
     }
 
-    public TimerNodeMemory createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public TimerNodeMemory createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         return new TimerNodeMemory();
     }
 
-    @Override
-    public LeftTuple createPeer(LeftTuple original) {
-        EvalNodeLeftTuple peer = new EvalNodeLeftTuple();
-        peer.initPeer((BaseLeftTuple) original, this);
-        original.setPeer(peer);
-        return peer;
-    }
-
     protected boolean doRemove(final RuleRemovalContext context,
-                            final ReteooBuilder builder) {
+                               final ReteooBuilder builder) {
         if (!this.isInUse()) {
             getLeftTupleSource().removeTupleSink(this);
             return true;
@@ -188,10 +166,6 @@ public class TimerNode extends LeftTupleSource
 
     public boolean isLeftTupleMemoryEnabled() {
         return tupleMemoryEnabled;
-    }
-
-    public void setLeftTupleMemoryEnabled(boolean tupleMemoryEnabled) {
-        this.tupleMemoryEnabled = tupleMemoryEnabled;
     }
 
     /**
@@ -230,41 +204,8 @@ public class TimerNode extends LeftTupleSource
         this.previousTupleSinkNode = previous;
     }
 
-    public short getType() {
+    public int getType() {
         return NodeTypeEnums.TimerConditionNode;
-    }
-
-    public LeftTuple createLeftTuple(InternalFactHandle factHandle,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new EvalNodeLeftTuple(factHandle, sink, leftTupleMemoryEnabled);
-    }
-
-    public LeftTuple createLeftTuple(final InternalFactHandle factHandle,
-                                     final LeftTuple leftTuple,
-                                     final Sink sink) {
-        return new EvalNodeLeftTuple(factHandle, leftTuple, sink);
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     Sink sink,
-                                     PropagationContext pctx, boolean leftTupleMemoryEnabled) {
-        return new EvalNodeLeftTuple(leftTuple, sink, pctx, leftTupleMemoryEnabled);
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     Sink sink) {
-        return new EvalNodeLeftTuple(leftTuple, rightTuple, sink);
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     LeftTuple currentLeftChild,
-                                     LeftTuple currentRightChild,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new EvalNodeLeftTuple(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled);
     }
 
     @Override
@@ -272,7 +213,7 @@ public class TimerNode extends LeftTupleSource
         return leftInput.getObjectTypeNode();
     }
 
-    public static class TimerNodeMemory extends AbstractBaseLinkedListNode<Memory>
+    public static class TimerNodeMemory extends AbstractLinkedListNode<Memory>
             implements
             SegmentNodeMemory {
 
@@ -296,7 +237,7 @@ public class TimerNode extends LeftTupleSource
             return this.deleteLeftTuples;
         }
 
-        public short getNodeType() {
+        public int getNodeType() {
             return NodeTypeEnums.TimerConditionNode;
         }
 

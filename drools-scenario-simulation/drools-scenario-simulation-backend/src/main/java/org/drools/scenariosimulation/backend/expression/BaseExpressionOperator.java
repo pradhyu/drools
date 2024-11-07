@@ -1,17 +1,20 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.scenariosimulation.backend.expression;
 
@@ -39,14 +42,14 @@ public enum BaseExpressionOperator {
 
         @Override
         protected boolean eval(String rawValue, Object resultValue, Class<?> resultClass, ClassLoader classLoader) {
-            if (!match(rawValue).isPresent()) {
+            if (match(rawValue).isEmpty()) {
                 return false;
             }
             String[] expressionParts = rawValue.split(symbols.get(0));
             List<Boolean> results = Arrays.stream(expressionParts.length == 0 ? new String[]{""} : expressionParts)
                     .map(elem -> findOperator(elem.trim()).eval(elem.trim(), resultValue, resultClass, classLoader))
                     .collect(Collectors.toList());
-            return results.size() != 0 && results.stream().allMatch(a -> a);
+            return !results.isEmpty() && results.stream().allMatch(a -> a);
         }
 
         @Override
@@ -63,7 +66,7 @@ public enum BaseExpressionOperator {
         }
 
         private List<String> getValues(String rawValue) {
-            if (!match(rawValue).isPresent()) {
+            if (match(rawValue).isEmpty()) {
                 return Collections.emptyList();
             }
             if (!rawValue.endsWith("]")) {
@@ -88,7 +91,7 @@ public enum BaseExpressionOperator {
 
         @Override
         public boolean eval(String rawValue, Object resultValue, Class<?> resultClass, ClassLoader classLoader) {
-            Object parsedResults = evaluateLiteralExpression(resultClass != null ? resultClass.getCanonicalName() : null, rawValue, classLoader);
+            Object parsedResults = evaluateLiteralExpression(resultClass != null ? resultClass.getName() : null, rawValue, classLoader);
 
             return compareValues(parsedResults, resultValue);
         }
@@ -115,13 +118,13 @@ public enum BaseExpressionOperator {
     RANGE(4, "<", ">", "<=", ">=") {
         @Override
         public boolean eval(String rawValue, Object resultValue, Class<?> resultClass, ClassLoader classLoader) {
-            if (!match(rawValue).isPresent()) {
+            if (match(rawValue).isEmpty()) {
                 return false;
             }
 
             String operator = match(rawValue).orElseThrow(() -> new IllegalStateException("Cannot determine operator!"));
             String cleanValue = removeOperator(rawValue);
-            Object stepValue = convertValue(resultClass.getCanonicalName(), cleanValue, classLoader);
+            Object stepValue = convertValue(resultClass.getName(), cleanValue, classLoader);
             if (!areComparable(stepValue, resultValue)) {
                 return false;
             }

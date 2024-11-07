@@ -1,30 +1,31 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.core.cache.inspectors;
 
 import org.drools.verifier.core.AnalyzerConfigurationMock;
 import org.drools.verifier.core.configuration.AnalyzerConfiguration;
 import org.drools.verifier.core.index.model.Field;
 import org.drools.verifier.core.index.model.ObjectField;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 public class FieldInspectorRelationsTest {
@@ -34,9 +35,8 @@ public class FieldInspectorRelationsTest {
     private FieldInspector a;
     private FieldInspector b;
 
-    @Before
-    public void setUp() throws
-            Exception {
+    @BeforeEach
+    public void setUp() throws Exception {
 
         configurationMock = new AnalyzerConfigurationMock();
 
@@ -58,46 +58,42 @@ public class FieldInspectorRelationsTest {
     }
 
     @Test
-    public void testRedundancy01() throws
-            Exception {
-        assertTrue(a.isRedundant(b));
-        assertTrue(b.isRedundant(a));
+    void testRedundancy01() throws Exception {
+        assertThat(a.isRedundant(b)).isTrue();
+        assertThat(b.isRedundant(a)).isTrue();
     }
 
     @Test
-    public void testRedundancy02() throws
-            Exception {
+    void testRedundancy02() throws Exception {
         final FieldInspector x = new FieldInspector(new Field(mock(ObjectField.class),
-                                                              "org.Address",
-                                                              "String",
-                                                              "name",
-                                                              configurationMock),
-                                                    mock(RuleInspectorUpdater.class),
-                                                    mock(AnalyzerConfiguration.class));
+                        "org.Address",
+                        "String",
+                        "name",
+                        configurationMock),
+                mock(RuleInspectorUpdater.class),
+                mock(AnalyzerConfiguration.class));
 
-        assertFalse(x.isRedundant(b));
-        assertFalse(b.isRedundant(x));
+        assertThat(x.isRedundant(b)).isFalse();
+        assertThat(b.isRedundant(x)).isFalse();
     }
 
     @Test
-    public void testSubsumpt01() throws
-            Exception {
-        assertTrue(a.subsumes(b));
-        assertTrue(b.subsumes(a));
+    void testSubsumpt01() throws Exception {
+        assertThat(a.subsumes(b)).isTrue();
+        assertThat(b.subsumes(a)).isTrue();
     }
 
     @Test
-    public void testSubsumpt02() throws
-            Exception {
+    void testSubsumpt02() throws Exception {
         final FieldInspector x = new FieldInspector(new Field(mock(ObjectField.class),
-                                                              "org.Address",
-                                                              "String",
-                                                              "name",
-                                                              configurationMock),
-                                                    mock(RuleInspectorUpdater.class),
-                                                    mock(AnalyzerConfiguration.class));
+                        "org.Address",
+                        "String",
+                        "name",
+                        configurationMock),
+                mock(RuleInspectorUpdater.class),
+                mock(AnalyzerConfiguration.class));
 
-        assertFalse(x.subsumes(b));
-        assertFalse(b.subsumes(x));
+        assertThat(x.subsumes(b)).isFalse();
+        assertThat(b.subsumes(x)).isFalse();
     }
 }

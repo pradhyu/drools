@@ -1,44 +1,42 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.List;
 
-import org.drools.core.base.ClassObjectType;
+import org.drools.base.base.ObjectType;
+import org.drools.base.common.RuleBasePartitionId;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.Pattern;
 import org.drools.core.common.BaseNode;
 import org.drools.core.common.DefaultFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.common.RuleBasePartitionId;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.common.UpdateContext;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.impl.InternalRuleBase;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.rule.Pattern;
-import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.util.bitmask.AllSetBitMask;
-import org.drools.core.util.bitmask.BitMask;
-import org.drools.core.util.bitmask.EmptyBitMask;
+import org.drools.util.bitmask.AllSetBitMask;
+import org.drools.util.bitmask.BitMask;
+import org.drools.util.bitmask.EmptyBitMask;
 
-import static org.drools.core.reteoo.PropertySpecificUtil.getAccessibleProperties;
+import static org.drools.base.reteoo.PropertySpecificUtil.getAccessibleProperties;
+import static org.drools.base.reteoo.PropertySpecificUtil.isPropertyReactive;
 
 /**
  * A source of <code>FactHandle</code>s for an <code>ObjectSink</code>.
@@ -50,12 +48,9 @@ import static org.drools.core.reteoo.PropertySpecificUtil.getAccessiblePropertie
  * @see ObjectSource
  * @see DefaultFactHandle
  */
-public abstract class ObjectSource extends BaseNode
-    implements
-    Externalizable {
-    // ------------------------------------------------------------
-    // Instance members
-    // ------------------------------------------------------------
+public abstract class ObjectSource extends BaseNode {
+
+
 
     /** The destination for <code>FactHandleImpl</code>. */
     protected ObjectSinkPropagator sink;
@@ -63,6 +58,7 @@ public abstract class ObjectSource extends BaseNode
     protected ObjectSource         source;
 
     protected int                  alphaNodeHashingThreshold;
+    protected int                  alphaNodeRangeIndexThreshold;
 
 
     protected BitMask declaredMask = EmptyBitMask.get();
@@ -78,14 +74,8 @@ public abstract class ObjectSource extends BaseNode
     /**
      * Single parameter constructor that specifies the unique id of the node.
      */
-    ObjectSource(final int id,
-                 final RuleBasePartitionId partitionId,
-                 final boolean partitionsEnabled) {
-        this( id,
-              partitionId,
-              partitionsEnabled,
-              null,
-              3 );
+    protected ObjectSource(int id, RuleBasePartitionId partitionId) {
+        this( id, partitionId, null, 3, 3);
     }
 
     /**
@@ -93,33 +83,20 @@ public abstract class ObjectSource extends BaseNode
      */
     ObjectSource(final int id,
                  final RuleBasePartitionId partitionId,
-                 final boolean partitionsEnabled,
                  final ObjectSource objectSource,
-                 final int alphaNodeHashingThreshold) {
-        super(id, partitionId, partitionsEnabled);
+                 final int alphaNodeHashingThreshold,
+                 final int alphaNodeRangeIndexThreshold) {
+        super(id, partitionId);
         this.source = objectSource;
         this.alphaNodeHashingThreshold = alphaNodeHashingThreshold;
+        this.alphaNodeRangeIndexThreshold = alphaNodeRangeIndexThreshold;
         this.sink = EmptyObjectSinkAdapter.getInstance();
     }
 
     // ------------------------------------------------------------
     // Instance methods
     // ------------------------------------------------------------
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        super.readExternal( in );
-        sink = (ObjectSinkPropagator) in.readObject();
-        alphaNodeHashingThreshold = in.readInt();
-        source = ( ObjectSource ) in.readObject();
-    }
 
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( sink );
-        out.writeInt( alphaNodeHashingThreshold );
-        out.writeObject( source );
-    }
-    
     public ObjectSource getParentObjectSource() {
         return this.source;
     }
@@ -128,8 +105,8 @@ public abstract class ObjectSource extends BaseNode
         this.source = source;
     }
 
-    public InternalKnowledgeBase getKnowledgeBase() {
-        return source.getKnowledgeBase();
+    public InternalRuleBase getRuleBase() {
+        return source.getRuleBase();
     }
 
     public void initDeclaredMask(BuildContext context) {
@@ -142,24 +119,16 @@ public abstract class ObjectSource extends BaseNode
         Pattern pattern = context.getLastBuiltPatterns()[0];
         ObjectType objectType = pattern.getObjectType();
         
-        if ( !(objectType instanceof ClassObjectType)) {
-            // Only ClassObjectType can use property specific
-            declaredMask = AllSetBitMask.get();
-            return;
-        }
-        
-        Class objectClass = ((ClassObjectType)objectType).getClassType();        
-        TypeDeclaration typeDeclaration = context.getKnowledgeBase().getTypeDeclaration(objectClass);
-        if ( typeDeclaration == null || !typeDeclaration.isPropertyReactive() ) {
+        if ( isPropertyReactive(context.getRuleBase(), objectType) ) {
+            List<String> settableProperties = getAccessibleProperties( context.getRuleBase(), objectType );
+            declaredMask = calculateDeclaredMask(pattern, objectType, settableProperties);
+        } else {
             // if property specific is not on, then accept all modification propagations
             declaredMask = AllSetBitMask.get();
-        } else {
-            List<String> settableProperties = getAccessibleProperties( context.getKnowledgeBase(), objectClass );
-            declaredMask = calculateDeclaredMask(objectClass, settableProperties);
         }
     }
     
-    public abstract BitMask calculateDeclaredMask(Class modifiedClass, List<String> settableProperties);
+    public abstract BitMask calculateDeclaredMask(Pattern pattern, ObjectType modifiedType, List<String> settableProperties);
     
     public void resetInferredMask() {
         this.inferredMask = EmptyBitMask.get();
@@ -179,7 +148,7 @@ public abstract class ObjectSource extends BaseNode
     @Override
     public void setPartitionId(BuildContext context, RuleBasePartitionId partitionId) {
         if (this.partitionId != null && this.partitionId != partitionId) {
-            source.sink.changeSinkPartition( (ObjectSink)this, this.partitionId, partitionId, source.alphaNodeHashingThreshold );
+            source.sink.changeSinkPartition( (ObjectSink)this, this.partitionId, partitionId, source.alphaNodeHashingThreshold, source.alphaNodeRangeIndexThreshold );
         }
         this.partitionId = partitionId;
     }
@@ -215,7 +184,7 @@ public abstract class ObjectSource extends BaseNode
      *            <code>FactHandleImpl</code>.
      */
     public void addObjectSink(final ObjectSink objectSink) {
-        this.sink = this.sink.addObjectSink( objectSink, this.alphaNodeHashingThreshold );
+        this.sink = this.sink.addObjectSink( objectSink, this.alphaNodeHashingThreshold, this.alphaNodeRangeIndexThreshold );
     }
 
     /**
@@ -228,9 +197,7 @@ public abstract class ObjectSource extends BaseNode
         this.sink = this.sink.removeObjectSink( objectSink );
     }
 
-    public abstract void updateSink(ObjectSink sink,
-                                    PropagationContext context,
-                                    InternalWorkingMemory workingMemory);
+    public abstract void updateSink(ObjectSink sink, PropagationContext context, InternalWorkingMemory workingMemory);
 
     public void networkUpdated(UpdateContext updateContext) {
         this.source.networkUpdated(updateContext);
@@ -250,7 +217,7 @@ public abstract class ObjectSource extends BaseNode
     
     protected boolean doRemove(final RuleRemovalContext context,
                             final ReteooBuilder builder) {
-        if ( !isInUse() && this instanceof ObjectSink ) {
+        if ( !isInUse() && NodeTypeEnums.isObjectSink(this)) {
             this.source.removeObjectSink((ObjectSink) this);
             return true;
         }

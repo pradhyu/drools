@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.kie.dmn.feel.marshaller;
 
 import java.math.BigDecimal;
@@ -11,22 +29,17 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.dmn.feel.lang.Type;
 import org.kie.dmn.feel.lang.types.BuiltInType;
 import org.kie.dmn.feel.lang.types.impl.ComparablePeriod;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class FEELStringMarshallerUnmarshallTest {
 
-    @Parameterized.Parameters(name = "{index}: {0} ({1}) = {2}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         final Object[][] cases = new Object[][] {
                 // numbers
                 { BuiltInType.NUMBER, "2", BigDecimal.valueOf( 2 ) },
@@ -70,30 +83,35 @@ public class FEELStringMarshallerUnmarshallTest {
                 { BuiltInType.DURATION, "-P6Y1M", ComparablePeriod.of( -6, -1, 0 ) },
                 { BuiltInType.DURATION, "P0M", ComparablePeriod.of( 0, 0, 0 ) },
                 // null
-                { BuiltInType.UNKNOWN, "null", null }
+                { BuiltInType.UNKNOWN, "null", null },
+                // Any based best efforts
+                { BuiltInType.UNKNOWN, "John", "John" },
+                { BuiltInType.UNKNOWN, "123", "123" },
         };
         return Arrays.asList( cases );
     }
-
-    @Parameterized.Parameter(0)
     public Type feelType;
-
-    @Parameterized.Parameter(1)
     public String value;
-
-    @Parameterized.Parameter(2)
     public Object result;
 
-    @Test
-    public void testExpression() {
+    @MethodSource("data")
+    @ParameterizedTest(name = "{index}: {0} ({1}) = {2}")
+    public void expression(Type feelType, String value, Object result) {
+        initFEELStringMarshallerUnmarshallTest(feelType, value, result);
         assertResult( feelType, value, result );
     }
 
     protected void assertResult(Type feelType, String value, Object result ) {
         if( result == null ) {
-            assertThat( "Unmarshalling: '" + value + "'", FEELStringMarshaller.INSTANCE.unmarshall( feelType, value ), is( nullValue() ) );
+        	assertThat(FEELStringMarshaller.INSTANCE.unmarshall( feelType, value )).as("Unmarshalling: '" + value + "'").isNull();
         } else {
-            assertThat( "Unmarshalling: '"+value+"'", FEELStringMarshaller.INSTANCE.unmarshall( feelType, value ), is( result ) );
+        	assertThat(FEELStringMarshaller.INSTANCE.unmarshall( feelType, value )).as("Unmarshalling: '" + value + "'").isEqualTo(result);
         }
+    }
+
+    public void initFEELStringMarshallerUnmarshallTest(Type feelType, String value, Object result) {
+        this.feelType = feelType;
+        this.value = value;
+        this.result = result;
     }
 }

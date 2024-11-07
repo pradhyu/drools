@@ -1,19 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.compiler;
 
 import java.util.ArrayList;
@@ -24,6 +26,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+
+import javax.xml.namespace.QName;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -37,13 +41,16 @@ import org.kie.dmn.core.impl.BaseDMNTypeImpl;
 import org.kie.dmn.core.impl.DMNModelImpl;
 import org.kie.dmn.core.util.Msg;
 import org.kie.dmn.core.util.MsgUtil;
+import org.kie.dmn.core.util.NamespaceUtil;
 import org.kie.dmn.feel.FEEL;
 import org.kie.dmn.feel.codegen.feel11.ProcessedUnaryTest;
 import org.kie.dmn.feel.lang.CompiledExpression;
 import org.kie.dmn.feel.lang.CompilerContext;
+import org.kie.dmn.feel.lang.FEELDialect;
 import org.kie.dmn.feel.lang.FEELProfile;
 import org.kie.dmn.feel.lang.Type;
 import org.kie.dmn.feel.lang.impl.EvaluationContextImpl;
+import org.kie.dmn.feel.lang.impl.FEELBuilder;
 import org.kie.dmn.feel.lang.impl.FEELEventListenersManager;
 import org.kie.dmn.feel.lang.impl.FEELImpl;
 import org.kie.dmn.feel.runtime.FEELFunction;
@@ -53,8 +60,10 @@ import org.kie.dmn.feel.runtime.events.SyntaxErrorEvent;
 import org.kie.dmn.feel.runtime.events.UnknownVariableErrorEvent;
 import org.kie.dmn.feel.util.ClassLoaderUtil;
 import org.kie.dmn.model.api.DMNElement;
+import org.kie.dmn.model.api.ItemDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 public class DMNFEELHelper {
 
@@ -77,7 +86,7 @@ public class DMNFEELHelper {
     }
 
     private FEEL createFEELInstance() {
-        FEEL feel = FEEL.newInstance(classLoader, feelProfiles);
+        FEEL feel = FEELBuilder.builder().withClassloader(classLoader).withProfiles(feelProfiles).build();
         feel.addListener( listener );
         return feel;
     }
@@ -87,14 +96,15 @@ public class DMNFEELHelper {
      * This FEEL instance is potentially not the same shared by the compiler during the compilation phase.
      */
     public FEEL newFEELInstance() {
-        return FEEL.newInstance(classLoader, feelProfiles);
+        return FEELBuilder.builder().withClassloader(classLoader).withProfiles(feelProfiles).build();
     }
 
     public static boolean valueMatchesInUnaryTests(List<UnaryTest> unaryTests, Object value, DMNContext dmnContext) {
         FEELEventListenersManager manager = new FEELEventListenersManager();
         FEELEventsListenerImpl listener = new FEELEventsListenerImpl();
         manager.addListener( listener );
-        EvaluationContextImpl ctx = new EvaluationContextImpl(ClassLoaderUtil.findDefaultClassLoader(), manager);
+        // Defaulting FEELDialect to FEEL
+        EvaluationContextImpl ctx = new EvaluationContextImpl(ClassLoaderUtil.findDefaultClassLoader(), manager, FEELDialect.FEEL);
         try {
             ctx.enterFrame();
             if ( dmnContext != null ) {
@@ -106,6 +116,10 @@ public class DMNFEELHelper {
 
             for ( UnaryTest t : unaryTests ) {
                 try {
+                    // allow usage of ? as place-holder inside UnaryTest
+                    if (!ctx.isDefined("?")) {
+                        ctx.setValue("?", value);
+                    }
                     Boolean applyT = t.apply( ctx, value );
                     // the unary test above can actually return null, so we have to handle it here
                     if ( applyT == null ) {
@@ -169,6 +183,24 @@ public class DMNFEELHelper {
             for ( Map.Entry<String, DMNType> entry : ctx.getVariables().entrySet() ) {
                 variableTypes.put( entry.getKey(), ((BaseDMNTypeImpl) entry.getValue()).getFeelType() );
             }
+            // allow usage of ? as place-holder inside UnaryTest
+            if (!variableTypes.containsKey("?") && element instanceof ItemDefinition itemDef) {
+                String nameSpace;
+                String name;
+                if (itemDef.isIsCollection()) {
+                    nameSpace = model.getTypeRegistry().feelNS();
+                    name = "list";
+                } else {
+                    QName typeRef = itemDef.getTypeRef();
+                    QName nsAndName = NamespaceUtil.getNamespaceAndName(element, model.getImportAliasesForNS(), typeRef,
+                                                                        model.getNamespace());
+                    nameSpace = nsAndName.getNamespaceURI();
+                    name = nsAndName.getLocalPart();
+                }
+                BaseDMNTypeImpl toSet = (BaseDMNTypeImpl) model.getTypeRegistry().resolveType(nameSpace, name);
+                variableTypes.put("?", toSet.getFeelType());
+            }
+
             result = feel.evaluateUnaryTests( unaryTests, variableTypes );
         } catch( Throwable t ) {
             logger.error( "Error evaluating unary tests. Error will be reported in the model.", t );
@@ -196,7 +228,7 @@ public class DMNFEELHelper {
                                 msgParams[0],
                                 msgParams[1] );
                     } else if ( msg instanceof Msg.Message3 ) {
-                        Object message3 = null;
+                        Object message3;
                         if ( msgParams.length == 3 ) {
                             message3 = msgParams[2];
                         } else {
@@ -214,7 +246,7 @@ public class DMNFEELHelper {
                                 msgParams[1],
                                 message3 );
                     } else if ( msg instanceof Msg.Message4 ) {
-                        String message = null;
+                        String message;
                         if (event instanceof ASTHeuristicCheckEvent) {
                             message = event.getMessage();
                         } else if (event.getOffendingSymbol() == null) {
@@ -250,16 +282,18 @@ public class DMNFEELHelper {
                                                                      || (msg.getSourceId() != null && element.getId() != null && msg.getSourceId().equals(element.getId()))) );
     }
 
-    public ClassOrInterfaceDeclaration generateUnaryTestsSource(String unaryTests, DMNCompilerContext ctx, Type inputColumnType) {
-        CompilerContext compilerContext =
-                ctx.toCompilerContext()
-                        .addInputVariableType("?", inputColumnType);
+    public ClassOrInterfaceDeclaration generateUnaryTestsSource(CompilerContext compilerContext, String unaryTests, Type inputColumnType, boolean isStatic) {
+        compilerContext.addInputVariableType("?", inputColumnType);
 
-        ProcessedUnaryTest compiledUnaryTest = ((FEELImpl) feel).compileUnaryTests(unaryTests, compilerContext);
+        ProcessedUnaryTest compiledUnaryTest = ((FEELImpl) feel).processUnaryTests(unaryTests, compilerContext);
         CompilationUnit compilationUnit = compiledUnaryTest.getSourceCode().clone();
         return compilationUnit.getType(0)
                 .asClassOrInterfaceDeclaration()
-                .setStatic(true);
+                .setStatic(isStatic);
+    }
+
+    public ClassOrInterfaceDeclaration generateStaticUnaryTestsSource(CompilerContext compilerContext, String unaryTests, Type inputColumnType) {
+        return generateUnaryTestsSource(compilerContext, unaryTests, inputColumnType, true);
     }
 
     public static class FEELEventsListenerImpl implements FEELEventListener {
@@ -295,10 +329,12 @@ public class DMNFEELHelper {
     }
 
     public ClassOrInterfaceDeclaration generateFeelExpressionSource(String input, CompilerContext compilerContext1) {
+        return generateFeelExpressionCompilationUnit(input, compilerContext1)
+                .getType(0)
+                .asClassOrInterfaceDeclaration().setStatic(true);
+    }
 
-        CompilationUnit compilationUnit = ((FEELImpl) feel).generateExpressionSource(input, compilerContext1);
-        return compilationUnit.getType(0)
-                .asClassOrInterfaceDeclaration()
-                .setStatic(true);
+    public CompilationUnit generateFeelExpressionCompilationUnit(String input, CompilerContext compilerContext1) {
+        return feel.processExpression(input, compilerContext1).getSourceCode();
     }
 }

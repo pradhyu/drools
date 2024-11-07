@@ -1,20 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- *
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model.constraints;
 
 import org.drools.model.Variable;
@@ -34,7 +35,7 @@ public class SingleConstraint5<A, B, C, D, E> extends AbstractSingleConstraint {
     private final Predicate5<A, B, C, D, E> predicate;
 
     public SingleConstraint5( Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Variable<E> var5, Predicate5<A, B, C, D, E> predicate) {
-        super( LambdaPrinter.print(predicate) );
+        super( LambdaPrinter.print(predicate), predicate.predicateInformation() );
         this.var1 = var1;
         this.var2 = var2;
         this.var3 = var3;
@@ -44,7 +45,7 @@ public class SingleConstraint5<A, B, C, D, E> extends AbstractSingleConstraint {
     }
 
     public SingleConstraint5( String exprId, Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Variable<E> var5, Predicate5<A, B, C, D, E> predicate) {
-        super(exprId);
+        super(exprId, predicate.predicateInformation());
         this.var1 = var1;
         this.var2 = var2;
         this.var3 = var3;
@@ -55,6 +56,7 @@ public class SingleConstraint5<A, B, C, D, E> extends AbstractSingleConstraint {
 
     public SingleConstraint5( Expr5ViewItemImpl<A, B, C, D, E> expr) {
         this(expr.getExprId(), expr.getFirstVariable(), expr.getVar2(), expr.getVar3(), expr.getVar4(), expr.getVar5(), expr.getPredicate());
+        setIndex( expr.getIndex() );
         setReactivitySpecs( expr.getReactivitySpecs() );
     }
 
@@ -65,9 +67,12 @@ public class SingleConstraint5<A, B, C, D, E> extends AbstractSingleConstraint {
 
     @Override
     public PredicateN getPredicate() {
-        return objs -> {
-            return predicate.test((A) objs[0], (B) objs[1], (C) objs[2], (D) objs[3], (E) objs[4]);
-        };
+        return objs -> predicate.test((A) objs[0], (B) objs[1], (C) objs[2], (D) objs[3], (E) objs[4]);
+    }
+
+    @Override
+    public Predicate5 getPredicate5() {
+        return predicate;
     }
 
     @Override

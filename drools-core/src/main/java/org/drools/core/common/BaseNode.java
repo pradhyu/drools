@@ -1,26 +1,32 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.common;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
+import org.drools.base.common.NetworkNode;
+import org.drools.base.common.RuleBasePartitionId;
+import org.drools.base.reteoo.BaseTerminalNode;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.LeftTupleSource;
 import org.drools.core.reteoo.ObjectSource;
@@ -28,27 +34,30 @@ import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.ReteooBuilder;
 import org.drools.core.reteoo.RuleRemovalContext;
 import org.drools.core.reteoo.Sink;
+import org.drools.core.reteoo.TerminalNode;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.util.Bag;
 import org.kie.api.definition.rule.Rule;
-
-import static org.drools.core.impl.StatefulKnowledgeSessionImpl.DEFAULT_RULE_UNIT;
+import org.drools.base.reteoo.NodeTypeEnums;
 
 /**
  * The base class for all Rete nodes.
  */
 public abstract class BaseNode
     implements
-    NetworkNode {
+        NetworkNode {
 
-    protected int                      id;
-    protected int                      memoryId = -1;
-    protected RuleBasePartitionId      partitionId;
-    protected boolean                  partitionsEnabled;
-    protected Bag<Rule>                associations;
-    private   boolean                  streamMode;
+    protected int                        id;
 
-    protected int hashcode;
+    protected int                        memoryId = -1;
+
+    protected RuleBasePartitionId partitionId;
+    protected Set<Rule>                  associations;
+
+    private Map<Integer, TerminalNode> associatedTerminals;
+
+    private   boolean                    streamMode;
+
+    protected int                        hashcode;
 
     public BaseNode() {
 
@@ -61,35 +70,12 @@ public abstract class BaseNode
      *      The unique id
      */
     public BaseNode(final int id,
-                    final RuleBasePartitionId partitionId,
-                    final boolean partitionsEnabled) {
+                    final RuleBasePartitionId partitionId) {
         super();
         this.id = id;
         this.partitionId = partitionId;
-        this.partitionsEnabled = partitionsEnabled;
-        this.associations = new Bag<Rule>();
-    }
-
-    @SuppressWarnings("unchecked")
-    public void readExternal(ObjectInput in) throws IOException,
-                                            ClassNotFoundException {
-        id = in.readInt();
-        memoryId = in.readInt();
-        partitionId = (RuleBasePartitionId) in.readObject();
-        partitionsEnabled = in.readBoolean();
-        associations = (Bag<Rule>) in.readObject();
-        streamMode = in.readBoolean();
-        hashcode = in.readInt();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeInt( id );
-        out.writeInt( memoryId );
-        out.writeObject( partitionId );
-        out.writeBoolean( partitionsEnabled );
-        out.writeObject( associations );
-        out.writeBoolean( streamMode );
-        out.writeInt(hashcode);
+        this.associations = new HashSet<>();
+        this.associatedTerminals = new HashMap<>();
     }
 
     /* (non-Javadoc)
@@ -112,7 +98,7 @@ public abstract class BaseNode
 
     protected void initMemoryId( BuildContext context ) {
         if (context != null && this instanceof MemoryFactory) {
-            memoryId = context.getNextId( DEFAULT_RULE_UNIT );
+            memoryId = context.getNextMemoryId();
         }
     }
 
@@ -127,7 +113,15 @@ public abstract class BaseNode
     /**
      * Attaches the node into the network. Usually to the parent <code>ObjectSource</code> or <code>TupleSource</code>
      */
-    public abstract void attach(BuildContext context);
+    public void attach(BuildContext context) {
+        // do common shared code here, so it executes for all nodes
+        doAttach(context);
+        // do common shared code here, so it executes for all nodes
+    }
+
+    public void doAttach(BuildContext context) {
+
+    }
 
 
     /**
@@ -140,8 +134,8 @@ public abstract class BaseNode
     public boolean remove(RuleRemovalContext context,
                           ReteooBuilder builder) {
         boolean removed = doRemove( context, builder );
-        if ( !this.isInUse() && !(this instanceof EntryPointNode) ) {
-            builder.getIdGenerator().releaseId(this );
+        if ( !this.isInUse() && !(NodeTypeEnums.EntryPointNode == getType()) ) {
+            builder.releaseId(this);
         }
         return removed;
     }
@@ -177,10 +171,6 @@ public abstract class BaseNode
         this.partitionId = partitionId;
     }
 
-    public void setPartitionsEnabled( boolean partitionsEnabled ) {
-        this.partitionsEnabled = partitionsEnabled;
-    }
-
     /**
      * Associates this node with the give rule
      */
@@ -196,7 +186,7 @@ public abstract class BaseNode
      * Removes the association to the given rule from the
      * associations map.
      */
-    public boolean removeAssociation( Rule rule ) {
+    public boolean removeAssociation( Rule rule, RuleRemovalContext context) {
         return this.associations.remove(rule);
     }
 
@@ -205,15 +195,7 @@ public abstract class BaseNode
     }
 
     public Rule[] getAssociatedRules() {
-        return this.associations.toArray( new Rule[this.associations.getKeySize()] );
-    }
-
-    public int getAssociatedRuleSize() {
-        return this.associations.getKeySize();
-    }
-
-    public int getAssociationsSize(Rule rule) {
-        return this.associations.sizeFor(rule);
+        return this.associations.toArray( new Rule[this.associations.size()] );
     }
 
     public boolean isAssociatedWith( Rule rule ) {
@@ -221,23 +203,43 @@ public abstract class BaseNode
     }
 
     @Override
+    public void addAssociatedTerminal(BaseTerminalNode terminalNode) {
+        associatedTerminals.put(terminalNode.getId(),(TerminalNode) terminalNode);
+    }
+
+    @Override
+    public void removeAssociatedTerminal(BaseTerminalNode terminalNode) {
+        associatedTerminals.remove(terminalNode.getId());
+    }
+
+    public int getAssociatedTerminalsSize() {
+        return associatedTerminals.size();
+    }
+
+    public boolean hasAssociatedTerminal(BaseTerminalNode terminalNode) {
+        return associatedTerminals.containsKey(terminalNode.getId());
+    }
+
+    @Override
     public final int hashCode() {
         return hashcode;
     }
 
-    public Sink[] getSinks() {
+    public NetworkNode[] getSinks() {
         Sink[] sinks = null;
-        if (this instanceof EntryPointNode ) {
+        if (NodeTypeEnums.EntryPointNode == getType() ) {
             EntryPointNode source = (EntryPointNode) this;
             Collection<ObjectTypeNode> otns = source.getObjectTypeNodes().values();
             sinks = otns.toArray(new Sink[otns.size()]);
-        } else if (this instanceof ObjectSource ) {
+        } else if (NodeTypeEnums.isObjectSource(this)) {
             ObjectSource source = (ObjectSource) this;
             sinks = source.getObjectSinkPropagator().getSinks();
-        } else if (this instanceof LeftTupleSource ) {
+        } else if (NodeTypeEnums.isLeftTupleSource(this)) {
             LeftTupleSource source = (LeftTupleSource) this;
             sinks = source.getSinkPropagator().getSinks();
         }
         return sinks;
     }
+
+
 }

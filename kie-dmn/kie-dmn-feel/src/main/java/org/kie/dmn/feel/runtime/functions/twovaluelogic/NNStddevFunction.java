@@ -1,19 +1,21 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.feel.runtime.functions.twovaluelogic;
 
 import java.math.BigDecimal;
@@ -28,14 +30,14 @@ import org.kie.dmn.feel.runtime.functions.BaseFEELFunction;
 import org.kie.dmn.feel.runtime.functions.FEELFnResult;
 import org.kie.dmn.feel.runtime.functions.ParameterName;
 import org.kie.dmn.feel.runtime.functions.SqrtFunction;
-import org.kie.dmn.feel.util.EvalHelper;
+import org.kie.dmn.feel.util.NumberEvalHelper;
 
 // based on the examples of calculations, stddev is supposed to return sample standard deviation, not population standard deviation
 public class NNStddevFunction
         extends BaseFEELFunction {
     public static final NNStddevFunction INSTANCE = new NNStddevFunction();
 
-    NNStddevFunction() {
+    private NNStddevFunction() {
         super("nn stddev");
     }
 
@@ -50,7 +52,7 @@ public class NNStddevFunction
                 // ignore null elements
                 continue;
             }
-            final BigDecimal val = EvalHelper.getBigDecimalOrNull(value);
+            final BigDecimal val = NumberEvalHelper.getBigDecimalOrNull(value);
             if ( val == null ) {
                 // coercion to number failed
                 return FEELFnResult.ofError( new InvalidParametersEvent( FEELEvent.Severity.ERROR, "list", "an element in the list is not suitable for the stddev" ) );
@@ -71,14 +73,14 @@ public class NNStddevFunction
             BigDecimal distanceSquared = numbers.get(i).subtract( mean ).pow( 2, MathContext.DECIMAL128 );
             total = total.add( distanceSquared );
         }
-        mean = total.divide( BigDecimal.valueOf( count - 1 ), MathContext.DECIMAL128 );
+        mean = total.divide( BigDecimal.valueOf( count - 1L ), MathContext.DECIMAL128 );
         return FEELFnResult.ofResult( SqrtFunction.sqrt( mean ) );
     }
 
     public FEELFnResult<BigDecimal> invoke(@ParameterName("list") Object sole) {
         if ( sole == null ) {
             return FEELFnResult.ofResult( null );
-        } else if( EvalHelper.getBigDecimalOrNull( sole ) == null ) {
+        } else if( NumberEvalHelper.getBigDecimalOrNull( sole ) == null ) {
             return FEELFnResult.ofError( new InvalidParametersEvent( FEELEvent.Severity.ERROR, "list",
                     "the value can not be converted to a number" ) );
         }

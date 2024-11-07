@@ -1,30 +1,31 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.decisiontable.parser;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.drools.core.util.StringUtils;
-import org.drools.decisiontable.parser.DefaultRuleSheetListener;
 import org.drools.template.model.Condition;
 import org.drools.template.model.Consequence;
 import org.drools.template.model.Rule;
 import org.drools.template.model.SnippetBuilder;
+import org.drools.util.StringUtils;
 
 /**
  *         href="mailto:michael.neale@gmail.com"> Michael Neale </a>
@@ -76,7 +77,7 @@ public class RuleMatrixSheetListener extends DefaultRuleSheetListener {
     private String             _action;
     private String             _horizontalCondition;
     private String             _verticalCondition;
-    private List<Condition>    _horizontalConditions   = new ArrayList<Condition>();
+    private List<Condition>    _horizontalConditions   = new ArrayList<>();
     private Condition          _currentVerticalCondition;
     private boolean            isInRuleTable;
     private Rule               firstRule;
@@ -133,7 +134,7 @@ public class RuleMatrixSheetListener extends DefaultRuleSheetListener {
         rule.setAgendaGroup( this._currentAgendaGroup );
         rule.addCondition( this._currentPrecondition );
         rule.addCondition( _currentVerticalCondition );
-        rule.addCondition( (Condition) _horizontalConditions.get( column - (ruleTableColumn + 1) ) );
+        rule.addCondition(_horizontalConditions.get(column - (ruleTableColumn + 1)));
         rule.addConsequence( consequence );
     }
 

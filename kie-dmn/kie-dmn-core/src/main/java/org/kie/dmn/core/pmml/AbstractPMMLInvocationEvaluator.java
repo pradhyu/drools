@@ -1,19 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.pmml;
 
 import java.math.BigDecimal;
@@ -28,8 +30,8 @@ import org.kie.dmn.api.core.DMNResult;
 import org.kie.dmn.api.core.DMNType;
 import org.kie.dmn.api.core.event.DMNRuntimeEventManager;
 import org.kie.dmn.core.api.DMNExpressionEvaluator;
-import org.kie.dmn.core.api.EvaluatorResult;
-import org.kie.dmn.core.api.EvaluatorResult.ResultType;
+import org.kie.dmn.api.core.EvaluatorResult;
+import org.kie.dmn.api.core.EvaluatorResult.ResultType;
 import org.kie.dmn.core.ast.DMNFunctionDefinitionEvaluator.FormalParameter;
 import org.kie.dmn.core.ast.EvaluatorResultImpl;
 import org.kie.dmn.core.impl.DMNModelImpl;
@@ -50,11 +52,20 @@ public abstract class AbstractPMMLInvocationEvaluator implements DMNExpressionEv
     protected final Resource documentResource;
     protected final String model;
 
+
     public AbstractPMMLInvocationEvaluator(String dmnNS, DMNElement node, Resource resource, String model) {
         this.dmnNS = dmnNS;
         this.node = node;
         this.documentResource = resource;
         this.model = model;
+    }
+
+    protected static Object getValueForPMMLInput(DMNResult r, String name) {
+        Object pValue = r.getContext().get(name);
+        if (pValue instanceof BigDecimal) {
+            return ((BigDecimal) pValue).doubleValue();
+        }
+        return pValue;
     }
 
     public DMNType getParameterType(String name) {
@@ -78,14 +89,6 @@ public abstract class AbstractPMMLInvocationEvaluator implements DMNExpressionEv
         this.parameters.add(new FormalParameter(name, dmnType));
     }
 
-    protected static Object getValueForPMMLInput(DMNResult r, String name) {
-        Object pValue = r.getContext().get(name);
-        if (pValue instanceof BigDecimal) {
-            return ((BigDecimal) pValue).doubleValue();
-        }
-        return pValue;
-    }
-
     public static class DummyPMMLInvocationEvaluator extends AbstractPMMLInvocationEvaluator {
 
         public DummyPMMLInvocationEvaluator(String dmnNS, DMNElement node, Resource url, String model) {
@@ -104,10 +107,13 @@ public abstract class AbstractPMMLInvocationEvaluator implements DMNExpressionEv
                                   node.getIdentifierString());
             return new EvaluatorResultImpl(null, ResultType.FAILURE);
         }
-
     }
 
     public static class PMMLInvocationEvaluatorFactory {
+
+        private PMMLInvocationEvaluatorFactory() {
+            // Constructing instances is not allowed for this Factory
+        }
 
         public static AbstractPMMLInvocationEvaluator newInstance(DMNModelImpl model, ClassLoader classLoader, DMNElement funcDef, Resource pmmlResource, String pmmlModel, PMMLInfo<?> pmmlInfo) {
             try {
@@ -117,35 +123,52 @@ public abstract class AbstractPMMLInvocationEvaluator implements DMNExpressionEv
                                                  DMNElement.class,
                                                  Resource.class,
                                                  String.class)
-                         .newInstance(model.getNamespace(),
-                                      funcDef,
-                                      pmmlResource,
-                                      pmmlModel);
+                        .newInstance(model.getNamespace(),
+                                     funcDef,
+                                     pmmlResource,
+                                     pmmlModel);
             } catch (NoClassDefFoundError | ClassNotFoundException e) {
                 LOG.warn("Tried binding org.kie:kie-dmn-jpmml, failed.");
             } catch (Throwable e) {
                 LOG.warn("Binding org.kie:kie-dmn-jpmml succeded but initialization failed, with:", e);
             }
-            try {
-                return new DMNKiePMMLInvocationEvaluator(model.getNamespace(), funcDef, pmmlResource, pmmlModel, pmmlInfo);
-            } catch (NoClassDefFoundError e) {
-                LOG.warn("Tried binding org.drools:kie-pmml, failed.");
-            } catch (Throwable e) {
-                LOG.warn("Binding org.drools:kie-pmml succeded but initialization failed, with:", e);
+            DMNKiePMMLTrustyInvocationEvaluator toReturn =  getDMNKiePMMLTrustyInvocationEvaluator(model.getNamespace(), funcDef, pmmlResource, pmmlModel, pmmlInfo);
+            if (toReturn != null) {
+                return toReturn;
+            } else {
+                MsgUtil.reportMessage(LOG,
+                                      DMNMessage.Severity.WARN,
+                                      funcDef,
+                                      model,
+                                      null,
+                                      null,
+                                      Msg.FUNC_DEF_PMML_NOT_SUPPORTED,
+                                      funcDef.getIdentifierString());
             }
-            MsgUtil.reportMessage(LOG,
-                                  DMNMessage.Severity.WARN,
-                                  funcDef,
-                                  model,
-                                  null,
-                                  null,
-                                  Msg.FUNC_DEF_PMML_NOT_SUPPORTED,
-                                  funcDef.getIdentifierString());
             return new AbstractPMMLInvocationEvaluator.DummyPMMLInvocationEvaluator(model.getNamespace(), funcDef, pmmlResource, pmmlModel);
         }
-
-        private PMMLInvocationEvaluatorFactory() {
-            // Constructing instances is not allowed for this Factory
-        }
     }
+
+    /**
+     * Retrieve the required <code>DMNKiePMMLTrustyInvocationEvaluator</code>. It may return <code>null</code>
+     * if <code>org.drools:kie-pmml-trusty</code> is not in the classpath
+     *
+     * @param nameSpace
+     * @param funcDef
+     * @param pmmlResource
+     * @param pmmlModel
+     * @param pmmlInfo
+     * @return
+     */
+    private static DMNKiePMMLTrustyInvocationEvaluator getDMNKiePMMLTrustyInvocationEvaluator(String nameSpace, DMNElement funcDef, Resource pmmlResource, String pmmlModel, PMMLInfo<?> pmmlInfo) {
+        try {
+            return new DMNKiePMMLTrustyInvocationEvaluator(nameSpace, funcDef, pmmlResource, pmmlModel, pmmlInfo);
+        } catch (NoClassDefFoundError e) {
+            LOG.warn("Tried binding org.drools:kie-pmml-trusty, failed.");
+        } catch (Throwable e) {
+            throw new RuntimeException("Binding org.drools:kie-pmml-trusty succeeded but initialization failed, with:", e);
+        }
+        return null;
+    }
+
 }

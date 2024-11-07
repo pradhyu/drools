@@ -1,17 +1,19 @@
-/*
- * Copyright 2010 salaboy.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
  * under the License.
  */
 package org.drools.persistence.jpa.marshaller;
@@ -22,23 +24,18 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Id;
-import javax.persistence.Persistence;
-import javax.persistence.metamodel.EntityType;
-import javax.persistence.metamodel.Metamodel;
-
-import org.drools.core.common.DroolsObjectInputStream;
-import org.drools.core.marshalling.impl.ProcessMarshallerWriteContext;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
+import jakarta.persistence.metamodel.EntityType;
+import jakarta.persistence.metamodel.Metamodel;
+import org.drools.base.common.DroolsObjectInputStream;
 import org.drools.persistence.api.TransactionAware;
 import org.drools.persistence.api.TransactionManager;
+import org.drools.serialization.protobuf.ProtobufProcessMarshallerWriteContext;
 import org.kie.api.marshalling.ObjectMarshallingStrategy;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.EnvironmentName;
@@ -55,7 +52,7 @@ public class JPAPlaceholderResolverStrategy implements ObjectMarshallingStrategy
     private boolean closeEmf = false;
     private String name = JPAPlaceholderResolverStrategy.class.getName();
     
-    private static final ThreadLocal<EntityPersister> persister = new ThreadLocal<EntityPersister>();
+    private static final ThreadLocal<EntityPersister> persister = new ThreadLocal<>();
     
     public JPAPlaceholderResolverStrategy(Environment env) {
         this( (EntityManagerFactory) env.get(EnvironmentName.ENTITY_MANAGER_FACTORY) );
@@ -92,7 +89,7 @@ public class JPAPlaceholderResolverStrategy implements ObjectMarshallingStrategy
     }
     
     private void initializeManagedClasses(){
-    	managedClasses = new HashSet<String>();
+    	managedClasses = new HashSet<>();
     	if( emf != null ){
 	    	Metamodel metamodel = emf.getMetamodel();
 	     	if( metamodel != null ){
@@ -235,13 +232,13 @@ public class JPAPlaceholderResolverStrategy implements ObjectMarshallingStrategy
     }
 
     protected void addMapping(Object entityId, String entityType, Object entity, ObjectOutputStream context, EntityManager em) {
-        if (entityId instanceof Number && entity instanceof VariableEntity && context instanceof ProcessMarshallerWriteContext) {
+        if (entityId instanceof Number && entity instanceof VariableEntity && context instanceof ProtobufProcessMarshallerWriteContext ) {
 
-            ProcessMarshallerWriteContext processContext = (ProcessMarshallerWriteContext) context;
+            ProtobufProcessMarshallerWriteContext processContext = (ProtobufProcessMarshallerWriteContext) context;
             VariableEntity variableEntity = (VariableEntity) entity;
 
             MappedVariable mappedVariable = new MappedVariable(((Number)entityId).longValue(), entityType, processContext.getProcessInstanceId(), processContext.getTaskId(), processContext.getWorkItemId());
-            if (processContext.getState() == ProcessMarshallerWriteContext.STATE_ACTIVE) {
+            if (processContext.getState() == ProtobufProcessMarshallerWriteContext.STATE_ACTIVE) {
                 variableEntity.addMappedVariables(mappedVariable);
             } else {
                 MappedVariable toBeRemoved = variableEntity.findMappedVariables(mappedVariable);

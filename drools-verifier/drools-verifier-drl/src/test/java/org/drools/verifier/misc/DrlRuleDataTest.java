@@ -1,33 +1,32 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.misc;
 
 import java.util.List;
 
-import org.drools.verifier.misc.DrlRuleParser;
+import org.junit.jupiter.api.Test;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DrlRuleDataTest {
     @Test
-    public void testHandleDrl() {
+    void testHandleDrl() {
         String drl = "rule \"Something\" \n ";
         drl += "dialect \"Java\" \n ";
         drl += "	when \n ";
@@ -41,15 +40,15 @@ public class DrlRuleDataTest {
 
         DrlRuleParser s = DrlRuleParser.findRulesDataFromDrl(drl).get(0);
 
-        assertEquals(1, s.getHeader().size());
-        assertEquals(2, s.getLhs().size());
-        assertEquals(3, s.getRhs().size());
-        assertEquals("", s.getDescription());
+        assertThat(s.getHeader().size()).isEqualTo(1);
+        assertThat(s.getLhs().size()).isEqualTo(2);
+        assertThat(s.getRhs().size()).isEqualTo(3);
+        assertThat(s.getDescription()).isEqualTo("");
 
     }
 
     @Test
-    public void testHandleDrlNoLineBreaks() {
+    void testHandleDrlNoLineBreaks() {
         String drl = "rule \"CreditScoreApproval\" \n";
         drl += "	dialect \"mvel\" \n";
         drl += "	when    then";
@@ -59,17 +58,17 @@ public class DrlRuleDataTest {
         drl += "end";
         DrlRuleParser s = DrlRuleParser.findRulesDataFromDrl(drl).get(0);
 
-        assertNotNull(s);
+        assertThat(s).isNotNull();
 
-        assertEquals(1, s.getHeader().size());
-        assertEquals(0, s.getLhs().size());
-        assertEquals(3, s.getRhs().size());
-        assertEquals("", s.getDescription());
+        assertThat(s.getHeader().size()).isEqualTo(1);
+        assertThat(s.getLhs().size()).isEqualTo(0);
+        assertThat(s.getRhs().size()).isEqualTo(3);
+        assertThat(s.getDescription()).isEqualTo("");
 
     }
 
     @Test
-    public void testHandleDrlWithComment() {
+    void testHandleDrlWithComment() {
         String drl = "# Really important information about this rule \n";
         drl += "# Another line because one was not enough \n";
         drl += "#  \n";
@@ -115,43 +114,43 @@ public class DrlRuleDataTest {
 
         List<DrlRuleParser> list = DrlRuleParser.findRulesDataFromDrl(drl);
 
-        assertEquals(3, list.size());
+        assertThat(list.size()).isEqualTo(3);
 
         DrlRuleParser rd = list.get(0);
 
-        assertNotNull(rd);
+        assertThat(rd).isNotNull();
 
-        assertEquals(1, rd.getHeader().size());
-        assertEquals(2, rd.getLhs().size());
-        assertEquals(3, rd.getRhs().size());
-        assertEquals(1, rd.getMetadata().size());
-        assertNotNull(rd.getDescription());
-        assertNotSame("", rd.getDescription());
+        assertThat(rd.getHeader().size()).isEqualTo(1);
+        assertThat(rd.getLhs().size()).isEqualTo(2);
+        assertThat(rd.getRhs().size()).isEqualTo(3);
+        assertThat(rd.getMetadata().size()).isEqualTo(1);
+        assertThat(rd.getDescription()).isNotNull();
+        assertThat(rd.getDescription()).isNotEqualTo("");
 
         DrlRuleParser rd2 = list.get(1);
 
-        assertNotNull(rd2);
+        assertThat(rd2).isNotNull();
 
-        assertEquals(1, rd2.getHeader().size());
-        assertEquals(2, rd2.getLhs().size());
-        assertEquals(3, rd2.getRhs().size());
-        assertEquals(3, rd2.getMetadata().size());
-        assertNotNull(rd2.getDescription());
+        assertThat(rd2.getHeader().size()).isEqualTo(1);
+        assertThat(rd2.getLhs().size()).isEqualTo(2);
+        assertThat(rd2.getRhs().size()).isEqualTo(3);
+        assertThat(rd2.getMetadata().size()).isEqualTo(3);
+        assertThat(rd2.getDescription()).isNotNull();
 
         String description = "Really important information about this rule\n";
         description += "Another line because one was not enough\n\n";
 
-        assertEquals(description, rd2.getDescription());
-        assertNotSame("", rd2.getDescription());
+        assertThat(rd2.getDescription()).isEqualTo(description);
+        assertThat(rd2.getDescription()).isNotEqualTo("");
 
         DrlRuleParser rd3 = list.get(2);
 
-        assertNotNull(rd3);
+        assertThat(rd3).isNotNull();
 
-        assertEquals(1, rd3.getHeader().size());
-        assertEquals(2, rd3.getLhs().size());
-        assertEquals(3, rd3.getRhs().size());
-        assertNotNull(rd3.getDescription());
-        assertEquals("", rd3.getDescription());
+        assertThat(rd3.getHeader().size()).isEqualTo(1);
+        assertThat(rd3.getLhs().size()).isEqualTo(2);
+        assertThat(rd3.getRhs().size()).isEqualTo(3);
+        assertThat(rd3.getDescription()).isNotNull();
+        assertThat(rd3.getDescription()).isEqualTo("");
     }
 }

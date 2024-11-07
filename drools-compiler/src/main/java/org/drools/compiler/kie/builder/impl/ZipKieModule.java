@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.kie.builder.impl;
 
 import java.io.BufferedInputStream;
@@ -31,12 +34,13 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.drools.core.io.internal.InternalResource;
+import org.drools.io.InternalResource;
+import org.drools.util.PortablePath;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.builder.model.KieModuleModel;
 import org.kie.internal.io.ResourceFactory;
 
-import static org.drools.core.util.IoUtils.readBytesFromInputStream;
+import static org.drools.util.IoUtils.readBytesFromInputStream;
 
 public class ZipKieModule extends AbstractKieModule implements InternalKieModule, Serializable {
     private File file;
@@ -57,7 +61,7 @@ public class ZipKieModule extends AbstractKieModule implements InternalKieModule
     @Override
     public InternalResource getResource( String fileName) {
         byte[] bytes = getBytes(fileName);
-        if (bytes != null && bytes.length > 0) {
+        if (bytes != null) {
             return (InternalResource) ResourceFactory.newByteArrayResource(bytes).setSourcePath(fileName);
         }
         return null;
@@ -140,7 +144,7 @@ public class ZipKieModule extends AbstractKieModule implements InternalKieModule
     }
 
     private Map<String, List<String>> processZipUrl( String urlPath, int urlSeparatorPos ) throws IOException {
-        String folderInUrl = urlPath.substring( urlSeparatorPos + 1 ).replace("\\", "/");
+        String folderInUrl = PortablePath.of( urlPath.substring( urlSeparatorPos + 1 ) ).asString();
         // read jar file from uber-jar
         InputStream in = this.getClass().getResourceAsStream(folderInUrl);
         if (in == null) {
@@ -155,7 +159,7 @@ public class ZipKieModule extends AbstractKieModule implements InternalKieModule
 
     private Map<String, List<String>> processFolderInZipFile( String urlPath, int urlSeparatorPos ) throws IOException {
         String jarFile = urlPath.substring( 0, urlSeparatorPos );
-        String folderInUrl = urlPath.substring( urlSeparatorPos + 1 ).replace("\\", "/");
+        String folderInUrl = PortablePath.of( urlPath.substring( urlSeparatorPos + 1 ) ).asString();
         String rootFolder = folderInUrl.startsWith( "/" ) ? folderInUrl.substring( 1 ) : folderInUrl;
 
         try (FileInputStream fis = new FileInputStream(jarFile);

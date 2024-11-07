@@ -1,35 +1,42 @@
-/*
- * Copyright 2005 JBoss Inc
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model.patterns;
 
 import java.util.Arrays;
 
 import org.drools.model.Argument;
 import org.drools.model.Condition;
+import org.drools.model.Pattern;
 import org.drools.model.QueryDef;
 import org.drools.model.Variable;
+import org.drools.model.impl.DeclarationImpl;
 import org.drools.model.impl.ModelComponent;
 import org.drools.model.view.QueryCallViewItem;
+import org.drools.model.view.SelfPatternBiding;
 
 public class QueryCallPattern implements Condition, ModelComponent {
 
     private final QueryDef query;
     private final boolean open;
     private final Argument<?>[] arguments;
+
+    private PatternImpl resultPattern;
 
     public QueryCallPattern( QueryCallViewItem queryCallView ) {
         this(queryCallView.getQuery(), queryCallView.isOpen(), queryCallView.getArguments());
@@ -56,6 +63,18 @@ public class QueryCallPattern implements Condition, ModelComponent {
     @Override
     public Type getType() {
         return Type.QUERY;
+    }
+
+    public Pattern getResultPattern() {
+        if (resultPattern == null) {
+            resultPattern = new PatternImpl( new DeclarationImpl(Object[].class) );
+            for (Argument arg : arguments) {
+                if (arg instanceof Variable) {
+                    resultPattern.addBinding( new SelfPatternBiding( ( Variable ) arg ) );
+                }
+            }
+        }
+        return resultPattern;
     }
 
     @Override

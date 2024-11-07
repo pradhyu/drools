@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.decisiontable.parser;
 
 import java.util.ArrayList;
@@ -47,8 +50,8 @@ public class RhsBuilder implements SourceBuilder {
         this.headerRow = row;
         this.headerCol = column;
         this.variable = boundVariable == null ? "" : boundVariable.trim();
-        this.templates = new HashMap<Integer, String>();
-        this.values = new ArrayList<String>();
+        this.templates = new HashMap<>();
+        this.values = new ArrayList<>();
     }
 
     public ActionType.Code getActionTypeCode() {
@@ -56,7 +59,7 @@ public class RhsBuilder implements SourceBuilder {
     }
 
     public void addTemplate(int row, int column, String content) {
-        Integer key = new Integer(column);
+        Integer key = Integer.valueOf(column);
         content = content.trim();
         if (isBoundVar()) {
             content = variable + "." + content + ";";
@@ -70,7 +73,7 @@ public class RhsBuilder implements SourceBuilder {
 
     public void addCellValue(int row, int column, String value) {
         hasValues = true;
-        String template = (String) this.templates.get(new Integer(column));
+        String template = this.templates.get(Integer.valueOf(column));
         if (template == null) {
             throw new DecisionTableParseException("No code snippet for " +
                                                           this.actionTypeCode + ", above cell " +
@@ -86,7 +89,7 @@ public class RhsBuilder implements SourceBuilder {
     }
 
     public String getResult() {
-        StringBuffer buf = new StringBuffer();
+        StringBuilder buf = new StringBuilder();
         for ( Iterator<String> iter = this.values.iterator(); iter.hasNext(); ) {
             buf.append( iter.next() );
             if (iter.hasNext()) {

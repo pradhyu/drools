@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.feel.runtime.functions;
 
 import java.time.DateTimeException;
@@ -36,6 +38,8 @@ import org.kie.dmn.feel.runtime.events.InvalidParametersEvent;
 public class DateAndTimeFunction
         extends BaseFEELFunction {
 
+    public static final DateAndTimeFunction INSTANCE = new DateAndTimeFunction();
+
     public static final DateTimeFormatter FEEL_DATE_TIME;
     public static final DateTimeFormatter REGION_DATETIME_FORMATTER;
     static {
@@ -53,7 +57,7 @@ public class DateAndTimeFunction
                                                                  .toFormatter();
     }
 
-    public DateAndTimeFunction() {
+    private DateAndTimeFunction() {
         super(FEELConversionFunctionNames.DATE_AND_TIME);
     }
 
@@ -69,8 +73,8 @@ public class DateAndTimeFunction
             if( val.contains( "T" ) ) {
                 return FEELFnResult.ofResult(FEEL_DATE_TIME.parseBest(val, ZonedDateTime::from, OffsetDateTime::from, LocalDateTime::from));
             } else {
-                TemporalAccessor value = DateTimeFormatter.ISO_DATE.parse( val, LocalDate::from );
-                return FEELFnResult.ofResult( LocalDateTime.of( (LocalDate)value, LocalTime.of( 0, 0 ) ) );
+                LocalDate value = DateTimeFormatter.ISO_DATE.parse(val, LocalDate::from);
+                return FEELFnResult.ofResult( LocalDateTime.of(value, LocalTime.of(0, 0)));
             }
         } catch ( Exception e ) {
             return FEELFnResult.ofError(new InvalidParametersEvent(Severity.ERROR, "from", "date-parsing exception", e));

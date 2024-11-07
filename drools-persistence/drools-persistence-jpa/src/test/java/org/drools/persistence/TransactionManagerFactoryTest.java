@@ -1,17 +1,20 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *  
- *      http://www.apache.org/licenses/LICENSE-2.0
- *  
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.persistence;
 
@@ -24,9 +27,7 @@ import org.junit.After;
 import org.junit.Test;
 import org.kie.api.runtime.Environment;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TransactionManagerFactoryTest {
 
@@ -42,7 +43,7 @@ public class TransactionManagerFactoryTest {
     @Test
     public void defaultsToJtaTransactionManagerFactory() throws Exception {
 
-        assertTrue(transactionManagerFactory.get() instanceof JtaTransactionManagerFactory);
+        assertThat(transactionManagerFactory.get() instanceof JtaTransactionManagerFactory).isTrue();
     }
 
     @Test
@@ -51,8 +52,7 @@ public class TransactionManagerFactoryTest {
                            TestTransactionManagerFactory.class.getName());
         transactionManagerFactory.resetInstance();
 
-        assertEquals(TestTransactionManagerFactory.class.getName(),
-                     transactionManagerFactory.get().getClass().getName());
+        assertThat(transactionManagerFactory.get().getClass().getName()).isEqualTo(TestTransactionManagerFactory.class.getName());
     }
 
     @Test
@@ -62,36 +62,31 @@ public class TransactionManagerFactoryTest {
 
         transactionManagerFactory.resetInstance();
 
-        assertEquals(TestTransactionManagerFactory.class.getName(),
-                     transactionManagerFactory.get().getClass().getName());
+        assertThat(transactionManagerFactory.get().getClass().getName()).isEqualTo(TestTransactionManagerFactory.class.getName());
 
         System.setProperty("org.kie.txm.factory.class",
                            TestTransactionManagerFactoryTwo.class.getName());
 
         transactionManagerFactory.resetInstance();
 
-        assertEquals(TestTransactionManagerFactoryTwo.class.getName(),
-                     transactionManagerFactory.get().getClass().getName());
+        assertThat(transactionManagerFactory.get().getClass().getName()).isEqualTo(TestTransactionManagerFactoryTwo.class.getName());
         transactionManagerFactory.resetInstance();
     }
 
     @Test
     public void createsJtaTransactionManager() throws Exception {
-        assertEquals(JtaTransactionManager.class.getName(),
-                     transactionManagerFactory.newTransactionManager().getClass().getName());
+        assertThat(transactionManagerFactory.newTransactionManager().getClass().getName()).isEqualTo(JtaTransactionManager.class.getName());
     }
 
     @Test
     public void createsJtaTransactionManagerWithEnvironment() throws Exception {
         Environment env = EnvironmentFactory.newEnvironment();
 
-        assertEquals(JtaTransactionManagerFactory.class.getName(),
-                     transactionManagerFactory.get().getClass().getName());
+        assertThat(transactionManagerFactory.get().getClass().getName()).isEqualTo(JtaTransactionManagerFactory.class.getName());
 
-        assertNotNull(transactionManagerFactory.newTransactionManager(env));
+        assertThat(transactionManagerFactory.newTransactionManager(env)).isNotNull();
 
-        assertEquals(JtaTransactionManager.class.getName(),
-                     transactionManagerFactory.newTransactionManager(env).getClass().getName());
+        assertThat(transactionManagerFactory.newTransactionManager(env).getClass().getName()).isEqualTo(JtaTransactionManager.class.getName());
     }
 
     private TransactionManagerFactory getTransactionManagerFactory() {

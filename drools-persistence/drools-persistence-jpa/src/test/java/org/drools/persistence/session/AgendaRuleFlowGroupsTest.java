@@ -1,17 +1,20 @@
-/*
- * Copyright 2011 Red Hat Inc.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.persistence.session;
 
@@ -21,12 +24,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
+import org.drools.commands.impl.CommandBasedStatefulKnowledgeSessionImpl;
 import org.drools.core.common.InternalAgenda;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.io.impl.ClassPathResource;
+import org.drools.core.common.InternalAgendaGroup;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.persistence.util.DroolsPersistenceUtil;
+import org.drools.io.ClassPathResource;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -47,10 +51,10 @@ import org.kie.internal.command.RegistryContext;
 import org.kie.internal.persistence.jpa.JPAKnowledgeService;
 import org.kie.internal.utils.KieHelper;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
 import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 @RunWith(Parameterized.class)
 public class AgendaRuleFlowGroupsTest {
@@ -81,12 +85,12 @@ public class AgendaRuleFlowGroupsTest {
     @Test	
 	public void testRuleFlowGroupOnly() throws Exception {
 		
-		CommandBasedStatefulKnowledgeSession ksession = createSession(-1, "ruleflow-groups.drl");
-		
-		org.drools.core.spi.AgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
-		// only main is available
-		assertEquals(1, groups.length);
-		assertEquals("MAIN", groups[0].getName());
+		CommandBasedStatefulKnowledgeSessionImpl ksession = createSession(-1, "ruleflow-groups.drl");
+
+        InternalAgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
+        // only main is available
+        assertThat(groups.length).isEqualTo(1);
+        assertThat(groups[0].getName()).isEqualTo("MAIN");
 		long id = ksession.getIdentifier();
 		List<String> list = new ArrayList<String>();
 		list.add("Test");
@@ -97,22 +101,22 @@ public class AgendaRuleFlowGroupsTest {
 		ksession.dispose();        
         ksession = createSession(id, "ruleflow-groups.drl");
         
-        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // main and rule flow is now on the agenda
-        assertEquals(2, groups.length);
-        assertEquals("MAIN", groups[0].getName());
-        assertEquals("ruleflow-group", groups[1].getName());
+        assertThat(groups.length).isEqualTo(2);
+        assertThat(groups[0].getName()).isEqualTo("MAIN");
+        assertThat(groups[1].getName()).isEqualTo("ruleflow-group");
 	}
     
     @Test   
     public void testAgendaGroupOnly() throws Exception {
         
-        CommandBasedStatefulKnowledgeSession ksession = createSession(-1, "agenda-groups.drl");
-        
-        org.drools.core.spi.AgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        CommandBasedStatefulKnowledgeSessionImpl ksession = createSession(-1, "agenda-groups.drl");
+
+        InternalAgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // only main is available
-        assertEquals(1, groups.length);
-        assertEquals("MAIN", groups[0].getName());
+        assertThat(groups.length).isEqualTo(1);
+        assertThat(groups[0].getName()).isEqualTo("MAIN");
         long id = ksession.getIdentifier();
         List<String> list = new ArrayList<String>();
         list.add("Test");
@@ -123,23 +127,23 @@ public class AgendaRuleFlowGroupsTest {
         ksession.dispose();        
         ksession = createSession(id, "agenda-groups.drl");
         
-        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // main and agenda group is now on the agenda
-        assertEquals(2, groups.length);
-        assertEquals("MAIN", groups[0].getName());
-        assertEquals("agenda-group", groups[1].getName());
+        assertThat(groups.length).isEqualTo(2);
+        assertThat(groups[0].getName()).isEqualTo("MAIN");
+        assertThat(groups[1].getName()).isEqualTo("agenda-group");
         
     }
     
     @Test   
     public void testAgendaGroupAndRuleFlowGroup() throws Exception {
         
-        CommandBasedStatefulKnowledgeSession ksession = createSession(-1, "agenda-groups.drl", "ruleflow-groups.drl");
-        
-        org.drools.core.spi.AgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        CommandBasedStatefulKnowledgeSessionImpl ksession = createSession(-1, "agenda-groups.drl", "ruleflow-groups.drl");
+
+        InternalAgendaGroup[] groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // only main is available
-        assertEquals(1, groups.length);
-        assertEquals("MAIN", groups[0].getName());
+        assertThat(groups.length).isEqualTo(1);
+        assertThat(groups[0].getName()).isEqualTo("MAIN");
         long id = ksession.getIdentifier();
         List<String> list = new ArrayList<String>();
         list.add("Test");
@@ -151,25 +155,25 @@ public class AgendaRuleFlowGroupsTest {
         ksession.dispose();        
         ksession = createSession(id, "agenda-groups.drl", "ruleflow-groups.drl");
         
-        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroups();
+        groups = ((InternalAgenda)stripSession(ksession).getAgenda()).getAgendaGroupsManager().getAgendaGroups();
         // main and agenda group is now on the agenda
-        assertEquals(3, groups.length);
-        assertEquals("MAIN", groups[0].getName());
-        assertEquals("ruleflow-group", groups[1].getName());
-        assertEquals("agenda-group", groups[2].getName());
+        assertThat(groups.length).isEqualTo(3);
+        assertThat(groups[0].getName()).isEqualTo("MAIN");
+        assertThat(groups[1].getName()).isEqualTo("ruleflow-group");
+        assertThat(groups[2].getName()).isEqualTo("agenda-group");
         
     }
     
     private KieSession stripSession(KieSession ksession) {
-        if (ksession instanceof CommandBasedStatefulKnowledgeSession) {
-            return ((RegistryContext)((CommandBasedStatefulKnowledgeSession) ksession).
+        if (ksession instanceof CommandBasedStatefulKnowledgeSessionImpl) {
+            return ((RegistryContext)((CommandBasedStatefulKnowledgeSessionImpl) ksession).
                     getRunner().createContext()).lookup( KieSession.class );
         }
         
         return ksession;
     }
 	
-	private CommandBasedStatefulKnowledgeSession createSession(long id, String...rules) {
+	private CommandBasedStatefulKnowledgeSessionImpl createSession(long id, String...rules) {
 		
 		KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
 		for (String rule : rules) {
@@ -188,9 +192,9 @@ public class AgendaRuleFlowGroupsTest {
             env.set(EnvironmentName.USE_PESSIMISTIC_LOCKING, true);
         }
         if (id == -1) {
-            return (CommandBasedStatefulKnowledgeSession) JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
+            return (CommandBasedStatefulKnowledgeSessionImpl) JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
 	    }  else {
-	        return (CommandBasedStatefulKnowledgeSession) JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
+	        return (CommandBasedStatefulKnowledgeSessionImpl) JPAKnowledgeService.loadStatefulKnowledgeSession( id, kbase, null, env );
 	    }
 	}
 	
@@ -222,7 +226,7 @@ public class AgendaRuleFlowGroupsTest {
 
         public Void execute(Context context) {
             KieSession ksession = ((RegistryContext) context).lookup( KieSession.class );
-            ((InternalAgenda) ksession.getAgenda()).getAgendaGroup(agendaGroupName).setFocus();
+            ksession.getAgenda().getAgendaGroup(agendaGroupName).setFocus();
             return null;
         }
 
@@ -255,8 +259,8 @@ public class AgendaRuleFlowGroupsTest {
 
         System.err.println( res.getMessages() );
 
-        assertEquals( 1, res.getMessages( Message.Level.WARNING ).size() );
-        assertEquals( 0, res.getMessages( Message.Level.ERROR ).size() );
+        assertThat(res.getMessages(Message.Level.WARNING).size()).isEqualTo(1);
+        assertThat(res.getMessages(Message.Level.ERROR).size()).isEqualTo(0);
 
     }
 

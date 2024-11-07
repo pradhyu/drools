@@ -1,17 +1,20 @@
-/*
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.persistence;
 
@@ -20,28 +23,24 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import org.drools.core.SessionConfiguration;
-import org.drools.core.command.EntryPointCreator;
-import org.drools.core.command.SingleSessionCommandService;
-import org.drools.core.command.impl.AbstractInterceptor;
-import org.drools.core.command.impl.CommandBasedEntryPoint;
+import org.drools.commands.ChainableRunner;
+import org.drools.commands.EntryPointCreator;
+import org.drools.commands.SingleSessionCommandService;
+import org.drools.commands.fluent.InternalExecutable;
+import org.drools.commands.fluent.PseudoClockRunner;
+import org.drools.commands.impl.AbstractInterceptor;
+import org.drools.commands.impl.CommandBasedEntryPoint;
 import org.drools.core.common.EndOperationListener;
 import org.drools.core.common.InternalKnowledgeRuntime;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.fluent.impl.InternalExecutable;
-import org.drools.core.fluent.impl.PseudoClockRunner;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
-import org.drools.core.marshalling.impl.KieSessionInitializer;
-import org.drools.core.marshalling.impl.MarshallingConfigurationImpl;
-import org.drools.core.runtime.ChainableRunner;
 import org.drools.core.runtime.process.InternalProcessRuntime;
 import org.drools.core.time.impl.CommandServiceTimerJobFactoryManager;
 import org.drools.core.time.impl.TimerJobFactoryManager;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.persistence.api.OrderedTransactionSynchronization;
 import org.drools.persistence.api.PersistenceContext;
 import org.drools.persistence.api.PersistenceContextManager;
-import org.drools.persistence.api.SessionMarshallingHelper;
 import org.drools.persistence.api.SessionNotFoundException;
 import org.drools.persistence.api.TransactionAware;
 import org.drools.persistence.api.TransactionManager;
@@ -50,7 +49,10 @@ import org.drools.persistence.api.TransactionManagerHelper;
 import org.drools.persistence.info.SessionInfo;
 import org.drools.persistence.jpa.JpaPersistenceContextManager;
 import org.drools.persistence.jpa.processinstance.JPAWorkItemManager;
+import org.drools.serialization.protobuf.marshalling.KieSessionInitializer;
+import org.drools.serialization.protobuf.marshalling.MarshallingConfigurationImpl;
 import org.kie.api.KieBase;
+import org.kie.api.KieServices;
 import org.kie.api.marshalling.ObjectMarshallingStrategy;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.EnvironmentName;
@@ -79,7 +81,7 @@ public class PersistableRunner implements SingleSessionCommandService {
 
     private volatile boolean           doRollback;
 
-    private LinkedList<ChainableRunner> interceptors = new LinkedList<ChainableRunner>();
+    private LinkedList<ChainableRunner> interceptors = new LinkedList<>();
 
     public void checkEnvironment(Environment env) {
         if ( env.get( EnvironmentName.ENTITY_MANAGER_FACTORY ) == null &&
@@ -93,7 +95,7 @@ public class PersistableRunner implements SingleSessionCommandService {
                               KieSessionConfiguration conf,
                               Environment env ) {
         if ( conf == null ) {
-            conf = SessionConfiguration.newInstance();
+            conf = KieServices.get().newKieSessionConfiguration();
         }
         this.env = env;
 
@@ -169,7 +171,7 @@ public class PersistableRunner implements SingleSessionCommandService {
                               KieSessionConfiguration conf,
                               Environment env ) {
         if ( conf == null ) {
-            conf = SessionConfiguration.newInstance();
+            conf = KieServices.get().newKieSessionConfiguration();
         }
 
         this.env = env;
@@ -560,7 +562,12 @@ public class PersistableRunner implements SingleSessionCommandService {
         }
     }
 
+
+    private static ThreadLocal<String> txParent = new ThreadLocal<>();
+
     private class TransactionInterceptor extends AbstractInterceptor {
+
+
 
         public TransactionInterceptor() {
             setNext(new PseudoClockRunner());
@@ -578,11 +585,15 @@ public class PersistableRunner implements SingleSessionCommandService {
 
             // Open the entity manager before the transaction begins.
             PersistenceContext persistenceContext = jpm.getApplicationScopedPersistenceContext();
-
+            // We flag the current persistence runner
+            final String DROOLS_PARENT_RUNNER = "DROOLS_PARENT_RUNNER";
+            boolean isParentRunner = txParent.get() == null; //first time ?
+            if (isParentRunner) {
+                txParent.set(DROOLS_PARENT_RUNNER);
+            }
             boolean transactionOwner = false;
             try {
                 transactionOwner = txm.begin();
-
                 persistenceContext.joinTransaction();
 
                 initExistingKnowledgeSession( sessionInfo.getId(),
@@ -600,14 +611,19 @@ public class PersistableRunner implements SingleSessionCommandService {
                 txm.commit( transactionOwner );
 
             } catch ( RuntimeException re ) {
-                rollbackTransaction( re,
-                        transactionOwner );
+                if (isParentRunner) {
+                    rollbackTransaction(re, transactionOwner);
+                }
                 throw re;
             } catch ( Exception t1 ) {
-                rollbackTransaction( t1,
-                        transactionOwner );
-                throw new RuntimeException( "Wrapped exception see cause",
-                        t1 );
+                if (isParentRunner) {
+                    rollbackTransaction(t1, transactionOwner);
+                }
+                throw new RuntimeException("Wrapped exception see cause", t1);
+            } finally {
+                if(isParentRunner) {
+                    txParent.remove();
+                }
             }
 
             return context;

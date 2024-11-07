@@ -1,29 +1,29 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.solver;
 
 import java.util.List;
 import java.util.Set;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import org.drools.verifier.VerifierComponentMockFactory;
 import org.drools.verifier.components.LiteralRestriction;
 import org.drools.verifier.components.OperatorDescrType;
@@ -43,26 +43,24 @@ public class PatternSolverTest {
      * descr && descr2
      */
     @Test
-    public void testAddBasicAnd() {
+    void testAddBasicAnd() {
         Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
-        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction( pattern,
-                                                                                      "" );
-        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
+        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction(pattern,
+                "");
 
         PatternSolver solver = new PatternSolver( pattern );
 
-        solver.addOperator( OperatorDescrType.AND );
-        solver.add( literalRestriction );
-        solver.add( literalRestriction2 );
+        solver.addOperator(OperatorDescrType.AND);
+        solver.add(literalRestriction);
+        solver.add(literalRestriction2);
         solver.end();
 
         List<Set<VerifierComponent>> list = solver.getPossibilityLists();
-        assertEquals( 1,
-                      list.size() );
-        assertEquals( 2,
-                      list.get( 0 ).size() );
+        assertThat(list.size()).isEqualTo(1);
+        assertThat(list.get(0).size()).isEqualTo(2);
     }
 
     /**
@@ -78,28 +76,25 @@ public class PatternSolverTest {
      * descr2
      */
     @Test
-    public void testAddBasicOr() {
+    void testAddBasicOr() {
         Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
-        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction( pattern,
-                                                                                      "" );
-        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
+        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction(pattern,
+                "");
 
         PatternSolver solver = new PatternSolver( pattern );
 
-        solver.addOperator( OperatorDescrType.OR );
-        solver.add( literalRestriction );
-        solver.add( literalRestriction2 );
+        solver.addOperator(OperatorDescrType.OR);
+        solver.add(literalRestriction);
+        solver.add(literalRestriction2);
         solver.end();
 
         List<Set<VerifierComponent>> list = solver.getPossibilityLists();
-        assertEquals( 2,
-                      list.size() );
-        assertEquals( 1,
-                      list.get( 0 ).size() );
-        assertEquals( 1,
-                      list.get( 1 ).size() );
+        assertThat(list.size()).isEqualTo(2);
+        assertThat(list.get(0).size()).isEqualTo(1);
+        assertThat(list.get(1).size()).isEqualTo(1);
     }
 
     /**
@@ -117,38 +112,35 @@ public class PatternSolverTest {
      * descr2 && descr3
      */
     @Test
-    public void testAddOrAnd() {
+    void testAddOrAnd() {
         Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
-        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction( pattern,
-                                                                                      "" );
-        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
+        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction(pattern,
+                "");
 
         PatternSolver solver = new PatternSolver( pattern );
 
-        solver.addOperator( OperatorDescrType.OR );
-        solver.add( literalRestriction );
-        solver.addOperator( OperatorDescrType.AND );
-        solver.add( literalRestriction2 );
-        solver.add( literalRestriction3 );
+        solver.addOperator(OperatorDescrType.OR);
+        solver.add(literalRestriction);
+        solver.addOperator(OperatorDescrType.AND);
+        solver.add(literalRestriction2);
+        solver.add(literalRestriction3);
         solver.end();
         solver.end();
 
         List<Set<VerifierComponent>> list = solver.getPossibilityLists();
-        assertEquals( 2,
-                      list.size() );
+        assertThat(list.size()).isEqualTo(2);
 
-        assertEquals( 1,
-                      list.get( 0 ).size() );
-        assertTrue( list.get( 0 ).contains( literalRestriction ) );
+        assertThat(list.get(0).size()).isEqualTo(1);
+        assertThat(list.get(0).contains(literalRestriction)).isTrue();
 
-        assertEquals( 2,
-                      list.get( 1 ).size() );
-        assertTrue( list.get( 1 ).contains( literalRestriction2 ) );
-        assertTrue( list.get( 1 ).contains( literalRestriction3 ) );
+        assertThat(list.get(1).size()).isEqualTo(2);
+        assertThat(list.get(1).contains(literalRestriction2)).isTrue();
+        assertThat(list.get(1).contains(literalRestriction3)).isTrue();
     }
 
     /**
@@ -166,39 +158,36 @@ public class PatternSolverTest {
      * descr && descr3
      */
     @Test
-    public void testAddAndOr() {
+    void testAddAndOr() {
         Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
-        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction( pattern,
-                                                                                      "" );
-        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
+        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction(pattern,
+                "");
 
         PatternSolver solver = new PatternSolver( pattern );
 
-        solver.addOperator( OperatorDescrType.AND );
-        solver.add( literalRestriction );
-        solver.addOperator( OperatorDescrType.OR );
-        solver.add( literalRestriction2 );
-        solver.add( literalRestriction3 );
+        solver.addOperator(OperatorDescrType.AND);
+        solver.add(literalRestriction);
+        solver.addOperator(OperatorDescrType.OR);
+        solver.add(literalRestriction2);
+        solver.add(literalRestriction3);
         solver.end();
         solver.end();
 
         List<Set<VerifierComponent>> list = solver.getPossibilityLists();
-        assertEquals( 2,
-                      list.size() );
+        assertThat(list.size()).isEqualTo(2);
 
-        assertEquals( 2,
-                      list.get( 0 ).size() );
-        assertTrue( list.get( 0 ).contains( literalRestriction ) );
-        assertTrue( list.get( 0 ).contains( literalRestriction2 ) );
+        assertThat(list.get(0).size()).isEqualTo(2);
+        assertThat(list.get(0).contains(literalRestriction)).isTrue();
+        assertThat(list.get(0).contains(literalRestriction2)).isTrue();
 
-        assertEquals( 2,
-                      list.get( 1 ).size() );
-        assertTrue( list.get( 1 ).contains( literalRestriction ) );
-        assertTrue( list.get( 1 ).contains( literalRestriction3 ) );
+        assertThat(list.get(1).size()).isEqualTo(2);
+        assertThat(list.get(1).contains(literalRestriction)).isTrue();
+        assertThat(list.get(1).contains(literalRestriction3)).isTrue();
     }
 
     /**
@@ -220,54 +209,49 @@ public class PatternSolverTest {
      * descr2 && descr4
      */
     @Test
-    public void testAddAndOrOr() {
+    void testAddAndOrOr() {
         Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
-        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction( pattern,
-                                                                                      "" );
-        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction4 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
+        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction4 = LiteralRestriction.createRestriction(pattern,
+                "");
 
         PatternSolver solver = new PatternSolver( pattern );
 
-        solver.addOperator( OperatorDescrType.AND );
-        solver.addOperator( OperatorDescrType.OR );
-        solver.add( literalRestriction );
-        solver.add( literalRestriction2 );
+        solver.addOperator(OperatorDescrType.AND);
+        solver.addOperator(OperatorDescrType.OR);
+        solver.add(literalRestriction);
+        solver.add(literalRestriction2);
         solver.end();
-        solver.addOperator( OperatorDescrType.OR );
-        solver.add( literalRestriction3 );
-        solver.add( literalRestriction4 );
+        solver.addOperator(OperatorDescrType.OR);
+        solver.add(literalRestriction3);
+        solver.add(literalRestriction4);
         solver.end();
         solver.end();
 
         List<Set<VerifierComponent>> list = solver.getPossibilityLists();
-        assertEquals( 4,
-                      list.size() );
+        assertThat(list.size()).isEqualTo(4);
 
-        assertEquals( 2,
-                      list.get( 0 ).size() );
-        assertTrue( list.get( 0 ).contains( literalRestriction ) );
-        assertTrue( list.get( 0 ).contains( literalRestriction3 ) );
+        assertThat(list.get(0).size()).isEqualTo(2);
+        assertThat(list.get(0).contains(literalRestriction)).isTrue();
+        assertThat(list.get(0).contains(literalRestriction3)).isTrue();
 
-        assertEquals( 2,
-                      list.get( 1 ).size() );
-        assertTrue( list.get( 1 ).contains( literalRestriction ) );
-        assertTrue( list.get( 1 ).contains( literalRestriction4 ) );
+        assertThat(list.get(1).size()).isEqualTo(2);
+        assertThat(list.get(1).contains(literalRestriction)).isTrue();
+        assertThat(list.get(1).contains(literalRestriction4)).isTrue();
 
-        assertEquals( 2,
-                      list.get( 2 ).size() );
-        assertTrue( list.get( 2 ).contains( literalRestriction2 ) );
-        assertTrue( list.get( 2 ).contains( literalRestriction3 ) );
+        assertThat(list.get(2).size()).isEqualTo(2);
+        assertThat(list.get(2).contains(literalRestriction2)).isTrue();
+        assertThat(list.get(2).contains(literalRestriction3)).isTrue();
 
-        assertEquals( 2,
-                      list.get( 3 ).size() );
-        assertTrue( list.get( 3 ).contains( literalRestriction2 ) );
-        assertTrue( list.get( 3 ).contains( literalRestriction4 ) );
+        assertThat(list.get(3).size()).isEqualTo(2);
+        assertThat(list.get(3).contains(literalRestriction2)).isTrue();
+        assertThat(list.get(3).contains(literalRestriction4)).isTrue();
     }
 
     /**
@@ -285,44 +269,41 @@ public class PatternSolverTest {
      * descr3 && descr4
      */
     @Test
-    public void testAddOrAndAnd() {
+    void testAddOrAndAnd() {
         Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
-        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction( pattern,
-                                                                                      "" );
-        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction4 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
+        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction4 = LiteralRestriction.createRestriction(pattern,
+                "");
 
         PatternSolver solver = new PatternSolver( pattern );
 
-        solver.addOperator( OperatorDescrType.OR );
-        solver.addOperator( OperatorDescrType.AND );
-        solver.add( literalRestriction );
-        solver.add( literalRestriction2 );
+        solver.addOperator(OperatorDescrType.OR);
+        solver.addOperator(OperatorDescrType.AND);
+        solver.add(literalRestriction);
+        solver.add(literalRestriction2);
         solver.end();
-        solver.addOperator( OperatorDescrType.AND );
-        solver.add( literalRestriction3 );
-        solver.add( literalRestriction4 );
+        solver.addOperator(OperatorDescrType.AND);
+        solver.add(literalRestriction3);
+        solver.add(literalRestriction4);
         solver.end();
         solver.end();
 
         List<Set<VerifierComponent>> list = solver.getPossibilityLists();
-        assertEquals( 2,
-                      list.size() );
+        assertThat(list.size()).isEqualTo(2);
 
-        assertEquals( 2,
-                      list.get( 0 ).size() );
-        assertTrue( list.get( 0 ).contains( literalRestriction ) );
-        assertTrue( list.get( 0 ).contains( literalRestriction2 ) );
+        assertThat(list.get(0).size()).isEqualTo(2);
+        assertThat(list.get(0).contains(literalRestriction)).isTrue();
+        assertThat(list.get(0).contains(literalRestriction2)).isTrue();
 
-        assertEquals( 2,
-                      list.get( 1 ).size() );
-        assertTrue( list.get( 1 ).contains( literalRestriction3 ) );
-        assertTrue( list.get( 1 ).contains( literalRestriction4 ) );
+        assertThat(list.get(1).size()).isEqualTo(2);
+        assertThat(list.get(1).contains(literalRestriction3)).isTrue();
+        assertThat(list.get(1).contains(literalRestriction4)).isTrue();
     }
 
     /**
@@ -342,47 +323,43 @@ public class PatternSolverTest {
      * descr4
      */
     @Test
-    public void testAddOrAndOr() {
+    void testAddOrAndOr() {
         Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
-        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction( pattern,
-                                                                                      "" );
-        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction4 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
+        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction4 = LiteralRestriction.createRestriction(pattern,
+                "");
 
         PatternSolver solver = new PatternSolver( pattern );
 
-        solver.addOperator( OperatorDescrType.OR );
-        solver.addOperator( OperatorDescrType.AND );
-        solver.add( literalRestriction );
-        solver.add( literalRestriction2 );
+        solver.addOperator(OperatorDescrType.OR);
+        solver.addOperator(OperatorDescrType.AND);
+        solver.add(literalRestriction);
+        solver.add(literalRestriction2);
         solver.end();
-        solver.addOperator( OperatorDescrType.OR );
-        solver.add( literalRestriction3 );
-        solver.add( literalRestriction4 );
+        solver.addOperator(OperatorDescrType.OR);
+        solver.add(literalRestriction3);
+        solver.add(literalRestriction4);
         solver.end();
         solver.end();
 
         List<Set<VerifierComponent>> list = solver.getPossibilityLists();
-        assertEquals( 3,
-                      list.size() );
+        assertThat(list.size()).isEqualTo(3);
 
-        assertEquals( 2,
-                      list.get( 0 ).size() );
-        assertTrue( list.get( 0 ).contains( literalRestriction ) );
-        assertTrue( list.get( 0 ).contains( literalRestriction2 ) );
+        assertThat(list.get(0).size()).isEqualTo(2);
+        assertThat(list.get(0).contains(literalRestriction)).isTrue();
+        assertThat(list.get(0).contains(literalRestriction2)).isTrue();
 
-        assertEquals( 1,
-                      list.get( 1 ).size() );
-        assertTrue( list.get( 1 ).contains( literalRestriction3 ) );
+        assertThat(list.get(1).size()).isEqualTo(1);
+        assertThat(list.get(1).contains(literalRestriction3)).isTrue();
 
-        assertEquals( 1,
-                      list.get( 2 ).size() );
-        assertTrue( list.get( 2 ).contains( literalRestriction4 ) );
+        assertThat(list.get(2).size()).isEqualTo(1);
+        assertThat(list.get(2).contains(literalRestriction4)).isTrue();
     }
 
     /**
@@ -400,50 +377,47 @@ public class PatternSolverTest {
      * descr && descr2 && descr4 && descr5<br>
      */
     @Test
-    public void testAddOrAndOrDescr() {
+    void testAddOrAndOrDescr() {
         Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
-        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction( pattern,
-                                                                                      "" );
-        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction4 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
-        LiteralRestriction literalRestriction5 = LiteralRestriction.createRestriction( pattern,
-                                                                                       "" );
+        LiteralRestriction literalRestriction = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction2 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction3 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction4 = LiteralRestriction.createRestriction(pattern,
+                "");
+        LiteralRestriction literalRestriction5 = LiteralRestriction.createRestriction(pattern,
+                "");
 
         PatternSolver solver = new PatternSolver( pattern );
 
-        solver.addOperator( OperatorDescrType.AND );
-        solver.addOperator( OperatorDescrType.AND );
-        solver.add( literalRestriction );
-        solver.add( literalRestriction2 );
+        solver.addOperator(OperatorDescrType.AND);
+        solver.addOperator(OperatorDescrType.AND);
+        solver.add(literalRestriction);
+        solver.add(literalRestriction2);
         solver.end();
-        solver.addOperator( OperatorDescrType.OR );
-        solver.add( literalRestriction3 );
-        solver.add( literalRestriction4 );
+        solver.addOperator(OperatorDescrType.OR);
+        solver.add(literalRestriction3);
+        solver.add(literalRestriction4);
         solver.end();
-        solver.add( literalRestriction5 );
+        solver.add(literalRestriction5);
         solver.end();
 
         List<Set<VerifierComponent>> list = solver.getPossibilityLists();
-        assertEquals( 2,
-                      list.size() );
+        assertThat(list.size()).isEqualTo(2);
 
-        assertEquals( 4,
-                      list.get( 0 ).size() );
-        assertTrue( list.get( 0 ).contains( literalRestriction ) );
-        assertTrue( list.get( 0 ).contains( literalRestriction2 ) );
-        assertTrue( list.get( 0 ).contains( literalRestriction3 ) );
-        assertTrue( list.get( 0 ).contains( literalRestriction5 ) );
+        assertThat(list.get(0).size()).isEqualTo(4);
+        assertThat(list.get(0).contains(literalRestriction)).isTrue();
+        assertThat(list.get(0).contains(literalRestriction2)).isTrue();
+        assertThat(list.get(0).contains(literalRestriction3)).isTrue();
+        assertThat(list.get(0).contains(literalRestriction5)).isTrue();
 
-        assertEquals( 4,
-                      list.get( 1 ).size() );
-        assertTrue( list.get( 1 ).contains( literalRestriction ) );
-        assertTrue( list.get( 1 ).contains( literalRestriction2 ) );
-        assertTrue( list.get( 1 ).contains( literalRestriction4 ) );
-        assertTrue( list.get( 1 ).contains( literalRestriction4 ) );
+        assertThat(list.get(1).size()).isEqualTo(4);
+        assertThat(list.get(1).contains(literalRestriction)).isTrue();
+        assertThat(list.get(1).contains(literalRestriction2)).isTrue();
+        assertThat(list.get(1).contains(literalRestriction4)).isTrue();
+        assertThat(list.get(1).contains(literalRestriction4)).isTrue();
     }
 }

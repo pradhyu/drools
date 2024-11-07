@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.backend.marshalling.v1_2;
 
 import java.io.File;
@@ -24,13 +26,14 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.xml.namespace.QName;
 import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.kie.dmn.api.marshalling.DMNMarshaller;
 import org.kie.dmn.backend.marshalling.v1_2.extensions.MyTestRegister;
 import org.kie.dmn.backend.marshalling.v1x.DMNMarshallerFactory;
@@ -52,75 +55,74 @@ import org.xmlunit.validation.ValidationProblem;
 import org.xmlunit.validation.ValidationResult;
 import org.xmlunit.validation.Validator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 public class UnmarshalMarshalTest {
 
     private static final StreamSource DMN12_SCHEMA_SOURCE = new StreamSource(UnmarshalMarshalTest.class.getResource("/DMN12.xsd").getFile());
     private static final DMNMarshaller MARSHALLER = new org.kie.dmn.backend.marshalling.v1x.XStreamMarshaller();
-    protected static final Logger logger = LoggerFactory.getLogger(UnmarshalMarshalTest.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(UnmarshalMarshalTest.class);
 
     @Test
-    public void testV12_simple() throws Exception {
+    void v12Simple() throws Exception {
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "simple.dmn");
     }
 
     @Test
-    public void testV12_ch11example() throws Exception {
+    void v12Ch11example() throws Exception {
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "ch11example.dmn");
     }
 
     @Test
-    public void testV12_ImportName() throws Exception {
+    void v12_ImportName() throws Exception {
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "ImportName.dmn");
     }
 
     @Test
-    public void testV12_DecisionService20180911v12() throws Exception {
+    void v12_DecisionService20180911v12() throws Exception {
         // DROOLS-2987 DMN v1.2 marshaller failing marshalling DecisionService node and dmndi:DMNDecisionServiceDividerLine
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "DecisionService20180911v12.dmn");
     }
 
     @Test
-    public void testV12_DiamondWithColors() throws Exception {
+    void v12_DiamondWithColors() throws Exception {
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "diamondWithColors.dmn");
     }
 
     @Test
-    public void testV12_DMNDIDiagramElementExtension() throws Exception {
+    void v12_dmndiDiagramElementExtension() throws Exception {
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "DMNDIDiagramElementExtension.dmn");
     }
 
     @Test
-    public void testV12_DMNDIDiagramElementExtension_withContent() throws Exception {
-        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(Arrays.asList(new MyTestRegister()));
+    void v12_dmndiDiagramElementExtensionWithContent() throws Exception {
+        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(List.of(new MyTestRegister()));
         testRoundTrip("org/kie/dmn/backend/marshalling/v1_2/", "DMNDIDiagramElementExtension_withContent.dmn", marshaller, DMN12_SCHEMA_SOURCE);
     }
 
     @Test
-    public void test_hardcoded_java_max_call() throws Exception {
+    void hardcoded_java_max_call() throws Exception {
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "hardcoded-java-max-call.dmn");
     }
 
     @Test
-    public void test_FontSize_sharedStyle() throws Exception {
+    void font_size_shared_style() throws Exception {
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "test-FontSize-sharedStyle.dmn");
         Definitions definitions = MARSHALLER.unmarshal(new InputStreamReader(this.getClass().getResourceAsStream("test-FontSize-sharedStyle.dmn")));
         DMNShape shape0 = (DMNShape) definitions.getDMNDI().getDMNDiagram().get(0).getDMNDiagramElement().get(0);
         DMNStyle shape0sharedStyle = (DMNStyle) shape0.getDMNLabel().getSharedStyle();
-        assertEquals("LS_4d396200-362f-4939-830d-32d2b4c87042_0", shape0sharedStyle.getId());
-        assertEquals(21d, shape0sharedStyle.getFontSize(), 0.0d);
+        assertThat(shape0sharedStyle.getId()).isEqualTo("LS_4d396200-362f-4939-830d-32d2b4c87042_0");
+        assertThat(shape0sharedStyle.getFontSize()).isCloseTo(21d, within(0.0d));
     }
 
     @Test
-    public void test_DMNLabel_Text() throws Exception {
+    void dmnlabel_text() throws Exception {
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "DMNLabel-Text.dmn");
     }
 
     @Test
-    public void testV12_decision_list() throws Exception {
+    void v12DecisionList() throws Exception {
         testRoundTripV12("org/kie/dmn/backend/marshalling/v1_2/", "decision-list.dmn");
     }
 
@@ -144,14 +146,14 @@ public class UnmarshalMarshalTest {
         ValidationResult validateInputResult = v.validateInstance(new StreamSource(inputXMLFile));
         if (!validateInputResult.isValid()) {
             for (ValidationProblem p : validateInputResult.getProblems()) {
-                System.err.println(p);
+                LOG.error("{}", p);
             }
         }
-        assertTrue(validateInputResult.isValid());
+        assertThat(validateInputResult.isValid()).isTrue();
 
         final File subdirFile = new File(baseOutputDir, subdir);
         if (!subdirFile.mkdirs()) {
-            logger.warn("mkdirs() failed for File: " + subdirFile.getAbsolutePath() + "!");
+            LOG.warn("mkdirs() failed for File: ", subdirFile.getAbsolutePath());
         }
         FileOutputStream sourceFos = new FileOutputStream(new File(baseOutputDir, subdir + "a." + xmlfile));
         Files.copy(
@@ -161,7 +163,7 @@ public class UnmarshalMarshalTest {
         sourceFos.flush();
         sourceFos.close();
 
-        System.out.println(marshaller.marshal(unmarshal));
+        LOG.debug("{}", marshaller.marshal(unmarshal));
         File outputXMLFile = new File(baseOutputDir, subdir + "b." + xmlfile);
         try (FileWriter targetFos = new FileWriter(outputXMLFile)) {
             marshaller.marshal(unmarshal, targetFos);
@@ -171,21 +173,21 @@ public class UnmarshalMarshalTest {
         ValidationResult validateOutputResult = v.validateInstance(new StreamSource(outputXMLFile));
         if (!validateOutputResult.isValid()) {
             for (ValidationProblem p : validateOutputResult.getProblems()) {
-                System.err.println(p);
+                LOG.error("{}", p);
             }
         }
-        assertTrue(validateOutputResult.isValid());
+        assertThat(validateOutputResult.isValid()).isTrue();
 
-        System.out.println("\n---\nDefault XMLUnit comparison:");
+        LOG.debug("\n---\nDefault XMLUnit comparison:");
         Source control = Input.fromFile(inputXMLFile).build();
         Source test = Input.fromFile(outputXMLFile).build();
         Diff allDiffsSimilarAndDifferent = DiffBuilder
                 .compare(control)
                 .withTest(test)
                 .build();
-        allDiffsSimilarAndDifferent.getDifferences().forEach(System.out::println);
+        allDiffsSimilarAndDifferent.getDifferences().forEach(m -> LOG.debug("{}", m));
 
-        System.out.println("XMLUnit comparison with customized similarity for defaults:");
+        LOG.info("XMLUnit comparison with customized similarity for defaults:");
         // in the following a manual DifferenceEvaluator is needed until XMLUnit is configured for properly parsing the XSD linked inside the XML,
         // in order to detect the optional+defaultvalue attributes of xml element which might be implicit in source-test, and explicit in test-serialized.
         /*
@@ -203,19 +205,17 @@ DMNDIv1.2:
 <xsd:attribute name="isCollapsed" type="xsd:boolean" use="optional" default="false"/>
          */
         Set<QName> attrWhichCanDefault = new HashSet<QName>();
-        attrWhichCanDefault.addAll(Arrays.asList(new QName[]{
-                new QName("expressionLanguage"),
-                new QName("typeLanguage"),
-                new QName("isCollection"),
-                new QName("hitPolicy"),
-                new QName("preferredOrientation"),
-                new QName("kind"),
-                new QName("textFormat"),
-                new QName("associationDirection"),
-                new QName("isCollapsed")
-        }));
+        attrWhichCanDefault.addAll(Arrays.asList(new QName("expressionLanguage"),
+                                                 new QName("typeLanguage"),
+                                                 new QName("isCollection"),
+                                                 new QName("hitPolicy"),
+                                                 new QName("preferredOrientation"),
+                                                 new QName("kind"),
+                                                 new QName("textFormat"),
+                                                 new QName("associationDirection"),
+                                                 new QName("isCollapsed")));
         Set<String> nodeHavingDefaultableAttr = new HashSet<>();
-        nodeHavingDefaultableAttr.addAll(Arrays.asList(new String[]{"definitions", "decisionTable", "itemDefinition", "itemComponent", "encapsulatedLogic", "textAnnotation", "association", "DMNShape"}));
+        nodeHavingDefaultableAttr.addAll(Arrays.asList("definitions", "decisionTable", "itemDefinition", "itemComponent", "encapsulatedLogic", "textAnnotation", "association", "DMNShape"));
         Diff checkSimilar = DiffBuilder
                 .compare(control)
                 .withTest(test)
@@ -245,7 +245,6 @@ DMNDIv1.2:
                                                                    if (check) {
                                                                        testIsDefaulableAttribute = true;
                                                                        whichDefaultableAttr = a;
-                                                                       continue;
                                                                    }
                                                                }
                                                            }
@@ -259,13 +258,14 @@ DMNDIv1.2:
                                                        return outcome;
                                                    })))
                 .ignoreWhitespace()
+                .ignoreComments()
                 .checkForSimilar()
                 .build();
-        checkSimilar.getDifferences().forEach(System.err::println);
+        checkSimilar.getDifferences().forEach(m -> LOG.error("{}", m));
         if (!checkSimilar.getDifferences().iterator().hasNext()) {
-            System.out.println("[ EMPTY - no diffs using customized similarity ]");
+            LOG.info("[ EMPTY - no diffs using customized similarity ]");
         }
-        assertFalse("XML are NOT similar: " + checkSimilar.toString(), checkSimilar.hasDifferences());
+        assertThat(checkSimilar.hasDifferences()).as("XML are NOT similar: " + checkSimilar.toString()).isFalse();
     }
 
     private String safeStripDMNPRefix(Node target) {

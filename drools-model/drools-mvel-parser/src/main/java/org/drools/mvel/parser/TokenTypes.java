@@ -1,186 +1,27 @@
-/*
- * Copyright (C) 2007-2010 Júlio Vilmar Gesser.
- * Copyright (C) 2011, 2013-2016 The JavaParser Team.
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * This file is part of JavaParser.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * JavaParser can be used either under the terms of
- * a) the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- * b) the terms of the Apache License
- *
- * You should have received a copy of both licenses in LICENCE.LGPL and
- * LICENCE.APACHE. Please refer to those files for details.
- *
- * JavaParser is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * Modified by Red Hat, Inc.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.mvel.parser;
 
 import com.github.javaparser.JavaToken;
 
 import static com.github.javaparser.utils.Utils.EOL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ABSTRACT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ANDASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ARROW;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ASSERT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.AT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.BANG;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.BIG_DECIMAL_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.BIG_INTEGER_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.BINARY_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.BIT_AND;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.BIT_OR;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.BOOLEAN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.BREAK;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.BYTE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.CASE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.CATCH;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.CHAR;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.CHARACTER_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.CLASS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.COLON;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.COMMA;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.COMMENT_CONTENT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.CONST;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.CONTINUE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.CTRL_Z;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.DECIMAL_EXPONENT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.DECIMAL_FLOATING_POINT_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.DECIMAL_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.DECR;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.DO;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.DOT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.DOUBLE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.DOUBLECOLON;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ELLIPSIS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ELSE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ENTER_JAVADOC_COMMENT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ENTER_MULTILINE_COMMENT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.EOF;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.EQ;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.EXPORTS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.EXTENDS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.FALSE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.FINAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.FINALLY;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.FLOAT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.FLOATING_POINT_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.FOR;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.GE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.GOTO;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.GT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.HEXADECIMAL_EXPONENT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.HEXADECIMAL_FLOATING_POINT_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.HEX_DIGITS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.HEX_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.HOOK;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.HOUR_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.IDENTIFIER;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.IF;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.IMPLEMENTS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.IMPORT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.INCR;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.INSTANCEOF;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.INT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.INTEGER_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.INTERFACE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.JAVADOC_COMMENT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LBRACE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LBRACKET;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LETTER;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LONG;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LONG_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LPAREN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LSHIFT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LSHIFTASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.LT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MILLISECOND_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MINUS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MINUSASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MINUTE_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MODIFY;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MODULE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MULTI_LINE_COMMENT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MVEL_ENDS_WITH;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MVEL_LENGTH;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.MVEL_STARTS_WITH;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.NATIVE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.NE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.NEW;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.NOT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.NULL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.OCTAL_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.OLD_MAC_EOL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.OPEN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.OPENS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.ORASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.PACKAGE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.PART_LETTER;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.PLUS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.PLUSASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.PRIVATE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.PROTECTED;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.PROVIDES;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.PUBLIC;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.RBRACE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.RBRACKET;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.REM;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.REMASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.REQUIRES;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.RETURN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.RPAREN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.RSIGNEDSHIFT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.RSIGNEDSHIFTASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.RULE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.RUNSIGNEDSHIFT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.RUNSIGNEDSHIFTASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SC_AND;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SC_OR;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SECOND_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SEMICOLON;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SHORT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SINGLE_LINE_COMMENT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SLASH;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SLASHASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SPACE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.STAR;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.STARASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.STATIC;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.STRICTFP;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.STRING_LITERAL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SUPER;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SWITCH;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.SYNCHRONIZED;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.THIS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.THROW;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.THROWS;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.TILDE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.TO;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.TRANSIENT;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.TRANSITIVE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.TRUE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.TRY;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.UNICODE_ESCAPE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.UNIX_EOL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.USES;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.VOID;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.VOLATILE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.WHILE;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.WINDOWS_EOL;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.WITH;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.XOR;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants.XORASSIGN;
-import static org.drools.mvel.parser.GeneratedMvelParserConstants._DEFAULT;
+import static org.drools.mvel.parser.GeneratedMvelParserConstants.*;
 
 /**
  * Complements GeneratedJavaParserConstants
@@ -259,20 +100,9 @@ public class TokenTypes {
      */
     public static JavaToken.Category getCategory(int kind) {
         switch (kind) {
+            case UNIT:
             case RULE:
-                return JavaToken.Category.KEYWORD;
-            case WINDOWS_EOL:
-            case UNIX_EOL:
-            case OLD_MAC_EOL:
-                return JavaToken.Category.EOL;
-            case EOF:
-            case SPACE:
-            case CTRL_Z:
-                return JavaToken.Category.WHITESPACE_NO_EOL;
-            case SINGLE_LINE_COMMENT:
-            case JAVADOC_COMMENT:
-            case MULTI_LINE_COMMENT:
-                return JavaToken.Category.COMMENT;
+            case WHEN:
             case ABSTRACT:
             case ASSERT:
             case BOOLEAN:
@@ -335,7 +165,21 @@ public class TokenTypes {
             case EXPORTS:
             case PROVIDES:
             case TRANSITIVE:
+            case RULE_OR:
+            case RULE_AND:
                 return JavaToken.Category.KEYWORD;
+            case WINDOWS_EOL:
+            case UNIX_EOL:
+            case OLD_MAC_EOL:
+                return JavaToken.Category.EOL;
+            case EOF:
+            case SPACE:
+            case CTRL_Z:
+                return JavaToken.Category.WHITESPACE_NO_EOL;
+            case SINGLE_LINE_COMMENT:
+            case JAVADOC_COMMENT:
+            case MULTI_LINE_COMMENT:
+                return JavaToken.Category.COMMENT;
             case LONG_LITERAL:
             case INTEGER_LITERAL:
             case DECIMAL_LITERAL:
@@ -349,6 +193,7 @@ public class TokenTypes {
             case HEXADECIMAL_EXPONENT:
             case CHARACTER_LITERAL:
             case STRING_LITERAL:
+            case TEXT_BLOCK_LITERAL:
             case MILLISECOND_LITERAL:
             case SECOND_LITERAL:
             case MINUTE_LITERAL:
@@ -373,10 +218,10 @@ public class TokenTypes {
             case MVEL_ENDS_WITH:
             case MVEL_LENGTH:
             case NOT:
-            case 151:
-            case 152:
-            case 153:
-            // The following are tokens that are only used internally by the lexer
+            case DOT_DOT_SLASH:
+            case HASHMARK:
+            case EXCL_DOT:
+            case PASSIVE_OOPATH:
             case ASSIGN:
             case LT:
             case BANG:
@@ -419,7 +264,6 @@ public class TokenTypes {
             case GT:
             case MODIFY:
                 return JavaToken.Category.OPERATOR;
-            // These are DRLX tokens, They don't have the constants generated
             case ENTER_JAVADOC_COMMENT:
             case ENTER_MULTILINE_COMMENT:
             case COMMENT_CONTENT:

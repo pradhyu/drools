@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.verifier.jarloader;
 
 import java.io.IOException;
@@ -25,27 +28,27 @@ import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarInputStream;
 
-import com.google.common.collect.TreeMultimap;
-import org.drools.core.addon.ClassTypeResolver;
-import org.drools.core.util.asm.ClassFieldInspector;
+import org.drools.mvel.asm.ClassFieldInspectorImpl;
+import org.drools.util.ClassTypeResolver;
+import org.drools.verifier.misc.Multimap;
 
 public class PackageHeaderLoader {
 
     private final static Collection<String> IGNORED_FIELDS = getIgnoredFields();
 
-    private Set<String> classNames = new HashSet<String>();
+    private Set<String> classNames = new HashSet<>();
 
-    private Map<String, String> fieldTypesByClassAndFieldNames = new HashMap<String, String>();
+    private Map<String, String> fieldTypesByClassAndFieldNames = new HashMap<>();
 
-    private TreeMultimap<String, String> fieldsByClassNames = TreeMultimap.create();
-    private List<String> missingClasses = new ArrayList<String>();
+    private Multimap<String, String> fieldsByClassNames = new Multimap<>();
+    private List<String> missingClasses = new ArrayList<>();
 
     public PackageHeaderLoader(Collection<String> imports, List<JarInputStream> jarInputStreams) throws IOException {
         findImportsFromJars(imports, jarInputStreams);
     }
 
     private void findImportsFromJars(Collection<String> imports, List<JarInputStream> jarInputStreams) throws IOException {
-        ClassTypeResolver resolver = new ClassTypeResolver(new HashSet<String>(), new VerifierMapBackedClassLoader(jarInputStreams));
+        ClassTypeResolver resolver = new ClassTypeResolver(new HashSet<>(), new VerifierMapBackedClassLoader(jarInputStreams));
 
         for (String className : imports) {
 
@@ -64,7 +67,7 @@ public class PackageHeaderLoader {
     private void addFields(Class clazz) throws IOException {
         String className = clazz.getName();
 
-        ClassFieldInspector inspector = new ClassFieldInspector(clazz);
+        ClassFieldInspectorImpl inspector = new ClassFieldInspectorImpl(clazz);
         Set<String> fieldNames = inspector.getFieldNames().keySet();
         Map<String, Class<?>> fieldTypes = inspector.getFieldTypes();
 
@@ -101,7 +104,7 @@ public class PackageHeaderLoader {
     }
 
     private static Collection<String> getIgnoredFields() {
-        Collection<String> fields = new ArrayList<String>();
+        Collection<String> fields = new ArrayList<>();
 
         fields.add("toString");
         fields.add("hashCode");

@@ -1,33 +1,35 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
+import org.drools.base.reteoo.NodeTypeEnums;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.spi.PropagationContext;
 
 public class MockLeftTupleSink extends LeftTupleSource
     implements
@@ -40,8 +42,8 @@ public class MockLeftTupleSink extends LeftTupleSource
     private LeftTupleSinkNode     previousTupleSinkNode;
     private LeftTupleSinkNode     nextTupleSinkNode;
 
-    public MockLeftTupleSink() {
-        super( 0, null );
+    public MockLeftTupleSink(BuildContext buildContext) {
+        super( 0, buildContext );
     }
 
     public MockLeftTupleSink(final int id) {
@@ -59,7 +61,7 @@ public class MockLeftTupleSink extends LeftTupleSource
     public void ruleAttached() {
     }
 
-    public Memory createMemory(final RuleBaseConfiguration config, InternalWorkingMemory wm) {
+    public Memory createMemory(final RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
         return new PathMemory(null, null);
     }
 
@@ -68,7 +70,7 @@ public class MockLeftTupleSink extends LeftTupleSource
         return true;
     }
 
-    public void attach(BuildContext buildContext) {
+    public void doAttach(BuildContext buildContext) {
     }
 
     /**
@@ -111,53 +113,21 @@ public class MockLeftTupleSink extends LeftTupleSource
         return false;
     }
 
-    public void setLeftTupleMemoryEnabled(boolean tupleMemoryEnabled) {
-    }
-
     public void networkUpdated(UpdateContext updateContext) {
     }
 
-    public short getType() {
-        return NodeTypeEnums.RuleTerminalNode;
-    }
-
-    public LeftTuple createLeftTuple(InternalFactHandle factHandle,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new LeftTupleImpl(factHandle, sink, leftTupleMemoryEnabled );
-    }
-
-    public LeftTuple createLeftTuple(final InternalFactHandle factHandle,
-                                     final LeftTuple leftTuple,
-                                     final Sink sink) {
-        return new LeftTupleImpl(factHandle,leftTuple, sink );
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     Sink sink,
-                                     PropagationContext pctx, boolean leftTupleMemoryEnabled) {
-        return new LeftTupleImpl(leftTuple,sink, pctx, leftTupleMemoryEnabled );
-    }
-
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     Sink sink) {
-        return new LeftTupleImpl(leftTuple, rightTuple, sink );
-    }   
-    
-    public LeftTuple createLeftTuple(LeftTuple leftTuple,
-                                     RightTuple rightTuple,
-                                     LeftTuple currentLeftChild,
-                                     LeftTuple currentRightChild,
-                                     Sink sink,
-                                     boolean leftTupleMemoryEnabled) {
-        return new LeftTupleImpl(leftTuple, rightTuple, currentLeftChild, currentRightChild, sink, leftTupleMemoryEnabled );        
+    public int getType() {
+        return NodeTypeEnums.MockBetaNode;
     }
 
     public LeftTupleSource getLeftTupleSource() {
-        return new MockLeftTupleSink() {
+        if ( super.getLeftTupleSource() != null) {
+            return super.getLeftTupleSource();
+        }
+
+        return new MockLeftTupleSink(null) {
             @Override
-            public short getType() {
+            public int getType() {
                 return NodeTypeEnums.LeftInputAdapterNode;
             }
         };
@@ -168,8 +138,4 @@ public class MockLeftTupleSink extends LeftTupleSource
         return null;
     }
 
-    @Override
-    public LeftTuple createPeer(LeftTuple original) {
-        return null;
-    }
 }

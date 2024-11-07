@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.kie.scanner;
 
 import java.io.File;
@@ -38,8 +41,7 @@ import org.kie.api.io.Resource;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.conf.ClockTypeOption;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class AbstractKieCiTest {
 
@@ -53,7 +55,7 @@ public class AbstractKieCiTest {
         }
 
         KieBuilder kieBuilder = ks.newKieBuilder(kfs);
-        assertTrue(kieBuilder.buildAll().getResults().getMessages().isEmpty());
+        assertThat(kieBuilder.buildAll().getResults().getMessages().isEmpty()).isTrue();
         return (InternalKieModule) kieBuilder.getKieModule();
     }
 
@@ -69,7 +71,7 @@ public class AbstractKieCiTest {
         kfs.write("src/main/resources/KBase1/" + file, createDRL(rule));
 
         KieBuilder kieBuilder = ks.newKieBuilder(kfs);
-        assertTrue(kieBuilder.buildAll().getResults().getMessages().isEmpty());
+        assertThat(kieBuilder.buildAll().getResults().getMessages().isEmpty()).isTrue();
         return (InternalKieModule) kieBuilder.getKieModule();
     }
 
@@ -81,7 +83,7 @@ public class AbstractKieCiTest {
         kfs.write("src/main/resources/KBase1/" + file, createDRL(rule));
 
         KieBuilder kieBuilder = ks.newKieBuilder(kfs);
-        assertTrue(kieBuilder.buildAll().getResults().getMessages().isEmpty());
+        assertThat(kieBuilder.buildAll().getResults().getMessages().isEmpty()).isTrue();
         return (InternalKieModule) kieBuilder.getKieModule();
     }
     
@@ -105,7 +107,7 @@ public class AbstractKieCiTest {
         }
 
         KieBuilder kieBuilder = ks.newKieBuilder(kfs);
-        assertTrue(kieBuilder.buildAll().getResults().getMessages().isEmpty());
+        assertThat(kieBuilder.buildAll().getResults().getMessages().isEmpty()).isTrue();
         return (InternalKieModule) kieBuilder.getKieModule();
     }
 
@@ -125,7 +127,7 @@ public class AbstractKieCiTest {
         }
 
         KieBuilder kieBuilder = ks.newKieBuilder(kfs);
-        assertTrue(kieBuilder.buildAll().getResults().getMessages().isEmpty());
+        assertThat(kieBuilder.buildAll().getResults().getMessages().isEmpty()).isTrue();
         return (InternalKieModule) kieBuilder.getKieModule();
     }
 
@@ -146,7 +148,7 @@ public class AbstractKieCiTest {
 
         KieSessionModel ksession1 = kieBaseModel1.newKieSessionModel(ksessionName).setDefault(isdefault)
                 .setType(KieSessionModel.KieSessionType.STATEFUL)
-                .setClockType(ClockTypeOption.get("realtime"));
+                .setClockType(ClockTypeOption.REALTIME);
 
         KieFileSystem kfs = ks.newKieFileSystem();
         kfs.writeKModuleXML(kproj.toXML());
@@ -314,7 +316,7 @@ public class AbstractKieCiTest {
         return km;
     }
 
-    protected File createKPom(FileManager fileManager, ReleaseId releaseId, ReleaseId... dependencies) throws IOException {
+    protected File createKPom( FileManager fileManager, ReleaseId releaseId, ReleaseId... dependencies) throws IOException {
         File pomFile = fileManager.newFile("pom.xml");
         fileManager.write(pomFile, getPom(releaseId, dependencies));
         return pomFile;
@@ -332,10 +334,9 @@ public class AbstractKieCiTest {
             ksession.dispose();
         }
 
-        assertEquals(results.length, list.size());
+        assertThat(list.size()).isEqualTo(results.length);
         for (Object result : results) {
-            assertTrue( String.format( "Expected to contain: %s, got: %s", result, Arrays.toString( list.toArray() ) ),
-                        list.contains( result ) );
+            assertThat(list.contains(result)).as(String.format("Expected to contain: %s, got: %s", result, Arrays.toString(list.toArray()))).isTrue();
         }
     }
 
@@ -355,5 +356,9 @@ public class AbstractKieCiTest {
             }
         }
         return true;
+    }
+
+    protected ReleaseId getTestDependencyJarReleaseId() {
+        return KieServices.get().newReleaseId("org.kie.ci.test", "kie-ci-test-jar-with-dep", "1.2.3.Final");
     }
 }

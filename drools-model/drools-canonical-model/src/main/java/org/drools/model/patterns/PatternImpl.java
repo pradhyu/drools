@@ -1,20 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- *
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model.patterns;
 
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ public class PatternImpl<T> extends AbstractSinglePattern implements Pattern<T>,
     private Constraint constraint;
     private List<Binding> bindings;
     private Collection<String> watchedProps;
+    private boolean passive;
 
     public PatternImpl(Variable<T> variable) {
         this(variable, SingleConstraint.TRUE );
@@ -98,8 +100,12 @@ public class PatternImpl<T> extends AbstractSinglePattern implements Pattern<T>,
         return constraint;
     }
 
+    public boolean hasConstraints() {
+        return this.constraint != SingleConstraint.TRUE;
+    }
+
     public void addConstraint( Constraint constraint ) {
-        this.constraint = this.constraint == SingleConstraint.TRUE ? constraint : ( (AbstractConstraint) this.constraint ).with( constraint );
+        this.constraint = hasConstraints() ? ( (AbstractConstraint) this.constraint ).with( constraint ) : constraint;
     }
 
     public void addBinding(Binding binding) {
@@ -121,9 +127,7 @@ public class PatternImpl<T> extends AbstractSinglePattern implements Pattern<T>,
         if (watchedProps == null) {
             watchedProps = new LinkedHashSet<>();
         }
-        for (String prop : props) {
-            watchedProps.add(prop);
-        }
+        Collections.addAll(watchedProps, props);
     }
 
     @Override
@@ -131,17 +135,23 @@ public class PatternImpl<T> extends AbstractSinglePattern implements Pattern<T>,
         return watchedProps != null ? watchedProps.toArray( new String[watchedProps.size()] ) : new String[0];
     }
 
+    public boolean isPassive() {
+        return passive;
+    }
+
+    public void setPassive( boolean passive ) {
+        this.passive = passive;
+    }
+
     private Variable[] collectInputVariables() {
-        Set<Variable> varSet = new LinkedHashSet<Variable>();
+        Set<Variable> varSet = new LinkedHashSet<>();
         collectInputVariables(constraint, varSet);
         return varSet.toArray(new Variable[varSet.size()]);
     }
 
     private void collectInputVariables(Constraint constraint, Set<Variable> varSet) {
         if (constraint instanceof SingleConstraint) {
-            for (Variable var : ((SingleConstraint)constraint).getVariables()) {
-                varSet.add(var);
-            }
+            Collections.addAll(varSet, ((SingleConstraint) constraint).getVariables());
         } else {
             for (Constraint child : constraint.getChildren()) {
                 collectInputVariables(child, varSet);
@@ -174,5 +184,10 @@ public class PatternImpl<T> extends AbstractSinglePattern implements Pattern<T>,
                 "inputVars: " + Arrays.toString(inputVariables) + ", " +
                 "outputVar: " + variable + ", " +
                 "constraint: " + constraint + ")";
+    }
+
+    @Override
+    public PatternImpl cloneCondition() {
+        return new PatternImpl(variable, (( AbstractConstraint ) constraint).cloneConstraint(), bindings == null ? null : new ArrayList<>(bindings), type);
     }
 }

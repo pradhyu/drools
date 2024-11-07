@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.ast;
 
 import java.util.Collections;
@@ -29,8 +31,8 @@ import org.kie.dmn.api.core.DMNType;
 import org.kie.dmn.api.core.ast.DecisionServiceNode;
 import org.kie.dmn.api.core.event.DMNRuntimeEventManager;
 import org.kie.dmn.core.api.DMNExpressionEvaluator;
-import org.kie.dmn.core.api.EvaluatorResult;
-import org.kie.dmn.core.api.EvaluatorResult.ResultType;
+import org.kie.dmn.api.core.EvaluatorResult;
+import org.kie.dmn.api.core.EvaluatorResult.ResultType;
 import org.kie.dmn.core.ast.DMNFunctionDefinitionEvaluator.FormalParameter;
 import org.kie.dmn.core.impl.DMNResultImpl;
 import org.kie.dmn.core.impl.DMNRuntimeImpl;
@@ -62,6 +64,7 @@ public class DMNDecisionServiceFunctionDefinitionEvaluator implements DMNExpress
     }
 
     public static class DSFormalParameter extends FormalParameter {
+
         private final String importName;
         private final String elementName;
 
@@ -78,7 +81,6 @@ public class DMNDecisionServiceFunctionDefinitionEvaluator implements DMNExpress
         public String getElementName() {
             return elementName;
         }
-
     }
 
     public static class DMNDSFunction extends BaseFEELFunction {
@@ -102,6 +104,7 @@ public class DMNDecisionServiceFunctionDefinitionEvaluator implements DMNExpress
             DMNContext previousContext = resultContext.getContext();
 
             DMNContext dmnContext = eventManager.getRuntime().newContext();
+            previousContext.getMetadata().asMap().forEach(dmnContext.getMetadata()::set);
             try {
                 if (params.length != parameters.size()) {
                     MsgUtil.reportMessage(LOG,
@@ -119,7 +122,7 @@ public class DMNDecisionServiceFunctionDefinitionEvaluator implements DMNExpress
                     if (formalParameter.getImportName() == null) {
                         dmnContext.set(formalParameter.name, performTypeCheckIfNeeded(params[i], i));
                     } else {
-                        Map<String, Object> importNameCtx = null;
+                        Map<String, Object> importNameCtx;
                         if (dmnContext.isDefined(formalParameter.getImportName())) {
                             importNameCtx = (Map) dmnContext.get(formalParameter.getImportName());
                         } else {
@@ -152,23 +155,24 @@ public class DMNDecisionServiceFunctionDefinitionEvaluator implements DMNExpress
         }
 
         private Object performTypeCheckIfNeeded(Object param, int paramIndex) {
-            if (typeCheck) {
-                DSFormalParameter dsFormalParameter = parameters.get(paramIndex);
-                Object result = DMNRuntimeImpl.coerceUsingType(param, 
-                                                               dsFormalParameter.type, 
-                                                               (rx, tx) -> MsgUtil.reportMessage(LOG,
-                                                                                                 DMNMessage.Severity.WARN,
-                                                                                                 null,
-                                                                                                 resultContext,
-                                                                                                 null,
-                                                                                                 null,
-                                                                                                 Msg.PARAMETER_TYPE_MISMATCH_DS,
-                                                                                                 dsFormalParameter.name,
-                                                                                                 tx,
-                                                                                                 MsgUtil.clipString(rx.toString(), 50)));
-                return result;
+            DSFormalParameter dsFormalParameter = parameters.get(paramIndex);
+            Object result = DMNRuntimeImpl.coerceUsingType(param,
+                                                           dsFormalParameter.type,
+                                                           typeCheck,
+                                                           (rx, tx) -> MsgUtil.reportMessage(LOG,
+                                                                                             DMNMessage.Severity.ERROR,
+                                                                                             null,
+                                                                                             resultContext,
+                                                                                             null,
+                                                                                             null,
+                                                                                             Msg.PARAMETER_TYPE_MISMATCH_DS,
+                                                                                             dsFormalParameter.name,
+                                                                                             tx,
+                                                                                             MsgUtil.clipString(rx.toString(), 50)));
+            if (param != null && result == null) {
+                throw new IllegalArgumentException("Parameter " + param + " cannot be assigned to parameter of type " + dsFormalParameter.type + "!");
             } else {
-                return param;
+                return result;
             }
         }
 

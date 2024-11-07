@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.event;
 
 import java.io.Externalizable;
@@ -22,10 +24,9 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Collections;
 import java.util.EventListener;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 import org.kie.internal.runtime.Closeable;
 
@@ -43,7 +44,9 @@ public abstract class AbstractEventSupport<E extends EventListener> implements E
 
     private static final long serialVersionUID = 510l;
 
-    private List<E> listeners = new CopyOnWriteArrayList<E>();
+    private List<E> listeners = new CopyOnWriteArrayList<>();
+
+    private volatile boolean hasListeners = false;
 
     @SuppressWarnings("unchecked")
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
@@ -54,14 +57,18 @@ public abstract class AbstractEventSupport<E extends EventListener> implements E
         out.writeObject(listeners);
     }
 
-    public void notifyAllListeners(Consumer<E> consumer) {
-        if (!listeners.isEmpty()) {
-            listeners.forEach( l -> consumer.accept( l ) );
+    public <O> void notifyAllListeners(O event, BiConsumer<E, O> consumer) {
+        if (listeners.size() == 1) {
+            consumer.accept( listeners.get(0), event );
+        } else {
+            for (E listener : listeners) {
+                consumer.accept( listener, event );
+            }
         }
     }
 
-    protected final Iterator<E> getEventListenersIterator() {
-        return listeners.iterator();
+    protected boolean hasListeners() {
+        return hasListeners;
     }
 
     /**
@@ -73,6 +80,7 @@ public abstract class AbstractEventSupport<E extends EventListener> implements E
     public final synchronized void addEventListener(final E listener) {
         if (!this.listeners.contains(listener)) {
             this.listeners.add(listener);
+            hasListeners = true;
         }
     }
 
@@ -92,24 +100,18 @@ public abstract class AbstractEventSupport<E extends EventListener> implements E
                 listenerIndex++;
             }
         }
+        hasListeners = !listeners.isEmpty();
     }
 
     public final void removeEventListener(final E listener) {
         this.listeners.remove(listener);
+        hasListeners = !listeners.isEmpty();
     }
 
     public List<E> getEventListeners() {
         return Collections.unmodifiableList(this.listeners);
     }
 
-    public final int size() {
-        return this.listeners.size();
-    }
-
-    public boolean isEmpty() {
-        return this.listeners.isEmpty();
-    }
-        
     public void clear() {
         for (EventListener listener : listeners) {
             if (listener instanceof Closeable) {

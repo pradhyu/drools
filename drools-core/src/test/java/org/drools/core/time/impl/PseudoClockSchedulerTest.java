@@ -1,33 +1,40 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.time.impl;
 
-import org.drools.core.time.Job;
-import org.drools.core.time.JobContext;
-import org.drools.core.time.JobHandle;
-import org.drools.core.time.Trigger;
-import org.junit.Test;
-
 import java.util.Date;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.*;
+import org.drools.base.time.JobHandle;
+import org.drools.base.time.Trigger;
+import org.drools.core.time.Job;
+import org.drools.core.time.JobContext;
+import org.junit.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class PseudoClockSchedulerTest {
 
@@ -46,10 +53,10 @@ public class PseudoClockSchedulerTest {
         when( mockTrigger_1.hasNextFireTime() ).thenReturn(triggerTime);
 
         JobHandle jobHandle = scheduler.scheduleJob(mockJob_1, this.mockContext_1, mockTrigger_1);
-        assertThat(scheduler.getTimeToNextJob(), is(triggerTime.getTime()));
+        assertThat(scheduler.getTimeToNextJob()).isEqualTo(triggerTime.getTime());
 
         scheduler.removeJob(jobHandle);
-        assertThat(scheduler.getTimeToNextJob(), is(-1L));
+        assertThat(scheduler.getTimeToNextJob()).isEqualTo(-1L);
         
         verify( mockTrigger_1, atLeastOnce()).hasNextFireTime();
     }
@@ -63,13 +70,13 @@ public class PseudoClockSchedulerTest {
 
         JobHandle jobHandle_1 = scheduler.scheduleJob(mockJob_1, this.mockContext_1, mockTrigger_1);
         JobHandle jobHandle_2 = scheduler.scheduleJob(mockJob_2, this.mockContext_2, mockTrigger_2);
-        assertThat(scheduler.getTimeToNextJob(), is(triggerTime_1.getTime()));
+        assertThat(scheduler.getTimeToNextJob()).isEqualTo(triggerTime_1.getTime());
 
         scheduler.removeJob(jobHandle_1);
-        assertThat(scheduler.getTimeToNextJob(), is(triggerTime_2.getTime()));
+        assertThat(scheduler.getTimeToNextJob()).isEqualTo(triggerTime_2.getTime());
 
         scheduler.removeJob(jobHandle_2);
-        assertThat(scheduler.getTimeToNextJob(), is(-1L));
+        assertThat(scheduler.getTimeToNextJob()).isEqualTo(-1L);
         
         verify( mockTrigger_1, atLeastOnce()).hasNextFireTime();
         verify( mockTrigger_2, atLeastOnce()).hasNextFireTime();
@@ -79,12 +86,13 @@ public class PseudoClockSchedulerTest {
         final Date triggerTime = new Date(1000);
         when( mockTrigger_1.hasNextFireTime() ).thenReturn(triggerTime, triggerTime, triggerTime, null);
         when( mockTrigger_1.nextFireTime() ).thenReturn(triggerTime);
+        when(mockContext_1.getInternalKnowledgeRuntime()).thenReturn(Optional.empty());
 
         Job job = new Job() {
             public void execute(JobContext ctx) {
                 // Even though the clock has been advanced to 5000, the job should run
                 // with the time set its trigger time.
-                assertThat(scheduler.getCurrentTime(), is(1000L));
+                assertThat(scheduler.getCurrentTime()).isEqualTo(1000L);
             }
         };
 
@@ -93,7 +101,7 @@ public class PseudoClockSchedulerTest {
         scheduler.advanceTime(5000, TimeUnit.MILLISECONDS);
 
         // Now, after the job has been executed the time should be what it was advanced to
-        assertThat(scheduler.getCurrentTime(), is(5000L));
+        assertThat(scheduler.getCurrentTime()).isEqualTo(5000L);
         
         verify( mockTrigger_1, atLeast(2) ).hasNextFireTime();
         verify( mockTrigger_1, times(1) ).nextFireTime();
@@ -103,10 +111,11 @@ public class PseudoClockSchedulerTest {
         final Date triggerTime = new Date(1000);
         when( mockTrigger_1.hasNextFireTime() ).thenReturn(triggerTime, triggerTime, triggerTime, null);
         when( mockTrigger_1.nextFireTime() ).thenReturn(triggerTime);
+        when(mockContext_1.getInternalKnowledgeRuntime()).thenReturn(Optional.empty());
 
         Job job = new Job() {
             public void execute(JobContext ctx) {
-                assertThat(scheduler.getCurrentTime(), is(1000L));
+                assertThat(scheduler.getCurrentTime()).isEqualTo(1000L);
                 throw new RuntimeException("for test");
             }
         };
@@ -116,7 +125,7 @@ public class PseudoClockSchedulerTest {
         scheduler.advanceTime(5000, TimeUnit.MILLISECONDS);
 
         // The time must be advanced correctly even when the job throws an exception
-        assertThat(scheduler.getCurrentTime(), is(5000L));
+        assertThat(scheduler.getCurrentTime()).isEqualTo(5000L);
         verify( mockTrigger_1, atLeast(2) ).hasNextFireTime();
         verify( mockTrigger_1, times(1) ).nextFireTime();
     }

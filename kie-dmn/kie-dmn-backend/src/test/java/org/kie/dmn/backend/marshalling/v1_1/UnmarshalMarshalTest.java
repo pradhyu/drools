@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.backend.marshalling.v1_1;
 
 import java.io.File;
@@ -24,14 +26,15 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.xml.namespace.QName;
 import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.kie.dmn.api.marshalling.DMNMarshaller;
 import org.kie.dmn.backend.marshalling.v1_1.extensions.MyTestRegister;
 import org.kie.dmn.backend.marshalling.v1_1.xstream.extensions.DecisionServicesExtensionRegister;
@@ -52,108 +55,107 @@ import org.xmlunit.validation.ValidationProblem;
 import org.xmlunit.validation.ValidationResult;
 import org.xmlunit.validation.Validator;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class UnmarshalMarshalTest {
 
-    protected static final Logger logger = LoggerFactory.getLogger(UnmarshalMarshalTest.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(UnmarshalMarshalTest.class);
 
     @Test
-    public void test0001() throws Exception {
+    void test0001() throws Exception {
         testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "0001-input-data-string.dmn");
     }
 
     @Test
-    public void test0002() throws Exception {
+    void test0002() throws Exception {
         testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "0002-input-data-number.dmn");
     }
 
     @Test
-    public void test0003() throws Exception {
+    void test0003() throws Exception {
         testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "0003-input-data-string-allowed-values.dmn");
     }
 
     @Test
-    public void test0004() throws Exception {
-        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(Arrays.asList(new DecisionServicesExtensionRegister()));
+    void test0004() throws Exception {
+        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(List.of(new DecisionServicesExtensionRegister()));
         testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "0004-decision-services.dmn", marshaller);
     }
 
     @Test
-    public void test0004_ns_other_location() throws Exception {
-        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(Arrays.asList(new DecisionServicesExtensionRegister()));
+    void test0004_ns_other_location() throws Exception {
+        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(List.of(new DecisionServicesExtensionRegister()));
         testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "0004-decision-services_ns_other_location.dmn", marshaller);
     }
 
     @Test
-    public void test0005_decision_list() throws Exception {
+    void test0005_decision_list() throws Exception {
         testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "0005-decision-list.dmn");
     }
 
     @Test
-    public void test_hardcoded_java_max_call() throws Exception {
+    void hardcoded_java_max_call() throws Exception {
         testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "hardcoded-java-max-call.dmn");
     }
 
     @Test
-    public void testDish() throws Exception {
-        testRoundTrip("", "dish-decision.xml");
+    void dish() throws Exception {
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "dish-decision.xml");
     }
 
-    @Ignore("failing to compare over a xsi:type=\"tImport\" attribute, but why content generated 'control' need to explicit it ?")
+    @Disabled("failing to compare over a xsi:type=\"tImport\" attribute, but why content generated 'control' need to explicit it ?")
     @Test
-    public void testDummyDefinitions() throws Exception {
-        testRoundTrip("", "dummy-definitions.xml");
-    }
-
-    @Test
-    public void testDummyRelation() throws Exception {
-        testRoundTrip("", "dummy-relation.xml");
+    void dummyDefinitions() throws Exception {
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "dummy-definitions.xml");
     }
 
     @Test
-    public void testCh11() throws Exception {
-        testRoundTrip("", "ch11example.xml");
+    void dummyRelation() throws Exception {
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "dummy-relation.xml");
     }
 
     @Test
-    public void testHello_World_semantic_namespace() throws Exception {
-        testRoundTrip("", "Hello_World_semantic_namespace.dmn");
+    void ch11() throws Exception {
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "ch11example.xml");
     }
 
     @Test
-    public void testHello_World_semantic_namespace_with_extensions() throws Exception {
-        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(Arrays.asList(new MyTestRegister()));
-        testRoundTrip("", "Hello_World_semantic_namespace_with_extensions.dmn", marshaller);
+    void helloWorldSemanticNamespace() throws Exception {
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "Hello_World_semantic_namespace.dmn");
     }
 
     @Test
-    public void testHello_World_semantic_namespace_with_extensions_other_ns_location() throws Exception {
-        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(Arrays.asList(new MyTestRegister()));
-        testRoundTrip("", "Hello_World_semantic_namespace_with_extensions_other_ns_location.dmn", marshaller);
+    void helloWorldSemanticNamespaceWithExtensions() throws Exception {
+        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(List.of(new MyTestRegister()));
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "Hello_World_semantic_namespace_with_extensions.dmn", marshaller);
     }
 
     @Test
-    public void testSemanticNamespace() throws Exception {
-        testRoundTrip("", "semantic-namespace.xml");
-    }
-
-    @Ignore("The current file cannot marshal back extension elements because they don't provide converters.")
-    @Test
-    public void test20161014() throws Exception {
-        testRoundTrip("", "test20161014.xml");
+    void helloWorldSemanticNamespaceWithExtensionsOtherNsLocation() throws Exception {
+        DMNMarshaller marshaller = DMNMarshallerFactory.newMarshallerWithExtensions(List.of(new MyTestRegister()));
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "Hello_World_semantic_namespace_with_extensions_other_ns_location.dmn", marshaller);
     }
 
     @Test
-    public void testQNameSerialization() throws Exception {
-        testRoundTrip("", "hardcoded_function_definition.dmn");
+    void semanticNamespace() throws Exception {
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "semantic-namespace.xml");
     }
 
-    @Ignore("A problem with the StaxDriver has still to be resolved.")
+    @Disabled("The current file cannot marshal back extension elements because they don't provide converters.")
     @Test
-    public void testFAILforMissingNamespaces() {
+    void test20161014() throws Exception {
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "test20161014.xml");
+    }
+
+    @Test
+    void qNameSerialization() throws Exception {
+        testRoundTrip("org/kie/dmn/backend/marshalling/v1_1/", "hardcoded_function_definition.dmn");
+    }
+
+    @Disabled("A problem with the StaxDriver has still to be resolved.")
+    @Test
+    void faiLforMissingNamespaces() {
         fail("PERFORM A MANUAL CHECK: does now the Stax driver do output the namespace for 'feel:' ?? ");
     }
 
@@ -174,18 +176,18 @@ public class UnmarshalMarshalTest {
         Definitions unmarshal = marshaller.unmarshal(new InputStreamReader(fis));
 
         Validator v = Validator.forLanguage(Languages.W3C_XML_SCHEMA_NS_URI);
-        v.setSchemaSource(new StreamSource(this.getClass().getResource("/dmn.xsd").getFile()));
+        v.setSchemaSource(new StreamSource(this.getClass().getResource("/DMN11.xsd").getFile()));
         ValidationResult validateInputResult = v.validateInstance(new StreamSource(inputXMLFile));
         if (!validateInputResult.isValid()) {
             for (ValidationProblem p : validateInputResult.getProblems()) {
-                System.err.println(p);
+                LOG.error("{}", p);
             }
         }
-        assertTrue(validateInputResult.isValid());
+        assertThat(validateInputResult.isValid()).isTrue();
 
         final File subdirFile = new File(baseOutputDir, subdir);
         if (!subdirFile.mkdirs()) {
-            logger.warn("mkdirs() failed for File: " + subdirFile.getAbsolutePath() + "!");
+            LOG.warn("mkdirs() failed for File: {}", subdirFile.getAbsolutePath());
         }
         FileOutputStream sourceFos = new FileOutputStream(new File(baseOutputDir, subdir + "a." + xmlfile));
         Files.copy(
@@ -195,7 +197,7 @@ public class UnmarshalMarshalTest {
         sourceFos.flush();
         sourceFos.close();
 
-        System.out.println(marshaller.marshal(unmarshal));
+        LOG.debug("{}", marshaller.marshal(unmarshal));
         File outputXMLFile = new File(baseOutputDir, subdir + "b." + xmlfile);
         try (FileWriter targetFos = new FileWriter(outputXMLFile)) {
             marshaller.marshal(unmarshal, targetFos);
@@ -205,21 +207,21 @@ public class UnmarshalMarshalTest {
         ValidationResult validateOutputResult = v.validateInstance(new StreamSource(outputXMLFile));
         if (!validateOutputResult.isValid()) {
             for (ValidationProblem p : validateOutputResult.getProblems()) {
-                System.err.println(p);
+                LOG.error("{}", p);
             }
         }
-        assertTrue(validateOutputResult.isValid());
+        assertThat(validateOutputResult.isValid()).isTrue();
 
-        System.out.println("\n---\nDefault XMLUnit comparison:");
+        LOG.debug("\n---\nDefault XMLUnit comparison:");
         Source control = Input.fromFile(inputXMLFile).build();
         Source test = Input.fromFile(outputXMLFile).build();
         Diff allDiffsSimilarAndDifferent = DiffBuilder
                 .compare(control)
                 .withTest(test)
                 .build();
-        allDiffsSimilarAndDifferent.getDifferences().forEach(System.out::println);
+        allDiffsSimilarAndDifferent.getDifferences().forEach(m -> LOG.debug("{}", m));
 
-        System.out.println("XMLUnit comparison with customized similarity for defaults:");
+        LOG.info("XMLUnit comparison with customized similarity for defaults:");
         // in the following a manual DifferenceEvaluator is needed until XMLUnit is configured for properly parsing the XSD linked inside the XML,
         // in order to detect the optional+defaultvalue attributes of xml element which might be implicit in source-test, and explicit in test-serialized.
         /*
@@ -232,15 +234,13 @@ public class UnmarshalMarshalTest {
 
          */
         Set<QName> attrWhichCanDefault = new HashSet<QName>();
-        attrWhichCanDefault.addAll(Arrays.asList(new QName[]{
-                new QName("expressionLanguage"),
-                new QName("typeLanguage"),
-                new QName("isCollection"),
-                new QName("hitPolicy"),
-                new QName("preferredOrientation")
-        }));
+        attrWhichCanDefault.addAll(Arrays.asList(new QName("expressionLanguage"),
+                                                 new QName("typeLanguage"),
+                                                 new QName("isCollection"),
+                                                 new QName("hitPolicy"),
+                                                 new QName("preferredOrientation")));
         Set<String> nodeHavingDefaultableAttr = new HashSet<>();
-        nodeHavingDefaultableAttr.addAll(Arrays.asList(new String[]{"definitions", "decisionTable", "itemDefinition", "itemComponent"}));
+        nodeHavingDefaultableAttr.addAll(Arrays.asList("definitions", "decisionTable", "itemDefinition", "itemComponent"));
         Diff checkSimilar = DiffBuilder
                 .compare(control)
                 .withTest(test)
@@ -262,7 +262,6 @@ public class UnmarshalMarshalTest {
                                                                    if (check) {
                                                                        testIsDefaulableAttribute = true;
                                                                        whichDefaultableAttr = a;
-                                                                       continue;
                                                                    }
                                                                }
                                                            }
@@ -276,13 +275,14 @@ public class UnmarshalMarshalTest {
                                                        return outcome;
                                                    })))
                 .ignoreWhitespace()
+                .ignoreComments()
                 .checkForSimilar()
                 .build();
-        checkSimilar.getDifferences().forEach(System.err::println);
+        checkSimilar.getDifferences().forEach(m -> LOG.error("{}", m));
         if (!checkSimilar.getDifferences().iterator().hasNext()) {
-            System.out.println("[ EMPTY - no diffs using customized similarity ]");
+            LOG.info("[ EMPTY - no diffs using customized similarity ]");
         }
-        assertFalse("XML are NOT similar: " + checkSimilar.toString(), checkSimilar.hasDifferences());
+        assertThat(checkSimilar.hasDifferences()).as("XML are NOT similar: " + checkSimilar.toString()).isFalse();
     }
 
     private String safeStripDMNPRefix(Node target) {

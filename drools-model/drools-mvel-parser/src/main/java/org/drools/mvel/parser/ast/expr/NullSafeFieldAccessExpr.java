@@ -1,27 +1,21 @@
-/*
- * Copyright (C) 2007-2010 Júlio Vilmar Gesser.
- * Copyright (C) 2011, 2013-2016 The JavaParser Team.
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * This file is part of JavaParser.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * JavaParser can be used either under the terms of
- * a) the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- * b) the terms of the Apache License
- *
- * You should have received a copy of both licenses in LICENCE.LGPL and
- * LICENCE.APACHE. Please refer to those files for details.
- *
- * JavaParser is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * Modified by Red Hat, Inc.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.mvel.parser.ast.expr;
 
 import java.util.Optional;
@@ -107,9 +101,9 @@ public class NullSafeFieldAccessExpr extends Expression implements NodeWithSimpl
 
     @Generated("com.github.javaparser.generator.core.node.PropertyGenerator")
     public NullSafeFieldAccessExpr setName(final SimpleName name) {
-        assertNotNull(name);
+    	assertNotNull(name);
         if (name == this.name) {
-            return (NullSafeFieldAccessExpr) this;
+            return this;
         }
         notifyPropertyChange(ObservableProperty.NAME, this.name, name);
         if (this.name != null) {
@@ -158,9 +152,9 @@ public class NullSafeFieldAccessExpr extends Expression implements NodeWithSimpl
      */
     @Generated("com.github.javaparser.generator.core.node.PropertyGenerator")
     public NullSafeFieldAccessExpr setScope(final Expression scope) {
-        assertNotNull(scope);
+    	assertNotNull(scope);
         if (scope == this.scope) {
-            return (NullSafeFieldAccessExpr) this;
+            return this;
         }
         notifyPropertyChange(ObservableProperty.SCOPE, this.scope, scope);
         if (this.scope != null) {
@@ -185,7 +179,7 @@ public class NullSafeFieldAccessExpr extends Expression implements NodeWithSimpl
     @Generated("com.github.javaparser.generator.core.node.PropertyGenerator")
     public NullSafeFieldAccessExpr setTypeArguments(final NodeList<Type> typeArguments) {
         if (typeArguments == this.typeArguments) {
-            return (NullSafeFieldAccessExpr) this;
+            return this;
         }
         notifyPropertyChange(ObservableProperty.TYPE_ARGUMENTS, this.typeArguments, typeArguments);
         if (this.typeArguments != null) {

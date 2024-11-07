@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.solver;
 
 import java.util.ArrayList;
@@ -29,7 +31,7 @@ import org.drools.verifier.data.VerifierComponent;
  */
 class Solver {
 
-    private List<Set<VerifierComponent>> possibilityLists = new ArrayList<Set<VerifierComponent>>();
+    private List<Set<VerifierComponent>> possibilityLists = new ArrayList<>();
     private Solver                       subSolver        = null;
     private boolean                      isChildExists    = false;
     private boolean                      isChildForall    = false;
@@ -61,13 +63,13 @@ class Solver {
         } else {
             if ( type == OperatorDescrType.AND ) {
                 if ( possibilityLists.isEmpty() ) {
-                    possibilityLists.add( new HashSet<VerifierComponent>() );
+                    possibilityLists.add( new HashSet<>() );
                 }
                 for ( Set<VerifierComponent> set : possibilityLists ) {
                     set.add( descr );
                 }
             } else if ( type == OperatorDescrType.OR ) {
-                Set<VerifierComponent> set = new HashSet<VerifierComponent>();
+                Set<VerifierComponent> set = new HashSet<>();
                 set.add( descr );
                 possibilityLists.add( set );
             }
@@ -81,16 +83,16 @@ class Solver {
         if ( subSolver != null && subSolver.subSolver == null ) {
             if ( type == OperatorDescrType.AND ) {
                 if ( possibilityLists.isEmpty() ) {
-                    possibilityLists.add( new HashSet<VerifierComponent>() );
+                    possibilityLists.add( new HashSet<>() );
                 }
 
-                List<Set<VerifierComponent>> newPossibilities = new ArrayList<Set<VerifierComponent>>();
+                List<Set<VerifierComponent>> newPossibilities = new ArrayList<>();
 
                 List<Set<VerifierComponent>> sets = subSolver.getPossibilityLists();
                 for ( Set<VerifierComponent> possibilityList : possibilityLists ) {
 
                     for ( Set<VerifierComponent> set : sets ) {
-                        Set<VerifierComponent> newSet = new HashSet<VerifierComponent>();
+                        Set<VerifierComponent> newSet = new HashSet<>();
                         newSet.addAll( possibilityList );
                         newSet.addAll( set );
                         newPossibilities.add( newSet );

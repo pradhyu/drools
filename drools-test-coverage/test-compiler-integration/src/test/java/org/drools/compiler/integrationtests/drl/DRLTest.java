@@ -1,28 +1,29 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.drl;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
 import org.drools.testcoverage.common.model.A;
 import org.drools.testcoverage.common.model.B;
 import org.drools.testcoverage.common.model.C;
@@ -33,10 +34,9 @@ import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.Message;
@@ -44,28 +44,17 @@ import org.kie.api.definition.rule.Rule;
 import org.kie.api.definition.type.FactType;
 import org.kie.api.runtime.KieSession;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class DRLTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public DRLTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test
-    public void testDuplicateRuleName() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDuplicateRuleName(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "rule R when\n" +
                 "then\n" +
@@ -75,11 +64,12 @@ public class DRLTest {
                 "end\n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
-    @Test
-    public void testEmptyRule() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEmptyRule(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "global java.util.List list\n" +
@@ -102,15 +92,16 @@ public class DRLTest {
 
             ksession.fireAllRules();
 
-            assertTrue(list.contains("fired1"));
-            assertTrue(list.contains("fired2"));
+            assertThat(list.contains("fired1")).isTrue();
+            assertThat(list.contains("fired2")).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testRuleMetaAttributes() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testRuleMetaAttributes(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
             "package org.drools.compiler.integrationtests.drl;\n" +
             "rule \"test meta attributes\"\n" +
@@ -125,17 +116,18 @@ public class DRLTest {
         try {
             final Rule rule = kbase.getRule("org.drools.compiler.integrationtests.drl", "test meta attributes");
 
-            assertNotNull(rule);
-            assertThat(rule.getMetaData().get("id"), is(1234));
-            assertThat(rule.getMetaData().get("author"), is("john_doe"));
-            assertThat(rule.getMetaData().get("text"), is("It's an escaped\" string"));
+            assertThat(rule).isNotNull();
+            assertThat(rule.getMetaData().get("id")).isEqualTo(1234);
+            assertThat(rule.getMetaData().get("author")).isEqualTo("john_doe");
+            assertThat(rule.getMetaData().get("text")).isEqualTo("It's an escaped\" string");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testWithInvalidRule() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testWithInvalidRule(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -154,12 +146,13 @@ public class DRLTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
     }
 
-    @Test
-    public void testWithInvalidRule2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testWithInvalidRule2(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -173,12 +166,13 @@ public class DRLTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
     }
 
-    @Test
-    public void testDuplicateVariableBinding() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDuplicateVariableBinding(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -228,29 +222,30 @@ public class DRLTest {
             ksession.insert(brie);
 
             ksession.fireAllRules();
-            assertEquals(5, result.size());
-            assertEquals(stilton.getPrice(), ((Integer) result.get(stilton.getType())).intValue());
-            assertEquals(brie.getPrice(), ((Integer) result.get(brie.getType())).intValue());
+            assertThat(result.size()).isEqualTo(5);
+            assertThat(((Integer) result.get(stilton.getType())).intValue()).isEqualTo(stilton.getPrice());
+            assertThat(((Integer) result.get(brie.getType())).intValue()).isEqualTo(brie.getPrice());
 
-            assertEquals(stilton.getPrice(), ((Integer) result.get(stilton)).intValue());
-            assertEquals(brie.getPrice(), ((Integer) result.get(brie)).intValue());
+            assertThat(((Integer) result.get(stilton)).intValue()).isEqualTo(stilton.getPrice());
+            assertThat(((Integer) result.get(brie)).intValue()).isEqualTo(brie.getPrice());
 
-            assertEquals(stilton.getPrice(), ((Integer) result.get("test3" + stilton.getType())).intValue());
+            assertThat(((Integer) result.get("test3" + stilton.getType())).intValue()).isEqualTo(stilton.getPrice());
 
             final Person bob = new Person("bob");
             bob.setLikes(brie.getType());
             ksession.insert(bob);
             ksession.fireAllRules();
 
-            assertEquals(6, result.size());
-            assertEquals(brie.getPrice(), ((Integer) result.get("test3" + brie.getType())).intValue());
+            assertThat(result.size()).isEqualTo(6);
+            assertThat(((Integer) result.get("test3" + brie.getType())).intValue()).isEqualTo(brie.getPrice());
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testDeclarationUsage() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeclarationUsage(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -263,12 +258,13 @@ public class DRLTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
     }
 
-    @Test
-    public void testDeclarationNonExistingField() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeclarationNonExistingField(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -281,12 +277,13 @@ public class DRLTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
     }
 
-    @Test
-    public void testDRLWithoutPackageDeclaration() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDRLWithoutPackageDeclaration(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
 
         final String drl = "global java.util.List results\n" +
                 "\n" +
@@ -310,7 +307,7 @@ public class DRLTest {
 
         // no package defined, so it is set to the default
         final FactType factType = kbase.getFactType("defaultpkg", "Person");
-        assertNotNull(factType);
+        assertThat(factType).isNotNull();
         final Object bob = factType.newInstance();
         factType.set(bob, "name", "Bob");
         factType.set(bob, "age", 30);
@@ -323,15 +320,16 @@ public class DRLTest {
             session.insert(bob);
             session.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertEquals(bob, results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isEqualTo(bob);
         } finally {
             session.dispose();
         }
     }
 
-    @Test
-    public void testPackageNameOfTheBeast() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testPackageNameOfTheBeast(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         // JBRULES-2749 Various rules stop firing when they are in unlucky packagename and there is a function declared
 
         final String ruleFileContent1 = "package org.drools.integrationtests;\n" +
@@ -357,14 +355,15 @@ public class DRLTest {
             ksession.insert(myDeclaredFactInstance);
 
             final int rulesFired = ksession.fireAllRules();
-            assertEquals(1, rulesFired);
+            assertThat(rulesFired).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testLargeDRL() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testLargeDRL(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kieBase = KieBaseUtil.getKieBaseFromClasspathResources(getClass(), kieBaseTestConfiguration,
                                                                              "org/drools/compiler/integrationtests/largedrl.drl");
         final KieSession kieSession = kieBase.newKieSession();
@@ -375,7 +374,7 @@ public class DRLTest {
             kieSession.insert(new D(100003));
             kieSession.insert(new E(100004));
 
-            Assertions.assertThat(kieSession.fireAllRules()).isEqualTo(50);
+            assertThat(kieSession.fireAllRules()).isEqualTo(50);
         } finally {
             kieSession.dispose();
         }

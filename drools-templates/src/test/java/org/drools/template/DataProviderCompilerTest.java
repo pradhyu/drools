@@ -1,29 +1,38 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.template;
 
-import org.assertj.core.api.Assertions;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
 import org.drools.template.parser.Column;
 import org.drools.template.parser.DefaultTemplateContainer;
 import org.drools.template.parser.TemplateContainer;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.io.InputStream;
-import java.util.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DataProviderCompilerTest {
 
@@ -48,10 +57,10 @@ public class DataProviderCompilerTest {
         String rule0_then = "\tthen\n\t\tresult.setSchedule(new FeeSchedule(\"1\", \"STANDARD\", 750));\nend\n\n\n";
 
         EXPECTED_RULES.append(head);
-        EXPECTED_RULES.append(rule3_a).append(rule3_b).append(rule3_then);
-        EXPECTED_RULES.append(rule2_a).append(rule2_b).append(rule2_then);
-        EXPECTED_RULES.append(rule1_a).append(rule1_b).append(rule1_then);
         EXPECTED_RULES.append(rule0_a).append(rule0_b).append(rule0_then);
+        EXPECTED_RULES.append(rule1_a).append(rule1_b).append(rule1_then);
+        EXPECTED_RULES.append(rule2_a).append(rule2_b).append(rule2_then);
+        EXPECTED_RULES.append(rule3_a).append(rule3_b).append(rule3_then);
     }
 
     private class TestDataProvider
@@ -74,7 +83,7 @@ public class DataProviderCompilerTest {
 
     private ArrayList<String[]> rows = new ArrayList<String[]>();
 
-    @Before
+    @BeforeEach
     public void setUp() {
         rows.add(new String[]{"1",
                               "STANDARD",
@@ -133,7 +142,7 @@ public class DataProviderCompilerTest {
         final String drl = converter.compile(tdp,
                                              "/templates/rule_template_1.drl");
 
-        Assertions.assertThat(EXPECTED_RULES.toString()).isEqualToIgnoringWhitespace(drl);
+        assertThat(EXPECTED_RULES.toString()).isEqualToIgnoringWhitespace(drl);
     }
     
     @Test
@@ -142,7 +151,7 @@ public class DataProviderCompilerTest {
         final DataProviderCompiler converter = new DataProviderCompiler();
         final String drl = converter.compile( tdp,
                                               "/templates/rule_template_indented.drl" );
-        Assertions.assertThat(EXPECTED_RULES.toString()).isEqualToIgnoringWhitespace(drl);
+        assertThat(EXPECTED_RULES.toString()).isEqualToIgnoringWhitespace(drl);
     }
 
     @Test
@@ -169,7 +178,7 @@ public class DataProviderCompilerTest {
                 this.getClass().getResourceAsStream("/templates/rule_template_1.drl");
         final String drl = converter.compile(maps,
                                              templateStream);
-        Assertions.assertThat(EXPECTED_RULES.toString()).isEqualToIgnoringWhitespace(drl);
+        assertThat(EXPECTED_RULES.toString()).isEqualToIgnoringWhitespace(drl);
     }
 
     public static class OBJ {
@@ -237,7 +246,7 @@ public class DataProviderCompilerTest {
         }
         final String drl = converter.compile(objs,
                                              templateStream);
-        Assertions.assertThat(EXPECTED_RULES.toString()).isEqualToIgnoringWhitespace(drl);
+        assertThat(EXPECTED_RULES.toString()).isEqualToIgnoringWhitespace(drl);
     }
 
 }

@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.base.accumulators;
 
 import java.io.Externalizable;
@@ -21,19 +23,15 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.io.Serializable;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 
-import org.drools.core.WorkingMemory;
-import org.drools.core.common.InternalFactHandle;
-import org.drools.core.rule.Declaration;
-import org.drools.core.spi.Accumulator;
-import org.drools.core.spi.ReturnValueExpression;
-import org.drools.core.spi.ReturnValueExpression.SafeReturnValueExpression;
-import org.drools.core.spi.Tuple;
-import org.drools.core.spi.Wireable;
-import org.kie.internal.security.KiePolicyHelper;
+import org.drools.base.base.ValueResolver;
+import org.drools.base.reteoo.BaseTuple;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.accessor.Accumulator;
+import org.drools.base.rule.accessor.CompiledInvoker;
+import org.drools.base.rule.accessor.ReturnValueExpression;
+import org.drools.base.rule.accessor.Wireable;
+import org.kie.api.runtime.rule.FactHandle;
 
 /**
  * A Java accumulator function executor implementation
@@ -65,7 +63,7 @@ public class JavaAccumulatorFunctionExecutor
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
-        if ( ReturnValueExpression.isCompiledInvoker(this.expression) ) {
+        if ( CompiledInvoker.isCompiledInvoker(this.expression) ) {
             out.writeObject( null );
         } else {
             out.writeObject( this.expression );
@@ -76,61 +74,53 @@ public class JavaAccumulatorFunctionExecutor
     /* (non-Javadoc)
      * @see org.kie.spi.Accumulator#createContext()
      */
-    public Serializable createContext() {
-        JavaAccumulatorFunctionContext context = new JavaAccumulatorFunctionContext();
-        context.context = this.function.createContext();
-        if ( this.function.supportsReverse() ) {
-            context.reverseSupport = new HashMap<>();
-        }
-        return context;
+    public Object createContext() {
+        return this.function.createContext();
     }
 
     /* (non-Javadoc)
      * @see org.kie.spi.Accumulator#init(java.lang.Object, org.kie.spi.Tuple, org.kie.rule.Declaration[], org.kie.WorkingMemory)
      */
-    public void init(Object workingMemoryContext,
-                     Object context,
-                     Tuple leftTuple,
-                     Declaration[] declarations,
-                     WorkingMemory workingMemory) throws Exception {
-        this.function.init( ((JavaAccumulatorFunctionContext) context).context );
+    public Object init(Object workingMemoryContext,
+                       Object context,
+                       BaseTuple leftTuple,
+                       Declaration[] declarations,
+                       ValueResolver valueResolver) {
+        return this.function.initContext( (Serializable) context );
     }
 
     /* (non-Javadoc)
      * @see org.kie.spi.Accumulator#accumulate(java.lang.Object, org.kie.spi.Tuple, org.kie.common.InternalFactHandle, org.kie.rule.Declaration[], org.kie.rule.Declaration[], org.kie.WorkingMemory)
      */
-    public void accumulate(Object workingMemoryContext,
+    public Object accumulate(Object workingMemoryContext,
                            Object context,
-                           Tuple leftTuple,
-                           InternalFactHandle handle,
+                           BaseTuple leftTuple,
+                           FactHandle handle,
                            Declaration[] declarations,
                            Declaration[] innerDeclarations,
-                           WorkingMemory workingMemory) throws Exception {
-        final Object value = this.expression.evaluate( handle,
-                                                       leftTuple,
-                                                       declarations,
-                                                       innerDeclarations,
-                                                       workingMemory,
-                                                       workingMemoryContext ).getValue();
-        if ( this.function.supportsReverse() ) {
-            ((JavaAccumulatorFunctionContext) context).reverseSupport.put( handle.getId(),
-                                                                           value );
+                           ValueResolver valueResolver) {
+        try {
+            Object value = this.expression.evaluate( handle,
+                                                     leftTuple,
+                                                     declarations,
+                                                     innerDeclarations,
+                                                     valueResolver,
+                                                     workingMemoryContext ).getValue();
+            return this.function.accumulateValue( (Serializable) context, value );
+        } catch (Exception e) {
+            throw new RuntimeException( e );
         }
-        this.function.accumulate( ((JavaAccumulatorFunctionContext) context).context,
-                                  value );
     }
 
-    public void reverse(Object workingMemoryContext,
-                        Object context,
-                        Tuple leftTuple,
-                        InternalFactHandle handle,
-                        Declaration[] declarations,
-                        Declaration[] innerDeclarations,
-                        WorkingMemory workingMemory) throws Exception {
-
-        final Object value = ((JavaAccumulatorFunctionContext) context).reverseSupport.remove(handle.getId());
-        this.function.reverse( ((JavaAccumulatorFunctionContext) context).context,
-                               value );
+    public boolean tryReverse(Object workingMemoryContext,
+                              Object context,
+                              BaseTuple leftTuple,
+                              FactHandle handle,
+                              Object value,
+                              Declaration[] declarations,
+                              Declaration[] innerDeclarations,
+                              ValueResolver valueResolver) {
+        return this.function.tryReverse( (Serializable) context, value );
     }
 
     /* (non-Javadoc)
@@ -138,10 +128,14 @@ public class JavaAccumulatorFunctionExecutor
      */
     public Object getResult(Object workingMemoryContext,
                             Object context,
-                            Tuple leftTuple,
+                            BaseTuple leftTuple,
                             Declaration[] declarations,
-                            WorkingMemory workingMemory) throws Exception {
-        return this.function.getResult( ((JavaAccumulatorFunctionContext) context).context );
+                            ValueResolver valueResolver) {
+        try {
+            return this.function.getResult( (Serializable) context );
+        } catch (Exception e) {
+            throw new RuntimeException( e );
+        }
     }
 
     public boolean supportsReverse() {
@@ -153,7 +147,7 @@ public class JavaAccumulatorFunctionExecutor
     }
 
     public void wire(Object object) {
-        setExpression( KiePolicyHelper.isPolicyEnabled() ? new SafeReturnValueExpression((ReturnValueExpression) object ) : (ReturnValueExpression) object );
+        setExpression( (ReturnValueExpression) object );
     }
 
     public void setExpression(ReturnValueExpression expression) {
@@ -167,8 +161,12 @@ public class JavaAccumulatorFunctionExecutor
 
     @Override
     public boolean equals( Object o ) {
-        if ( this == o ) return true;
-        if ( o == null || getClass() != o.getClass() ) return false;
+        if ( this == o ) {
+            return true;
+        }
+        if ( o == null || getClass() != o.getClass() ) {
+            return false;
+        }
 
         JavaAccumulatorFunctionExecutor that = (JavaAccumulatorFunctionExecutor) o;
 
@@ -180,36 +178,5 @@ public class JavaAccumulatorFunctionExecutor
         int result = expression.hashCode();
         result = 31 * result + function.hashCode();
         return result;
-    }
-
-    public static class JavaAccumulatorFunctionContext
-        implements
-        Externalizable {
-        public Serializable               context;
-        public Map<Long, Object>       reverseSupport;
-
-        public JavaAccumulatorFunctionContext() {
-        }
-
-        @SuppressWarnings("unchecked")
-        public void readExternal(ObjectInput in) throws IOException,
-                                                ClassNotFoundException {
-            context = (Externalizable) in.readObject();
-            reverseSupport = (Map<Long, Object>) in.readObject();
-        }
-
-        public void writeExternal(ObjectOutput out) throws IOException {
-            out.writeObject( context );
-            out.writeObject( reverseSupport );
-        }
-
-        public Collection<Object> getAccumulatedObjects() {
-            return reverseSupport == null ? null : reverseSupport.values();
-        }
-
-        @Override
-        public String toString() {
-            return context.toString();
-        }
     }
 }

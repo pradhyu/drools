@@ -1,28 +1,30 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Message;
 import org.drools.testcoverage.common.model.Person;
@@ -30,33 +32,24 @@ import org.drools.testcoverage.common.model.StockTick;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.runtime.KieSession;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class ConstraintsTest {
-
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public ConstraintsTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+	
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(false);
-    }
-
-    @Test
-    public void testExpressionConstraints1() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpressionConstraints1(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests\n" +
                 "import " + Mailbox.FolderType.class.getCanonicalName() + ";\n" +
                 "import " + Mailbox.class.getCanonicalName() + ";\n" +
@@ -76,11 +69,12 @@ public class ConstraintsTest {
                 "    then\n" +
                 "end\n";
 
-        testExpressionConstraints(drl);
+        testExpressionConstraints(kieBaseTestConfiguration, drl);
     }
 
-    @Test
-    public void testExpressionConstraints2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpressionConstraints2(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests\n" +
                 "import " + Mailbox.FolderType.class.getCanonicalName() + ";\n" +
                 "import " + Mailbox.class.getCanonicalName() + ";\n" +
@@ -105,11 +99,12 @@ public class ConstraintsTest {
                 "    then\n" +
                 "end\n";
 
-        testExpressionConstraints(drl);
+        testExpressionConstraints(kieBaseTestConfiguration, drl);
     }
 
-    @Test
-    public void testExpressionConstraints3() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpressionConstraints3(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests\n" +
                 "import " + Mailbox.FolderType.class.getCanonicalName() + ";\n" +
                 "import " + Mailbox.class.getCanonicalName() + ";\n" +
@@ -118,9 +113,9 @@ public class ConstraintsTest {
                 "    when\n" +
                 "        $m : Mailbox( \n" +
                 "                $type1 : FolderType.INBOX,\n" +
-                "                $type2 : " + Mailbox.class.getCanonicalName() + "$FolderType.INBOX,\n" +
+                "                $type2 : " + Mailbox.class.getCanonicalName() + ".FolderType.INBOX,\n" +
                 "                $work1 : getFolder(null),\n" +
-                "                $work2 : getFolder(" + Mailbox.class.getCanonicalName() + "$FolderType.INBOX),\n" +
+                "                $work2 : getFolder(" + Mailbox.class.getCanonicalName() + ".FolderType.INBOX),\n" +
                 "                $work3 : getFolder(FolderType.INBOX),\n" +
                 "                getFolder($type1) != null,\n" +
                 "                getFolder($type1).size() > 0,\n" +
@@ -128,7 +123,7 @@ public class ConstraintsTest {
                 "                $work6 : folders,\n" +
                 "                $work7 : folders.size,\n" +
                 "                //folders.containsKey(FolderType.INBOX),\n" +
-                "                folders.containsKey(" + Mailbox.class.getCanonicalName() + "$FolderType.INBOX),\n" +
+                "                folders.containsKey(" + Mailbox.class.getCanonicalName() + ".FolderType.INBOX),\n" +
                 "                folders.containsKey($type2),\n" +
                 "                !folders.isEmpty,\n" +
                 "                getFolder(FolderType.INBOX) != null,\n" +
@@ -143,10 +138,10 @@ public class ConstraintsTest {
                 "    then\n" +
                 "end";
 
-        testExpressionConstraints(drl);
+        testExpressionConstraints(kieBaseTestConfiguration, drl);
     }
 
-    private void testExpressionConstraints(final String drl) {
+    private void testExpressionConstraints(KieBaseTestConfiguration kieBaseTestConfiguration, final String drl) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("constraints-test", kieBaseTestConfiguration, drl);
         final KieSession ksession = kbase.newKieSession();
         try {
@@ -158,14 +153,15 @@ public class ConstraintsTest {
 
             ksession.insert(mbox);
             ksession.insert(message);
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testExpressionConstraints4() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpressionConstraints4(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests\n" +
                 "import " + Mailbox.FolderType.class.getCanonicalName() + ";\n" +
                 "import " + Mailbox.class.getCanonicalName() + ";\n" +
@@ -186,17 +182,18 @@ public class ConstraintsTest {
         final KieSession ksession = kbase.newKieSession();
         try {
             ksession.insert(new Mailbox("foo@mail"));
-            assertEquals(0, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(0);
 
             ksession.insert(new Mailbox("john@mail"));
-            assertEquals(2, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testDeeplyNestedCompactExpressions() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeeplyNestedCompactExpressions(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools\n" +
                 "rule R1\n" +
                 " when\n" +
@@ -208,11 +205,12 @@ public class ConstraintsTest {
                 "end\n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
-    @Test
-    public void testConstraintConnectors() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testConstraintConnectors(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("constraints-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_ConstraintConnectors.drl");
         final KieSession ksession = kbase.newKieSession();
@@ -257,18 +255,19 @@ public class ConstraintsTest {
 
             ksession.fireAllRules();
 
-            assertEquals(4, results.size());
-            assertEquals(chili1, results.get(0));
-            assertEquals(oldChili1, results.get(1));
-            assertEquals(youngChili1, results.get(2));
-            assertEquals(veryold, results.get(3));
+            assertThat(results.size()).isEqualTo(4);
+            assertThat(results.get(0)).isEqualTo(chili1);
+            assertThat(results.get(1)).isEqualTo(oldChili1);
+            assertThat(results.get(2)).isEqualTo(youngChili1);
+            assertThat(results.get(3)).isEqualTo(veryold);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testConnectorsAndOperators() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testConnectorsAndOperators(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
@@ -291,14 +290,15 @@ public class ConstraintsTest {
         try {
             ksession.insert(new StockTick(1, "RHT", 10, 1000));
             ksession.insert(new StockTick(2, "IBM", 10, 1100));
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testConstraintExpression() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testConstraintExpression(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
                 "rule \"test\"\n" +
@@ -311,14 +311,15 @@ public class ConstraintsTest {
         final KieSession ksession = kbase.newKieSession();
         try {
             ksession.insert(new Person("Bob"));
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testMethodConstraint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMethodConstraint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
                 "rule \"test\"\n" +
@@ -333,14 +334,15 @@ public class ConstraintsTest {
             final Person person = new Person("Bob");
             person.setAlive(true);
             ksession.insert(person);
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testDeepNestedConstraints() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeepNestedConstraints(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -365,14 +367,15 @@ public class ConstraintsTest {
             ksession.insert(new Cheese("muzzarela", 80));
 
             ksession.fireAllRules();
-            assertEquals("should have fired twice", 2, list.size());
+            assertThat(list.size()).as("should have fired twice").isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testMultiRestrictionFieldConstraint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMultiRestrictionFieldConstraint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("constraints-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_MultiRestrictionFieldConstraint.drl");
         final KieSession ksession = kbase.newKieSession();
@@ -418,27 +421,28 @@ public class ConstraintsTest {
 
             ksession.fireAllRules();
 
-            assertEquals(1, list1.size());
-            assertTrue(list1.contains(chili1));
+            assertThat(list1.size()).isEqualTo(1);
+            assertThat(list1.contains(chili1)).isTrue();
 
-            assertEquals(2, list2.size());
-            assertTrue(list2.contains(chili1));
-            assertTrue(list2.contains(chili2));
+            assertThat(list2.size()).isEqualTo(2);
+            assertThat(list2.contains(chili1)).isTrue();
+            assertThat(list2.contains(chili2)).isTrue();
 
-            assertEquals(2, list3.size());
-            assertTrue(list3.contains(youngChili1));
-            assertTrue(list3.contains(youngChili2));
+            assertThat(list3.size()).isEqualTo(2);
+            assertThat(list3.contains(youngChili1)).isTrue();
+            assertThat(list3.contains(youngChili2)).isTrue();
 
-            assertEquals(2, list4.size());
-            assertTrue(list4.contains(youngChili1));
-            assertTrue(list4.contains(chili1));
+            assertThat(list4.size()).isEqualTo(2);
+            assertThat(list4.contains(youngChili1)).isTrue();
+            assertThat(list4.contains(chili1)).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testNonBooleanConstraint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNonBooleanConstraint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import java.util.List\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -449,11 +453,16 @@ public class ConstraintsTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        List<org.kie.api.builder.Message> messages = kieBuilder.getResults().getMessages();
+        assertThat(messages).hasSize(1);
+        assertThat(messages.iterator().next().getText())
+                .contains("Predicate 'name + name' must be a Boolean expression")
+                .isNotEmpty();
     }
 
-    @Test
-    public void testVarargConstraint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testVarargConstraint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3268
         final String drl = "package org.drools.compiler.test;\n" +
                 "import " + VarargBean.class.getCanonicalName() + ";\n" +
@@ -478,8 +487,8 @@ public class ConstraintsTest {
 
             ksession.insert(new VarargBean());
             ksession.fireAllRules();
-            assertEquals(1, list.size());
-            assertTrue(list.contains("odd"));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.contains("odd")).isTrue();
         } finally {
             ksession.dispose();
         }

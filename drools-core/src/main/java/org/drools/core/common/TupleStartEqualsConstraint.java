@@ -1,30 +1,35 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.common;
-
-import org.drools.core.reteoo.LeftTuple;
-import org.drools.core.rule.ContextEntry;
-import org.drools.core.rule.Declaration;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.Tuple;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+
+import org.drools.base.base.ValueResolver;
+import org.drools.base.reteoo.BaseTuple;
+import org.drools.base.rule.ContextEntry;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.constraint.BetaConstraint;
+import org.drools.core.reteoo.Tuple;
+import org.drools.core.reteoo.TupleImpl;
+import org.kie.api.runtime.rule.FactHandle;
 
 /**
  * Checks if one tuple is the start subtuple of other tuple.
@@ -47,7 +52,7 @@ import java.io.ObjectOutput;
  */
 public class TupleStartEqualsConstraint
     implements
-    BetaNodeFieldConstraint {
+    BetaConstraint<ContextEntry> {
 
     private static final long                       serialVersionUID = 510l;
 
@@ -83,21 +88,22 @@ public class TupleStartEqualsConstraint
         return false;
     }
 
-    public ContextEntry createContextEntry() {
+    public ContextEntry createContext() {
         return new TupleStartEqualsConstraintContextEntry();
     }
 
     public boolean isAllowedCachedLeft(final ContextEntry context,
-                                       final InternalFactHandle handle) {
+                                       final FactHandle handle) {
         // object MUST be a ReteTuple
         int size = ((TupleStartEqualsConstraintContextEntry) context).compareSize;
         final Tuple tuple = ((Tuple) handle.getObject()).getSubTuple( size );
-        return ((TupleStartEqualsConstraintContextEntry) context).tuple.getSubTuple( size ).equals( tuple );
+        return ((TupleStartEqualsConstraintContextEntry) context).leftTuple.getSubTuple(size).equals(tuple);
     }
 
-    public boolean isAllowedCachedRight(final Tuple tuple,
+    public boolean isAllowedCachedRight(final BaseTuple tuple,
                                         final ContextEntry context) {
-        return tuple.skipEmptyHandles().equals( ((TupleStartEqualsConstraintContextEntry) context).right.getSubTuple( tuple.size() ) );
+        TupleImpl nonEmptyLeftTuple = (TupleImpl) tuple.skipEmptyHandles();
+        return nonEmptyLeftTuple.equals( ((TupleStartEqualsConstraintContextEntry) context).rightTuple.getSubTuple(nonEmptyLeftTuple.size()));
     }
 
     public String toString() {
@@ -125,8 +131,8 @@ public class TupleStartEqualsConstraint
 
         private static final long serialVersionUID = 510l;
 
-        public Tuple     tuple;
-        public Tuple     right;
+        public Tuple leftTuple;
+        public Tuple rightTuple;
 
         // the size of the tuple to compare
         public int                compareSize;
@@ -137,15 +143,15 @@ public class TupleStartEqualsConstraint
         }
 
         public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-            tuple        = (Tuple)in.readObject();
-            right       = (Tuple)in.readObject();
+            leftTuple = (Tuple)in.readObject();
+            rightTuple = (Tuple)in.readObject();
             compareSize = in.readInt();
             entry       = (ContextEntry)in.readObject();
         }
 
         public void writeExternal(ObjectOutput out) throws IOException {
-            out.writeObject(tuple);
-            out.writeObject(right);
+            out.writeObject(leftTuple);
+            out.writeObject(rightTuple);
             out.writeInt(compareSize);
             out.writeObject(entry);
         }
@@ -158,25 +164,25 @@ public class TupleStartEqualsConstraint
             this.entry = entry;
         }
 
-        public void updateFromTuple(final InternalWorkingMemory workingMemory,
-                                    final Tuple tuple) {
-            this.tuple = tuple;
-            this.compareSize = tuple.size();
+        public void updateFromTuple(final ValueResolver valueResolver,
+                                    final BaseTuple tuple) {
+            this.leftTuple = (Tuple) tuple.skipEmptyHandles();
+            this.compareSize = leftTuple.size();
         }
 
-        public void updateFromFactHandle(final InternalWorkingMemory workingMemory,
-                                         final InternalFactHandle handle) {
+        public void updateFromFactHandle(final ValueResolver valueResolver,
+                                         final FactHandle handle) {
             // if it is not a rete tuple, then there is a bug in the engine...
             // it MUST be a rete tuple
-            this.right = (LeftTuple) handle.getObject();
+            this.rightTuple = ((TupleImpl) handle.getObject()).skipEmptyHandles();
         }
 
         public void resetTuple() {
-            this.tuple = null;
+            this.leftTuple = null;
         }
 
         public void resetFactHandle() {
-            this.right = null;
+            this.rightTuple = null;
         }
     }
 
@@ -184,7 +190,7 @@ public class TupleStartEqualsConstraint
         return ConstraintType.BETA;
     }
 
-    public BetaNodeFieldConstraint cloneIfInUse() {
+    public BetaConstraint cloneIfInUse() {
         return this;
     }
 }

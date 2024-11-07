@@ -1,27 +1,33 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- *
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model.view;
 
+import org.drools.model.BetaIndex4;
 import org.drools.model.Condition.Type;
+import org.drools.model.Index;
 import org.drools.model.Variable;
+import org.drools.model.functions.Function1;
+import org.drools.model.functions.Function4;
 import org.drools.model.functions.Predicate5;
+import org.drools.model.index.BetaIndex4Impl;
 
-public class Expr5ViewItemImpl<A, B, C, D, E> extends AbstractExprViewItem<A> implements ExprNViewItem<A> {
+public class Expr5ViewItemImpl<A, B, C, D, E> extends AbstractExprViewItem<A> implements Expr5ViewItem<A, B, C, D, E> {
 
     private final Variable<B> var2;
     private final Variable<C> var3;
@@ -29,7 +35,7 @@ public class Expr5ViewItemImpl<A, B, C, D, E> extends AbstractExprViewItem<A> im
     private final Variable<E> var5;
     private final Predicate5<A, B, C, D, E> predicate;
 
-    // with 3 elements we don't implement INDEXes
+    private BetaIndex4<A, B, C, D, E, ?> index;
 
     public Expr5ViewItemImpl( Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Variable<E> var5, Predicate5<A, B, C, D, E> predicate) {
         super(predicate.toString(), var1);
@@ -79,4 +85,19 @@ public class Expr5ViewItemImpl<A, B, C, D, E> extends AbstractExprViewItem<A> im
         return Type.PATTERN;
     }
 
+    public BetaIndex4<A, B, C, D, E, ?> getIndex() {
+        return index;
+    }
+
+    @Override
+    public <V> Expr5ViewItemImpl<A, B, C, D, E> indexedBy( Class<V> indexedClass, Index.ConstraintType constraintType, int indexId, Function1<A, V> leftOperandExtractor, Function4<B, C, D, E, ?> rightOperandExtractor ) {
+        index = new BetaIndex4Impl<>( indexedClass, constraintType, indexId, leftOperandExtractor, rightOperandExtractor, Object.class );
+        return this;
+    }
+
+    @Override
+    public <V> Expr5ViewItemImpl<A, B, C, D, E> indexedBy( Class<V> indexedClass, Index.ConstraintType constraintType, int indexId, Function1<A, V> leftOperandExtractor, Function4<B, C, D, E, ?> rightOperandExtractor, Class<?> rightReturnType ) {
+        index = new BetaIndex4Impl<>( indexedClass, constraintType, indexId, leftOperandExtractor, rightOperandExtractor, rightReturnType );
+        return this;
+    }
 }

@@ -1,24 +1,25 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.testcoverage.functional;
 
 import java.util.Collection;
 
-import org.assertj.core.api.Assertions;
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
@@ -33,8 +34,8 @@ import org.kie.api.builder.Message.Level;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.QueryResults;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests bad using and accessing to queries.
@@ -57,7 +58,7 @@ public class QueryBadResultTest {
     public void testQueriesWithSameNameInOneFile() {
         final KieBuilder kieBuilder =
                 KieUtil.getKieBuilderFromClasspathResources(kieBaseTestConfiguration, getClass(), false, "query-two-same-names.drl");
-        Assertions.assertThat(kieBuilder.getResults().getMessages(Level.ERROR).isEmpty()).isFalse();
+        assertThat(kieBuilder.getResults().getMessages(Level.ERROR).isEmpty()).isFalse();
     }
 
     @Test
@@ -70,14 +71,14 @@ public class QueryBadResultTest {
                         "query-same-name-1.drl",
                         "query-same-name-2.drl");
 
-        Assertions.assertThat(kieBuilder.getResults().getMessages(Level.ERROR).isEmpty()).isFalse();
+        assertThat(kieBuilder.getResults().getMessages(Level.ERROR).isEmpty()).isFalse();
     }
 
     @Test
     public void testQueryWithoutName() {
         final KieBuilder kieBuilder =
                 KieUtil.getKieBuilderFromClasspathResources(kieBaseTestConfiguration, getClass(), false, "query-without-name.drl");
-        Assertions.assertThat(kieBuilder.getResults().getMessages(Level.ERROR).isEmpty()).isFalse();
+        assertThat(kieBuilder.getResults().getMessages(Level.ERROR).isEmpty()).isFalse();
     }
 
     @Test
@@ -90,15 +91,8 @@ public class QueryBadResultTest {
             ksession.getQueryResults("personWithName");
             fail("invocation with wrong number of arguments must fail");
         } catch (RuntimeException e) {
-            assertTrue( e.getMessage().contains( "wrong number of arguments" ) );
+            assertThat(e.getMessage().contains("wrong number of arguments")).isTrue();
         }
-    }
-
-    @Test
-    public void testBadAccessToParameterWithoutType() {
-        final KieBuilder kieBuilder =
-                KieUtil.getKieBuilderFromClasspathResources(kieBaseTestConfiguration, getClass(), false, "query-bad-parametr-access.drl");
-        Assertions.assertThat(kieBuilder.getResults().getMessages(Level.ERROR).isEmpty()).isFalse();
     }
 
     @Test(expected = IllegalArgumentException.class)

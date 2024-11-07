@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.testframework;
 
 import java.io.IOException;
@@ -24,9 +27,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.drools.core.WorkingMemory;
-import org.drools.core.spi.Consequence;
-import org.drools.core.spi.KnowledgeHelper;
+import org.drools.base.base.ValueResolver;
+import org.drools.base.rule.consequence.Consequence;
+import org.drools.core.rule.consequence.KnowledgeHelper;
 import org.kie.api.definition.rule.Rule;
 import org.kie.api.event.rule.AfterMatchFiredEvent;
 import org.kie.api.event.rule.AgendaEventListener;
@@ -49,7 +52,7 @@ import org.kie.api.runtime.rule.Match;
  */
 public class TestingEventListener implements AgendaEventListener {
 
-    final Map<String, Integer> firingCounts = new HashMap<String, Integer>(100);
+    final Map<String, Integer> firingCounts = new HashMap<>(100);
 
     long totalFires;
 
@@ -60,7 +63,9 @@ public class TestingEventListener implements AgendaEventListener {
     public AgendaFilter getAgendaFilter(final HashSet<String> ruleNames, final boolean inclusive) {
         return new AgendaFilter() {
             public boolean accept(Match match) {
-                if (ruleNames.size() ==0) return true;
+                if (ruleNames.size() ==0) {
+                    return true;
+                }
                 String ruleName = match.getRule().getName();
 
                 //jdelong: please don't want to see records of cancelled activations
@@ -208,9 +213,9 @@ public class TestingEventListener implements AgendaEventListener {
 
 }
 
-class NilConsequence implements Consequence {
+class NilConsequence implements Consequence<KnowledgeHelper> {
 
-    public void evaluate(KnowledgeHelper knowledgeHelper, WorkingMemory workingMemory) throws Exception {
+    public void evaluate(KnowledgeHelper knowledgeHelper, ValueResolver valueResolver) throws Exception {
     }
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 

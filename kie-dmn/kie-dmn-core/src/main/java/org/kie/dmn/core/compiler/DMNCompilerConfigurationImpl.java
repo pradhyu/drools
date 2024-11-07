@@ -1,20 +1,21 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
-
 package org.kie.dmn.core.compiler;
 
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import org.kie.api.conf.Option;
 import org.kie.dmn.api.core.AfterGeneratingSourcesListener;
 import org.kie.dmn.api.core.DMNCompilerConfiguration;
 import org.kie.dmn.api.marshalling.DMNExtensionRegister;
+import org.kie.dmn.core.compiler.DMNCompilerConfigurationImpl.KieDefaultDMNDecisionLogicCompilerFactory;
 import org.kie.dmn.feel.lang.FEELProfile;
 import org.kie.dmn.feel.util.ClassLoaderUtil;
 
@@ -39,6 +41,7 @@ public class DMNCompilerConfigurationImpl implements DMNCompilerConfiguration {
     private ClassLoader rootClassLoader = ClassLoaderUtil.findDefaultClassLoader();
     private List<AfterGeneratingSourcesListener> listeners = new ArrayList<>();
     private Boolean deferredCompilation = false;
+    private DMNDecisionLogicCompilerFactory decisionLogicCompilerFactory = new KieDefaultDMNDecisionLogicCompilerFactory();
 
     public void addExtensions(List<DMNExtensionRegister> extensionRegisters) {
         this.registeredExtensions.addAll(extensionRegisters);
@@ -81,8 +84,10 @@ public class DMNCompilerConfigurationImpl implements DMNCompilerConfiguration {
             return (T) new CoerceDecisionServiceSingletonOutputOption(properties.get(CoerceDecisionServiceSingletonOutputOption.PROPERTY_NAME));
         } else if (ExecModelCompilerOption.class.equals(option)) {
             return (T) new ExecModelCompilerOption(properties.get(ExecModelCompilerOption.PROPERTY_NAME));
+        } else if (AlphaNetworkOption.class.equals(option)) {
+            return (T) new AlphaNetworkOption(properties.get(AlphaNetworkOption.PROPERTY_NAME));
         }
-        return null;
+        throw new RuntimeException("Unknown option: " + option.toString());
     }
 
     public void addDRGElementCompilers(List<DRGElementCompiler> drgElementCompilers) {
@@ -113,11 +118,36 @@ public class DMNCompilerConfigurationImpl implements DMNCompilerConfiguration {
         return getOption(ExecModelCompilerOption.class).isUseExecModelCompiler();
     }
 
+    public boolean isUseAlphaNetwork() {
+        return getOption(AlphaNetworkOption.class).isUseAlphaNetwork();
+    }
+
     public boolean isDeferredCompilation() {
         return deferredCompilation;
     }
 
     public void setDeferredCompilation(Boolean deferredCompilation) {
         this.deferredCompilation = deferredCompilation;
+    }
+
+
+    public DMNDecisionLogicCompilerFactory getDecisionLogicCompilerFactory() {
+        return decisionLogicCompilerFactory;
+    }
+
+    public void setDecisionLogicCompilerFactory(DMNDecisionLogicCompilerFactory decisionLogicCompilerFactory) {
+        this.decisionLogicCompilerFactory = decisionLogicCompilerFactory;
+    }
+
+    /**
+     * this is the standard, kie-dmn-core, default.
+     */
+    public static class KieDefaultDMNDecisionLogicCompilerFactory implements DMNDecisionLogicCompilerFactory {
+
+        @Override
+        public DMNDecisionLogicCompiler newDMNDecisionLogicCompiler(DMNCompilerImpl dmnCompiler, DMNCompilerConfigurationImpl dmnCompilerConfig) {
+            return DMNEvaluatorCompiler.dmnEvaluatorCompilerFactory(dmnCompiler, dmnCompilerConfig);
+        }
+
     }
 }

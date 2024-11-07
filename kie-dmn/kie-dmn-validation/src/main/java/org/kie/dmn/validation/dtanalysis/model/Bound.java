@@ -1,23 +1,28 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.validation.dtanalysis.model;
+
+import java.time.LocalDate;
 
 import org.kie.dmn.feel.runtime.Range;
 import org.kie.dmn.feel.runtime.Range.RangeBoundary;
+import org.kie.dmn.feel.util.Generated;
 
 public class Bound<V extends Comparable<V>> implements Comparable<Bound<V>> {
 
@@ -113,6 +118,7 @@ public class Bound<V extends Comparable<V>> implements Comparable<Bound<V>> {
         }
     }
 
+    @Generated("org.eclipse.jdt.internal.corext.codemanipulation")
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -122,6 +128,7 @@ public class Bound<V extends Comparable<V>> implements Comparable<Bound<V>> {
         return result;
     }
 
+    @Generated("org.eclipse.jdt.internal.corext.codemanipulation")
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -151,9 +158,19 @@ public class Bound<V extends Comparable<V>> implements Comparable<Bound<V>> {
      * Returns true if left is overlapping or adjacent to right
      */
     public static boolean adOrOver(Bound<?> left, Bound<?> right) {
-        boolean isValueEqual = left.getValue().equals(right.getValue());
-        boolean isBothOpen = left.getBoundaryType() == RangeBoundary.OPEN && right.getBoundaryType() == RangeBoundary.OPEN;
-        return isValueEqual && !isBothOpen;
+        final Comparable<?> leftValue = left.getValue();
+        final Comparable<?> rightValue = right.getValue();
+        final boolean isValueEqual = leftValue.equals(rightValue);
+        final boolean isBothOpen = left.getBoundaryType() == RangeBoundary.OPEN && right.getBoundaryType() == RangeBoundary.OPEN;
+        if (isValueEqual && !isBothOpen) { // trivial case.
+            return true;
+        }
+        if (leftValue instanceof LocalDate && rightValue instanceof LocalDate) {
+            final boolean date1dayOff = leftValue.equals(((LocalDate)rightValue).minusDays(1));
+            final boolean isBothClosed = left.getBoundaryType() == RangeBoundary.CLOSED && right.getBoundaryType() == RangeBoundary.CLOSED;
+            return date1dayOff && isBothClosed; // unless we already returned for the trivial case, two date-based Bounds are adjacent for 1day diff closed Bounds.
+        }
+        return false;
     }
 
     public static String boundValueToString(Comparable<?> value) {

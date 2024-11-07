@@ -1,23 +1,27 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.incrementalcompilation;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -27,9 +31,17 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.drools.base.base.ClassObjectType;
+import org.drools.base.base.ObjectType;
+import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.time.impl.PseudoClockScheduler;
+import org.drools.kiesession.entrypoints.NamedEntryPoint;
+import org.drools.testcoverage.common.model.ChildEventA;
+import org.drools.testcoverage.common.model.ChildEventB;
 import org.drools.testcoverage.common.model.Message;
 import org.drools.testcoverage.common.model.MyFact;
+import org.drools.testcoverage.common.model.ParentEvent;
+import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieSessionTestConfiguration;
 import org.drools.testcoverage.common.util.KieUtil;
@@ -40,6 +52,8 @@ import org.junit.runners.Parameterized;
 import org.kie.api.KieServices;
 import org.kie.api.builder.ReleaseId;
 import org.kie.api.builder.Results;
+import org.kie.api.definition.type.Expires;
+import org.kie.api.definition.type.Key;
 import org.kie.api.definition.type.Role;
 import org.kie.api.marshalling.KieMarshallers;
 import org.kie.api.marshalling.Marshaller;
@@ -49,12 +63,12 @@ import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.ClockTypeOption;
 import org.kie.api.runtime.conf.TimedRuleExecutionOption;
 import org.kie.api.runtime.conf.TimerJobFactoryOption;
+import org.kie.api.runtime.rule.EntryPoint;
 import org.kie.api.runtime.rule.FactHandle;
 import org.kie.api.time.SessionPseudoClock;
 import org.kie.internal.builder.conf.PropertySpecificOption;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(Parameterized.class)
 public class IncrementalCompilationCepTest {
@@ -148,7 +162,7 @@ public class IncrementalCompilationCepTest {
         final KieSessionConfiguration ksconf = ks.newKieSessionConfiguration();
         ksconf.setOption(TimedRuleExecutionOption.YES);
         ksconf.setOption(TimerJobFactoryOption.get("trackable"));
-        ksconf.setOption(ClockTypeOption.get("pseudo"));
+        ksconf.setOption(ClockTypeOption.PSEUDO);
 
         final KieSession ksession = kc.newKieSession(ksconf);
 
@@ -165,8 +179,8 @@ public class IncrementalCompilationCepTest {
         ksession.insert(1);
         ksession.fireAllRules();
 
-        assertEquals("1. Initial run: no message expected after rule fired immediately after fireAllRules due to duration of 5 sec", 0, list.size());
-        assertEquals("1. Initial run: no message expected after rule fired immediately after fireAllRules due to duration of 5 sec", 0, list2.size());
+        assertThat(list.size()).as("1. Initial run: no message expected after rule fired immediately after fireAllRules due to duration of 5 sec").isEqualTo(0);
+        assertThat(list2.size()).as("1. Initial run: no message expected after rule fired immediately after fireAllRules due to duration of 5 sec").isEqualTo(0);
 
         final ReleaseId releaseId2 = ks.newReleaseId("org.kie", "test-upgrade", "1.0.1");
         final String drl2 = "package org.drools.compiler\n" +
@@ -197,8 +211,8 @@ public class IncrementalCompilationCepTest {
         kc.updateToVersion(releaseId2);
         timeService.advanceTime(3200, TimeUnit.MILLISECONDS);
 
-        assertEquals("1. R1 is NOT preserved", 0, list.size());
-        assertEquals("1. RS is preserved", 1, list2.size());
+        assertThat(list.size()).as("1. R1 is NOT preserved").isEqualTo(0);
+        assertThat(list2.size()).as("1. RS is preserved").isEqualTo(1);
     }
 
     @Test
@@ -296,7 +310,7 @@ public class IncrementalCompilationCepTest {
         final KieContainer kc = ks.newKieContainer(releaseId1);
         final KieSession ksession = kc.newKieSession();
         ksession.insert(new FooEvent(0));
-        assertEquals(1, ksession.fireAllRules());
+        assertThat(ksession.fireAllRules()).isEqualTo(1);
 
         // Create a new jar for version 1.1.0
         final ReleaseId releaseId2 = ks.newReleaseId("org.kie", "test-upgrade", "1.1.0");
@@ -305,11 +319,11 @@ public class IncrementalCompilationCepTest {
         // try to update the container to version 1.1.0
         final Results results = kc.updateToVersion(releaseId2);
 
-        assertFalse("Errors detected on updateToVersion: " + results.getMessages(org.kie.api.builder.Message.Level.ERROR), results.hasMessages(org.kie.api.builder.Message.Level.ERROR));
+        assertThat(results.hasMessages(org.kie.api.builder.Message.Level.ERROR)).as("Errors detected on updateToVersion: " + results.getMessages(org.kie.api.builder.Message.Level.ERROR)).isFalse();
 
         // continue working with the session
         ksession.insert(new FooEvent(1));
-        assertEquals(2, ksession.fireAllRules());
+        assertThat(ksession.fireAllRules()).isEqualTo(2);
     }
 
     @Test
@@ -356,12 +370,12 @@ public class IncrementalCompilationCepTest {
         clock.advanceTime(4, TimeUnit.SECONDS);
         ksession.insert(new MyEvent(3));
         ksession.fireAllRules();
-        assertEquals(3, result.get());
+        assertThat(result.get()).isEqualTo(3);
 
         // expires 1
         clock.advanceTime(3, TimeUnit.SECONDS);
         ksession.fireAllRules();
-        assertEquals(2, result.get());
+        assertThat(result.get()).isEqualTo(2);
 
         final ReleaseId releaseId2 = ks.newReleaseId("org.kie", "test-upgrade", "1.1.0");
         KieUtil.getKieModuleFromDrls(releaseId2, kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_PSEUDO,
@@ -370,22 +384,22 @@ public class IncrementalCompilationCepTest {
 
         // shorter window: 2 is out
         ksession.fireAllRules();
-        assertEquals(1, result.get());
+        assertThat(result.get()).isEqualTo(1);
 
         ksession.insert(new MyEvent(4));
         ksession.insert(new MyEvent(5));
         ksession.fireAllRules();
-        assertEquals(3, result.get());
+        assertThat(result.get()).isEqualTo(3);
 
         // expires 3
         clock.advanceTime(3, TimeUnit.SECONDS);
         ksession.fireAllRules();
-        assertEquals(2, result.get());
+        assertThat(result.get()).isEqualTo(2);
 
         // expires 4 & 5
         clock.advanceTime(3, TimeUnit.SECONDS);
         ksession.fireAllRules();
-        assertEquals(0, result.get());
+        assertThat(result.get()).isEqualTo(0);
     }
 
     @Test
@@ -500,8 +514,8 @@ public class IncrementalCompilationCepTest {
         ksession.insert(new SimpleEvent("2", "MY_CODE", 5));
         ksession.fireAllRules();
 
-        assertEquals(2, counter1.get());
-        assertEquals(0, counter2.get());
+        assertThat(counter1.get()).isEqualTo(2);
+        assertThat(counter2.get()).isEqualTo(0);
 
         final ReleaseId releaseId2 = ks.newReleaseId("org.kie", "test-upgrade", "1.1.2");
         // the null drl placeholder is used to have the same drl with a different file name
@@ -516,11 +530,11 @@ public class IncrementalCompilationCepTest {
         ksession.fireAllRules();
 
         if (kieBaseTestConfiguration.getExecutableModelProjectClass().isPresent()) {
-            assertEquals(3, counter1.get());
+            assertThat(counter1.get()).isEqualTo(3);
         } else {
-            assertEquals(5, counter1.get());
+            assertThat(counter1.get()).isEqualTo(5);
         }
-        assertEquals(1, counter2.get());
+        assertThat(counter2.get()).isEqualTo(1);
     }
 
     public static class SimpleEvent {
@@ -621,7 +635,7 @@ public class IncrementalCompilationCepTest {
         final PseudoClockScheduler scheduler = kieSession.getSessionClock();
         scheduler.setStartupTime(now);
         scheduler.advanceTime(1, TimeUnit.DAYS);
-        assertEquals(2, kieSession.fireAllRules());
+        assertThat(kieSession.fireAllRules()).isEqualTo(2);
     }
 
     public static class DummyEvent {
@@ -745,8 +759,8 @@ public class IncrementalCompilationCepTest {
         ksession.insert(new SimpleEvent("2", "YOUR_CODE", 0));
         ksession.fireAllRules();
 
-        assertEquals(1, list.size());
-        assertEquals("MY_CODE", list.get(0));
+        assertThat(list.size()).isEqualTo(1);
+        assertThat(list.get(0)).isEqualTo("MY_CODE");
         list.clear();
 
         final ReleaseId releaseId2 = ks.newReleaseId("org.kie", "test-cep-upgrade", "1.1.2");
@@ -755,12 +769,12 @@ public class IncrementalCompilationCepTest {
         KieUtil.getKieModuleFromDrls(releaseId2, kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_PSEUDO,
                                      new HashMap<>(), drl1, drl2, drl3);
         final Results results = kc.updateToVersion(releaseId2);
-        assertEquals(0, results.getMessages().size());
+        assertThat(results.getMessages().size()).isEqualTo(0);
 
         ksession.fireAllRules();
 
-        assertEquals(1, list.size());
-        assertEquals("YOUR_CODE", list.get(0));
+        assertThat(list.size()).isEqualTo(1);
+        assertThat(list.get(0)).isEqualTo("YOUR_CODE");
     }
 
     @Test
@@ -793,7 +807,7 @@ public class IncrementalCompilationCepTest {
                                      kieModuleConfigurationProperties, drl2);
 
         final Results results = container.updateToVersion(releaseId2);
-        assertEquals(0, results.getMessages().size());
+        assertThat(results.getMessages().size()).isEqualTo(0);
     }
 
     @Test
@@ -852,7 +866,7 @@ public class IncrementalCompilationCepTest {
 
         DummyEvent evt = new DummyEvent("evt");
         kieSession.insert(evt);
-        assertEquals(1, kieSession.fireAllRules());
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
 
         final ReleaseId releaseId2 = ks.newReleaseId("org.kie", "test-upgrade", "2.0.0");
         KieUtil.getKieModuleFromDrls(releaseId2, kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_PSEUDO,
@@ -863,7 +877,7 @@ public class IncrementalCompilationCepTest {
         kieSession.insert(evt);
         final OtherDummyEvent other = new OtherDummyEvent("evt");
         kieSession.insert(other);
-        assertEquals(1, kieSession.fireAllRules());
+        assertThat(kieSession.fireAllRules()).isEqualTo(1);
     }
 
     @Role(Role.Type.EVENT)
@@ -935,6 +949,230 @@ public class IncrementalCompilationCepTest {
         @Override
         public String toString() {
             return "MyEvent: " + id;
+        }
+    }
+
+    @Test
+    public void testObjectTypeNodeExpirationOffset() {
+        // DROOLS-6296
+        final String drl1 = "package org.drools.test;\n" +
+                            "import " + ParentEvent.class.getCanonicalName() + "\n" +
+                            "import " + ChildEventA.class.getCanonicalName() + "\n" +
+                            "import " + ChildEventB.class.getCanonicalName() + "\n" +
+                            "\n" +
+                            "declare ChildEventA\n" +
+                            "   @role( event )\n" +
+                            "   @timestamp( eventTimestamp )\n" +
+                            "   @expires(3d)\n" +
+                            "end;\n" +
+                            "declare ChildEventB\n" +
+                            "   @role( event )\n" +
+                            "   @timestamp( eventTimestamp )\n" +
+                            "   @expires(30d)\n" +
+                            "end;" +
+                            "\n" +
+                            "rule \"detect ChildEventA\"\n" +
+                            "when $e: ChildEventA()\n" +
+                            "then\n" +
+                            "    System.out.println(\"detect ChildEventA\");\n" +
+                            "end\n" +
+                            "\n" +
+                            "rule \"detect ParentEvent\"\n" +
+                            "when $e: ParentEvent()\n" +
+                            "then\n" +
+                            "   System.out.println(\"detect ParentEvent\");\n" +
+                            "end\n" +
+                            "rule \"detect ChildEventB\"\n" +
+                            "when $e: ChildEventB()\n" +
+                            "then\n" +
+                            "   System.out.println(\"detect ChildEventB\");\n" +
+                            "end";
+
+        // just adding a new fact
+        final String drl2 = "package org.drools.test;\n" +
+                            "import " + ParentEvent.class.getCanonicalName() + "\n" +
+                            "import " + ChildEventA.class.getCanonicalName() + "\n" +
+                            "import " + ChildEventB.class.getCanonicalName() + "\n" +
+                            "import " + Person.class.getCanonicalName() + "\n" +
+                            "\n" +
+                            "declare ChildEventA\n" +
+                            "   @role( event )\n" +
+                            "   @timestamp( eventTimestamp )\n" +
+                            "   @expires(3d)\n" +
+                            "end;\n" +
+                            "declare ChildEventB\n" +
+                            "   @role( event )\n" +
+                            "   @timestamp( eventTimestamp )\n" +
+                            "   @expires(30d)\n" +
+                            "end;" +
+                            "\n" +
+                            "rule \"detect ChildEventA\"\n" +
+                            "when $e: ChildEventA()\n" +
+                            "then\n" +
+                            "    System.out.println(\"detect ChildEventA\");\n" +
+                            "end\n" +
+                            "\n" +
+                            "rule \"detect ParentEvent\"\n" +
+                            "when $e: ParentEvent()\n" +
+                            "then\n" +
+                            "   System.out.println(\"detect ParentEvent\");\n" +
+                            "end\n" +
+                            "rule \"detect ChildEventB\"\n" +
+                            "when $e: ChildEventB()\n" +
+                            "then\n" +
+                            "   System.out.println(\"detect ChildEventB\");\n" +
+                            "end\n" +
+                            "rule \"detect a Person\"\n" +
+                            "when $p: Person()\n" +
+                            "then\n" +
+                            "  System.out.println(\"detect a Person\");\n" +
+                            "end";
+
+        final KieServices ks = KieServices.Factory.get();
+
+        final ReleaseId releaseId1 = ks.newReleaseId("org.kie", "test-upgrade", "1.0.0");
+        KieUtil.getKieModuleFromDrls(releaseId1, kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_PSEUDO,
+                                     new HashMap<>(), drl1);
+
+        final KieContainer kc = ks.newKieContainer(releaseId1);
+        final KieSession kieSession = kc.newKieSession();
+
+        NamedEntryPoint entryPoint = (NamedEntryPoint) kieSession.getEntryPoints().stream().findFirst().get();
+        Map<ObjectType, ObjectTypeNode> objectTypeNodes = entryPoint.getEntryPointNode().getObjectTypeNodes();
+
+        //ParentEvent
+        ObjectTypeNode parentEventOTN = objectTypeNodes.get(new ClassObjectType(ParentEvent.class));
+        assertThat(parentEventOTN.getExpirationOffset()).isEqualTo(-1L);
+
+        //ChildEventA
+        ObjectTypeNode childEventAOTN = objectTypeNodes.get(new ClassObjectType(ChildEventA.class));
+        assertThat(childEventAOTN.getExpirationOffset()).isEqualTo(Duration.of(3, ChronoUnit.DAYS).toMillis() + 1);
+
+        //ChildEventB
+        ObjectTypeNode childEventBOTN = objectTypeNodes.get(new ClassObjectType(ChildEventB.class));
+        assertThat(childEventBOTN.getExpirationOffset()).isEqualTo(Duration.of(30, ChronoUnit.DAYS).toMillis() + 1);
+
+        //pseudo clock initialization
+        long now = System.currentTimeMillis();
+        SessionPseudoClock sessionClock = kieSession.getSessionClock();
+        sessionClock.advanceTime(now, TimeUnit.MILLISECONDS);
+
+        ChildEventA childEventA = new ChildEventA(new Date(now), "A");
+        kieSession.insert(childEventA);
+        kieSession.fireAllRules();
+
+        //ChildEventA expires
+        sessionClock.advanceTime(Duration.of(4, ChronoUnit.DAYS).toMillis(), TimeUnit.MILLISECONDS);
+        kieSession.fireAllRules();
+
+        //ChildEventA is no longer in WM
+        assertThat(kieSession.getFactCount()).isEqualTo(0);
+
+        kieSession.dispose();
+
+        final ReleaseId releaseId2 = ks.newReleaseId("org.kie", "test-upgrade", "2.0.0");
+        KieUtil.getKieModuleFromDrls(releaseId2, kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_PSEUDO,
+                                     new HashMap<>(), drl2);
+        kc.updateToVersion(releaseId2);
+
+        final KieSession kieSession2 = kc.newKieSession();
+
+        NamedEntryPoint entryPoint2 = (NamedEntryPoint) kieSession2.getEntryPoints().stream().findFirst().get();
+        Map<ObjectType, ObjectTypeNode> objectTypeNodes2 = entryPoint2.getEntryPointNode().getObjectTypeNodes();
+
+        //ParentEvent
+        ObjectTypeNode parentEventOTN2 = objectTypeNodes2.get(new ClassObjectType(ParentEvent.class));
+        assertThat(parentEventOTN2.getExpirationOffset()).isEqualTo(-1L);
+
+        //ChildEventA
+        ObjectTypeNode childEventAOTN2 = objectTypeNodes2.get(new ClassObjectType(ChildEventA.class));
+        assertThat(childEventAOTN2.getExpirationOffset()).isEqualTo(Duration.of(3, ChronoUnit.DAYS).toMillis() + 1);
+
+        //ChildEventB
+        ObjectTypeNode childEventBOTN2 = objectTypeNodes2.get(new ClassObjectType(ChildEventB.class));
+        assertThat(childEventBOTN2.getExpirationOffset()).isEqualTo(Duration.of(30, ChronoUnit.DAYS).toMillis() + 1);
+
+        now = System.currentTimeMillis();
+
+        SessionPseudoClock sessionClock2 = kieSession2.getSessionClock();
+        sessionClock2.advanceTime(now, TimeUnit.MILLISECONDS);
+
+        ChildEventA childEventA2 = new ChildEventA(new Date(now), "A");
+        kieSession2.insert(childEventA2);
+        kieSession2.fireAllRules();
+
+        //ChildEventA expires
+        sessionClock2.advanceTime(Duration.of(4, ChronoUnit.DAYS).toMillis(), TimeUnit.MILLISECONDS);
+
+        kieSession2.fireAllRules();
+        assertThat(kieSession2.getFactCount()).isEqualTo(0);
+
+        kieSession2.dispose();
+    }
+
+    @Test
+    public void testIncrementalCompilationWithExpiringEvent() {
+        incrementalCompilationWithExpiringEventFromEntryPoint(false);
+    }
+
+    @Test
+    public void testIncrementalCompilationWithExpiringEventFromEntryPoint() {
+        incrementalCompilationWithExpiringEventFromEntryPoint(true);
+    }
+
+    private void incrementalCompilationWithExpiringEventFromEntryPoint(boolean useEntryPoint) {
+        // DROOLS-7582
+        final String drl1 =
+                "import " + ExpiringEvent.class.getCanonicalName() + "\n" +
+                "rule \"Old Rule\" when\n" +
+                "    $e : ExpiringEvent($id : id)\n" + (useEntryPoint ? " from entry-point \"events\"" : "\n") +
+                "then\n" +
+                "    System.out.println(\"received event in old rule: \" + $id);\n" +
+                "end";
+
+        final String drl2 =
+                "import " + ExpiringEvent.class.getCanonicalName() + "\n" +
+                "rule \"New Rule\" when\n" +
+                "    $e : ExpiringEvent($id : id)\n" + (useEntryPoint ? " from entry-point \"events\"" : "\n") +
+                "then\n" +
+                "    System.out.println(\"received event in new rule: \" + $id);\n" +
+                "end";
+
+        final KieServices ks = KieServices.Factory.get();
+        final ReleaseId releaseId1 = ks.newReleaseId("org.kie", "test-upgrade", "1.0.0");
+        KieUtil.getKieModuleFromDrls(releaseId1, kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_PSEUDO,
+                                     new HashMap<>(), drl1);
+        final ReleaseId releaseId2 = ks.newReleaseId("org.kie", "test-upgrade", "1.1.0");
+        KieUtil.getKieModuleFromDrls(releaseId2, kieBaseTestConfiguration, KieSessionTestConfiguration.STATEFUL_PSEUDO,
+                                     new HashMap<>(), drl2);
+
+        final KieContainer kc = ks.newKieContainer(releaseId1);
+        final KieSession ksession = kc.newKieSession();
+        EntryPoint entryPoint = useEntryPoint ? ksession.getEntryPoint("events") : ksession;
+
+        final PseudoClockScheduler clock = ksession.getSessionClock();
+
+        entryPoint.insert(new ExpiringEvent(1));
+        clock.advanceTime(3, TimeUnit.SECONDS);
+        assertThat( ksession.fireAllRules() ).isEqualTo(1);
+
+        kc.updateToVersion(releaseId2);
+
+        clock.advanceTime(3, TimeUnit.SECONDS);
+        assertThat( ksession.fireAllRules() ).isEqualTo(1);
+    }
+
+    @Role(Role.Type.EVENT)
+    @Expires("5s")
+    public static class ExpiringEvent {
+        @Key
+        private int id;
+        public ExpiringEvent(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
         }
     }
 }

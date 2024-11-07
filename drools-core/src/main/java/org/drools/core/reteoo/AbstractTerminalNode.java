@@ -1,95 +1,171 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.reteoo;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
+import org.drools.base.base.ObjectType;
+import org.drools.base.common.NetworkNode;
+import org.drools.base.common.RuleBasePartitionId;
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.GroupElement;
+import org.drools.base.rule.Pattern;
 import org.drools.core.RuleBaseConfiguration;
-import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.BaseNode;
-import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.common.RuleBasePartitionId;
+import org.drools.core.common.ReteEvaluator;
 import org.drools.core.common.UpdateContext;
-import org.drools.core.definitions.rule.impl.RuleImpl;
+import org.drools.core.reteoo.SegmentMemory.SegmentPrototype;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.rule.Pattern;
-import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.util.bitmask.AllSetBitMask;
-import org.drools.core.util.bitmask.BitMask;
-import org.drools.core.util.bitmask.EmptyBitMask;
+import org.drools.util.bitmask.AllSetBitMask;
+import org.drools.util.bitmask.BitMask;
+import org.drools.util.bitmask.EmptyBitMask;
 
-import static org.drools.core.reteoo.PropertySpecificUtil.calculateNegativeMask;
-import static org.drools.core.reteoo.PropertySpecificUtil.calculatePositiveMask;
-import static org.drools.core.reteoo.PropertySpecificUtil.getAccessibleProperties;
+import static org.drools.base.reteoo.PropertySpecificUtil.isPropertyReactive;
 
-public abstract class AbstractTerminalNode extends BaseNode implements TerminalNode, PathEndNode, Externalizable {
+public abstract class AbstractTerminalNode extends BaseNode implements TerminalNode {
+    /** The rule to invoke upon match. */
+    private RuleImpl                      rule;
 
-    private LeftTupleSource tupleSource;
+    /**
+     * the subrule reference is needed to resolve declarations
+     * because declarations may have different offsets in each subrule
+     */
+    private GroupElement      subrule;
+    private int               subruleIndex;
+    private Declaration[]     allDeclarations;
+    protected Declaration[]   requiredDeclarations;
+
+
+    private LeftTupleSinkNode previousTupleSinkNode;
+    private LeftTupleSinkNode nextTupleSinkNode;
+
+    private LeftTupleSource   tupleSource;
+
+    private LeftTupleSource   startTupleSource;
 
     private BitMask declaredMask = EmptyBitMask.get();
     private BitMask inferredMask = EmptyBitMask.get();
     private BitMask negativeMask = EmptyBitMask.get();
 
-    private LeftTupleNode[] pathNodes;
+    private LeftTupleNode[]         pathNodes;
 
     private transient PathEndNode[] pathEndNodes;
 
-    private PathMemSpec pathMemSpec;
+    private SegmentPrototype[]      segmentPrototypes;
+
+    private SegmentPrototype[]      eagerSegmentPrototypes;
+
+    protected PathMemSpec           pathMemSpec;
+
+    private int                     objectCount;
 
     public AbstractTerminalNode() { }
 
-    public AbstractTerminalNode(int id, RuleBasePartitionId partitionId, boolean partitionsEnabled, LeftTupleSource source, final BuildContext context) {
-        super(id, partitionId, partitionsEnabled);
+    public AbstractTerminalNode(int id, RuleBasePartitionId partitionId, LeftTupleSource source,
+                                BuildContext context,
+                                RuleImpl rule, GroupElement subrule, int subruleIndex) {
+        super(id, partitionId);
         this.tupleSource = source;
+        this.rule = rule;
+        this.subrule = subrule;
+        this.subruleIndex = subruleIndex;
+        this.setObjectCount(getLeftTupleSource().getObjectCount()); // 'terminal' nodes do not increase the count
         context.addPathEndNode(this);
         initMemoryId( context );
+        initDeclaredMask(context);
+        initInferredMask();
+
+        Map<String, Declaration> decls = this.subrule.getOuterDeclarations();
+        this.allDeclarations = decls.values().toArray( new Declaration[decls.size()] );
+        initDeclarations(decls, context);
+
+        LeftTupleSource current = getLeftTupleSource();
+        while (current.getLeftTupleSource() != null) {
+            current = current.getLeftTupleSource();
+        }
+        startTupleSource = current;
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        super.readExternal( in );
-        tupleSource = (LeftTupleSource) in.readObject();
-        declaredMask = (BitMask) in.readObject();
-        inferredMask = (BitMask) in.readObject();
-        negativeMask = (BitMask) in.readObject();
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        super.writeExternal( out );
-        out.writeObject( tupleSource );
-        out.writeObject(declaredMask);
-        out.writeObject(inferredMask);
-        out.writeObject(negativeMask);
-    }
+    abstract void initDeclarations(Map<String, Declaration> decls, BuildContext context);
 
     @Override
     public PathMemSpec getPathMemSpec() {
+        return getPathMemSpec(null);
+    }
+
+    @Override
+    public void setPathMemSpec(PathMemSpec pathMemSpec) {
+        this.pathMemSpec = pathMemSpec;
+    }
+
+    @Override
+    public PathMemSpec getPathMemSpec(TerminalNode removingTN) {
         if (pathMemSpec == null) {
-            pathMemSpec = calculatePathMemSpec( null );
+            pathMemSpec = calculatePathMemSpec( startTupleSource, removingTN );
         }
         return pathMemSpec;
     }
 
     @Override
     public void resetPathMemSpec(TerminalNode removingTN) {
-        pathMemSpec = removingTN == null ? null : calculatePathMemSpec( null, removingTN );
+        // null all PathMemSpecs, for all pathEnds, or the recursion will use a previous value.
+        // calling calculatePathMemSpec, will eventually getPathMemSpec on all nested rians, so previous values must be nulled
+        Arrays.stream(pathEndNodes).forEach( n -> {
+            n.nullPathMemSpec();
+            n.setSegmentPrototypes(null);
+            n.setEagerSegmentPrototypes(null);}
+        );
+        pathMemSpec = removingTN == null ? null : calculatePathMemSpec( startTupleSource, removingTN );
+    }
+
+    public RuleImpl getRule() {
+        return this.rule;
+    }
+
+    public GroupElement getSubRule() {
+        return this.subrule;
+    }
+
+    @Override
+    public int getSubruleIndex() {
+        return subruleIndex;
+    }
+
+    public Declaration[] getAllDeclarations() {
+        return this.allDeclarations;
+    }
+
+    public Declaration[] getRequiredDeclarations() {
+        return this.requiredDeclarations;
+    }
+
+    public LeftTupleSource getStartTupleSource() {
+        return startTupleSource;
+    }
+
+    public void nullPathMemSpec() {
+        pathMemSpec = null;
     }
 
     @Override
@@ -97,17 +173,44 @@ public abstract class AbstractTerminalNode extends BaseNode implements TerminalN
         this.pathEndNodes = pathEndNodes;
     }
 
+
     @Override
     public PathEndNode[] getPathEndNodes() {
         return pathEndNodes;
     }
 
-    public int getPositionInPath() {
-        return tupleSource.getPositionInPath() + 1;
+    @Override
+    public void setSegmentPrototypes(SegmentPrototype[] smems) {
+        this.segmentPrototypes = smems;
     }
 
-    public void initDeclaredMask(BuildContext context) {
-        if ( !(unwrapTupleSource() instanceof LeftInputAdapterNode)) {
+    @Override
+    public SegmentPrototype[] getSegmentPrototypes() {
+        return segmentPrototypes;
+    }
+
+    public SegmentPrototype[] getEagerSegmentPrototypes() {
+        return eagerSegmentPrototypes;
+    }
+
+    public void setEagerSegmentPrototypes(SegmentPrototype[] eagerSegmentPrototypes) {
+        this.eagerSegmentPrototypes = eagerSegmentPrototypes;
+    }
+
+    public int getPathIndex() {
+        return tupleSource.getPathIndex() + 1;
+    }
+
+    public int getObjectCount() {
+        return objectCount;
+    }
+
+    public void setObjectCount(int count) {
+        objectCount = count;
+    }
+
+    protected void initDeclaredMask(BuildContext context) {
+        if ( !(NodeTypeEnums.isLeftInputAdapterNode(unwrapTupleSource()))) {
             // RTN's not after LIANode are not relevant for property specific, so don't block anything.
             setDeclaredMask( AllSetBitMask.get() );
             return;
@@ -116,28 +219,20 @@ public abstract class AbstractTerminalNode extends BaseNode implements TerminalN
         Pattern pattern = context.getLastBuiltPatterns()[0];
         ObjectType objectType = pattern.getObjectType();
 
-        if ( !(objectType instanceof ClassObjectType) ) {
-            // InitialFact has no type declaration and cannot be property specific
-            // Only ClassObjectType can use property specific
-            setDeclaredMask( AllSetBitMask.get() );
-            return;
-        }
-
-        Class objectClass = ((ClassObjectType)objectType).getClassType();
-        TypeDeclaration typeDeclaration = context.getKnowledgeBase().getTypeDeclaration(objectClass);
-        if (  typeDeclaration == null || !typeDeclaration.isPropertyReactive() ) {
-            // if property specific is not on, then accept all modification propagations
-            setDeclaredMask( AllSetBitMask.get() );
-        } else  {
-            List<String> accessibleProperties = pattern.getAccessibleProperties( context.getKnowledgeBase() );
+        if ( isPropertyReactive(context.getRuleBase(), objectType) ) {
+            List<String> accessibleProperties = pattern.getAccessibleProperties( context.getRuleBase() );
             setDeclaredMask( pattern.getPositiveWatchMask(accessibleProperties) );
             setNegativeMask( pattern.getNegativeWatchMask(accessibleProperties) );
+        } else  {
+            // if property specific is not on, then accept all modification propagations
+            setDeclaredMask( AllSetBitMask.get() );
         }
     }
 
     public void initInferredMask() {
         LeftTupleSource leftTupleSource = unwrapTupleSource();
-        if ( leftTupleSource instanceof LeftInputAdapterNode && ((LeftInputAdapterNode)leftTupleSource).getParentObjectSource() instanceof AlphaNode ) {
+        if ( NodeTypeEnums.isLeftInputAdapterNode(leftTupleSource) &&
+             ((LeftInputAdapterNode)leftTupleSource).getParentObjectSource().getType() == NodeTypeEnums.AlphaNode ) {
             AlphaNode alphaNode = (AlphaNode) ((LeftInputAdapterNode)leftTupleSource).getParentObjectSource();
             setInferredMask( alphaNode.updateMask( getDeclaredMask() ) );
         } else {
@@ -145,31 +240,24 @@ public abstract class AbstractTerminalNode extends BaseNode implements TerminalN
         }
 
         setInferredMask( getInferredMask().resetAll( getNegativeMask() ) );
+        if ( getNegativeMask().isAllSet() && !getDeclaredMask().isAllSet() ) {
+            setInferredMask( getInferredMask().setAll( getDeclaredMask() ) );
+        }
     }
 
     public LeftTupleSource unwrapTupleSource() {
-        return tupleSource instanceof FromNode ? tupleSource.getLeftTupleSource() : tupleSource;
+        return tupleSource.getType() == NodeTypeEnums.FromNode ? tupleSource.getLeftTupleSource() : tupleSource;
     }
 
-    public abstract RuleImpl getRule();
-    
-
-    public PathMemory createMemory(RuleBaseConfiguration config, InternalWorkingMemory wm) {
-        return initPathMemory( this, new PathMemory(this, wm) );
+    public PathMemory createMemory(RuleBaseConfiguration config, ReteEvaluator reteEvaluator) {
+        return initPathMemory( this, new PathMemory(this, reteEvaluator) );
     }
 
     public static PathMemory initPathMemory( PathEndNode pathEndNode, PathMemory pmem ) {
         PathMemSpec pathMemSpec = pathEndNode.getPathMemSpec();
-        pmem.setAllLinkedMaskTest(pathMemSpec. allLinkedTestMask );
-        pmem.setSegmentMemories( new SegmentMemory[pathMemSpec.smemCount] );
+        pmem.setAllLinkedMaskTest(pathMemSpec.allLinkedTestMask );
+        pmem.setSegmentMemories( new SegmentMemory[pathEndNode.getPathMemSpec().smemCount()] );
         return pmem;
-    }
-
-    public LeftTuple createPeer(LeftTuple original) {
-        RuleTerminalNodeLeftTuple peer = new RuleTerminalNodeLeftTuple();
-        peer.initPeer( (BaseLeftTuple) original, this );
-        original.setPeer( peer );
-        return peer;
     }
 
     protected boolean doRemove(final RuleRemovalContext context,
@@ -223,14 +311,10 @@ public abstract class AbstractTerminalNode extends BaseNode implements TerminalN
         return false;
     }
 
-    public void setLeftTupleMemoryEnabled(boolean tupleMemoryEnabled) {
-        // do nothing, this can only ever be false
-    }
-
     public static LeftTupleNode[] getPathNodes(PathEndNode endNode) {
-        LeftTupleNode[] pathNodes = new LeftTupleNode[endNode.getPositionInPath()+1];
+        LeftTupleNode[] pathNodes = new LeftTupleNode[endNode.getPathIndex() + 1];
         for (LeftTupleNode node = endNode; node != null; node = node.getLeftTupleSource()) {
-            pathNodes[node.getPositionInPath()] = node;
+            pathNodes[node.getPathIndex()] = node;
         }
         return pathNodes;
     }
@@ -251,15 +335,6 @@ public abstract class AbstractTerminalNode extends BaseNode implements TerminalN
         return false;
     }
 
-    public final boolean isTerminalNodeOf(LeftTupleNode node) {
-        for (PathEndNode pathEndNode : getPathEndNodes()) {
-            if (pathEndNode.hasPathNode( node )) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public LeftTupleSinkPropagator getSinkPropagator() {
         return EmptyLeftTupleSinkAdapter.getInstance();
     }
@@ -273,4 +348,71 @@ public abstract class AbstractTerminalNode extends BaseNode implements TerminalN
     public ObjectTypeNode getObjectTypeNode() {
         return getLeftTupleSource().getObjectTypeNode();
     }
+
+
+    /**
+     * Returns the next node
+     * @return
+     *      The next TupleSinkNode
+     */
+    public LeftTupleSinkNode getNextLeftTupleSinkNode() {
+        return this.nextTupleSinkNode;
+    }
+
+    /**
+     * Sets the next node
+     * @param next
+     *      The next TupleSinkNode
+     */
+    public void setNextLeftTupleSinkNode(final LeftTupleSinkNode next) {
+        this.nextTupleSinkNode = next;
+    }
+
+    /**
+     * Returns the previous node
+     * @return
+     *      The previous TupleSinkNode
+     */
+    public LeftTupleSinkNode getPreviousLeftTupleSinkNode() {
+        return this.previousTupleSinkNode;
+    }
+
+    /**
+     * Sets the previous node
+     * @param previous
+     *      The previous TupleSinkNode
+     */
+    public void setPreviousLeftTupleSinkNode(final LeftTupleSinkNode previous) {
+        this.previousTupleSinkNode = previous;
+    }
+
+    public void visitLeftTupleNodes(Consumer<LeftTupleNode> func) {
+        for (PathEndNode endNode : getPathEndNodes()) {
+            for (int i = endNode.getPathNodes().length-1; i >= 0; i--) {
+                LeftTupleNode node = endNode.getPathNodes()[i];
+                func.accept(node);
+                if (endNode.getStartTupleSource() == node) {
+                    break;
+                }
+            }
+        }
+    }
+
+    protected int calculateHashCode() {
+        return (31 * (31 + this.rule.hashCode() )) + subruleIndex;
+    }
+
+    @Override
+    public boolean equals(final Object object) {
+        if (this == object) {
+            return true;
+        }
+
+        if (!NodeTypeEnums.isTerminalNode((NetworkNode) object)|| this.hashCode() != object.hashCode()) {
+            return false;
+        }
+        final TerminalNode other = (TerminalNode) object;
+        return getRule().equals(other.getRule()) && getSubruleIndex() == other.getSubruleIndex();
+    }
+
 }

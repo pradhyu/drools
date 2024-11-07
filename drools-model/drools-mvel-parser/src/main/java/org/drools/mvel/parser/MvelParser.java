@@ -1,27 +1,21 @@
-/*
- * Copyright (C) 2007-2010 Júlio Vilmar Gesser.
- * Copyright (C) 2011, 2013-2016 The JavaParser Team.
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * This file is part of JavaParser.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * JavaParser can be used either under the terms of
- * a) the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- * b) the terms of the Apache License
- *
- * You should have received a copy of both licenses in LICENCE.LGPL and
- * LICENCE.APACHE. Please refer to those files for details.
- *
- * JavaParser is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * Modified by Red Hat, Inc.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.mvel.parser;
 
 import java.io.IOException;
@@ -41,15 +35,13 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.printer.PrettyPrinterConfiguration;
-import org.drools.mvel.parser.printer.ConstraintPrintVisitor;
 
 import static com.github.javaparser.Problem.PROBLEM_BY_BEGIN_POSITION;
 import static com.github.javaparser.utils.Utils.assertNotNull;
+import static org.drools.mvel.parser.ParseStart.BLOCK;
 import static org.drools.mvel.parser.ParseStart.CLASS_OR_INTERFACE_TYPE;
 import static org.drools.mvel.parser.ParseStart.EXPLICIT_CONSTRUCTOR_INVOCATION_STMT;
 import static org.drools.mvel.parser.ParseStart.EXPRESSION;
-import static org.drools.mvel.parser.ParseStart.BLOCK;
 import static org.drools.mvel.parser.ParseStart.NAME;
 import static org.drools.mvel.parser.ParseStart.SIMPLE_NAME;
 import static org.drools.mvel.parser.ParseStart.TYPE;
@@ -64,16 +56,10 @@ import static org.drools.mvel.parser.Providers.resourceProvider;
  */
 public final class MvelParser {
     private final ParserConfiguration configuration;
+    private final boolean optionalSemicolon;
 
     private GeneratedMvelParser astParser = null;
     private static ParserConfiguration staticConfiguration = new ParserConfiguration();
-
-    static {
-        PrettyPrinterConfiguration prettyPrinterConfiguration = new PrettyPrinterConfiguration();
-        // This is to support toString() on new Nodes in this parser
-        prettyPrinterConfiguration.setVisitorFactory(ConstraintPrintVisitor::new);
-        Node.setToStringPrettyPrinterConfiguration(prettyPrinterConfiguration);
-    }
 
     /**
      * Instantiate the parser with default configuration. Note that parsing can also be done with the static methods on
@@ -89,8 +75,13 @@ public final class MvelParser {
      * Creating an instance will reduce setup time between parsing files.
      */
     public MvelParser(ParserConfiguration configuration) {
+        this(configuration, true /* default to optional semicolon */);
+    }
+
+    public MvelParser(ParserConfiguration configuration, boolean optionalSemicolon) {
         this.configuration = configuration;
-        configuration.getPostProcessors().clear();
+        configuration.getProcessors().clear();
+        this.optionalSemicolon = optionalSemicolon;
     }
 
     /**
@@ -126,6 +117,7 @@ public final class MvelParser {
         }
         astParser.setTabSize(configuration.getTabSize());
         astParser.setStoreTokens(configuration.isStoreTokens());
+        astParser.setOptionalSemicolon(optionalSemicolon);
         return astParser;
     }
 
@@ -140,16 +132,16 @@ public final class MvelParser {
      * @return the parse result, a collection of encountered problems, and some extra data.
      */
     public <N extends Node> ParseResult<N> parse(ParseStart<N> start, Provider provider) {
-        assertNotNull(start);
-        assertNotNull(provider);
+    	assertNotNull(start);
+    	assertNotNull(provider);
 
         final GeneratedMvelParser parser = getParserForProvider(provider);
         try {
             N resultNode = start.parse(parser);
             ParseResult<N> result = new ParseResult<>(resultNode, parser.problems, parser.getCommentsCollection());
 
-            configuration.getPostProcessors().forEach(postProcessor ->
-                    postProcessor.process(result, configuration));
+            configuration.getProcessors().forEach(processor ->
+                    processor.get().postProcess(result, configuration));
 
             result.getProblems().sort(PROBLEM_BY_BEGIN_POSITION);
 

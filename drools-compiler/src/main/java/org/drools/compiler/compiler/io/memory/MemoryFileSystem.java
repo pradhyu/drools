@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.compiler.io.memory;
 
 import java.io.ByteArrayInputStream;
@@ -40,20 +43,22 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
-import org.drools.compiler.commons.jci.readers.ResourceReader;
-import org.drools.compiler.commons.jci.stores.ResourceStore;
 import org.drools.compiler.compiler.io.File;
 import org.drools.compiler.compiler.io.FileSystem;
 import org.drools.compiler.compiler.io.FileSystemItem;
 import org.drools.compiler.compiler.io.Folder;
-import org.drools.compiler.compiler.io.Path;
-import org.drools.core.io.impl.ByteArrayResource;
-import org.drools.core.io.internal.InternalResource;
-import org.drools.core.util.IoUtils;
-import org.drools.core.util.StringUtils;
+import org.drools.io.ByteArrayResource;
+import org.drools.io.InternalResource;
+import org.drools.util.IoUtils;
+import org.drools.util.PortablePath;
+import org.drools.util.StringUtils;
 import org.kie.api.io.Resource;
+import org.kie.memorycompiler.resources.ResourceReader;
+import org.kie.memorycompiler.resources.ResourceStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.drools.util.PortablePath.ROOT_PATH;
 
 public class MemoryFileSystem
     implements
@@ -66,34 +71,30 @@ public class MemoryFileSystem
 
     private final MemoryFolder               folder;
 
-    private final Map<String, Set<FileSystemItem>> folders = new HashMap<>();
+    private final Map<PortablePath, Set<FileSystemItem>> folders = new HashMap<>();
 
-    private final Map<String, Folder>        folderMap = new HashMap<>();
+    private final Map<PortablePath, Folder>        folderMap = new HashMap<>();
 
-    private final Map<String, InternalResource> fileContents = new HashMap<>();
+    private final Map<PortablePath, InternalResource> fileContents = new HashMap<>();
 
     private Set<String>                      modifiedFilesSinceLastMark;
 
     public MemoryFileSystem() {
-        folder = new MemoryFolder( this, "" );
-        folders.put( "", new HashSet<FileSystemItem>() );
+        folder = new MemoryFolder( this, ROOT_PATH );
+        folders.put( ROOT_PATH, new HashSet<>() );
     }
 
     public Folder getRootFolder() {
         return folder;
     }
 
-    public File getFile(Path path) {
-        return getFile( path.toPortableString() );
-    }
-
-    public Collection<String> getFileNames() {
+    public Collection<PortablePath> getFilePaths() {
         return fileContents.keySet();
     }
 
-    public Map<String, byte[]> getMap() {
-        Map<String, byte[]> bytesMap = new HashMap<>();
-        for (Entry<String, InternalResource> kv : fileContents.entrySet() ) {
+    public Map<PortablePath, byte[]> getMap() {
+        Map<PortablePath, byte[]> bytesMap = new HashMap<>();
+        for (Entry<PortablePath, InternalResource> kv : fileContents.entrySet() ) {
             bytesMap.put( kv.getKey(), resourceToBytes( kv.getValue() ) );
         }
         return bytesMap;
@@ -103,40 +104,18 @@ public class MemoryFileSystem
         return resource != null ? (( InternalResource )resource).getBytes() : null;
     }
     
-    public File getFile(String path) {   
-        path = MemoryFolder.trimLeadingAndTrailing( path );
-        int lastSlashPos = path.lastIndexOf( '/' );
-        if ( lastSlashPos >= 0 ) {
-            Folder folder = getFolder( path.substring( 0,
-                                                       lastSlashPos ) );
-            String name = path.substring( lastSlashPos + 1 );
-            return new MemoryFile( this,
-                                   name,
-                                   folder );
-        } else {
-            // path is already at root
-            Folder folder = getRootFolder();
-            return new MemoryFile( this,
-                                   path,
-                                   folder );
-        }
+    public File getFile(PortablePath path) {
+        PortablePath parent = path.getParent();
+        return new MemoryFile( this, path.getFileName(), parent != null ? getFolder( parent ) : getRootFolder() );
     }
 
-    public Folder getFolder(Path path) {
-        return getFolder( path.toPortableString() );
-    }
-
-    public Folder getFolder(String path) {
-        Folder folder = folderMap.get(path);
-        if (folder == null) {
-            folder = new MemoryFolder( this, path );
-            folderMap.put( path, folder );
-        }
-        return folder;
+    @Override
+    public Folder getFolder(PortablePath path) {
+        return folderMap.computeIfAbsent(path, p -> new MemoryFolder( this, p ));
     }
 
     public Set< ? extends FileSystemItem> getMembers( Folder folder) {
-        return folders.get( folder.getPath().toPortableString() );
+        return folders.get( folder.getPath() );
     }
 
     public byte[] getFileContents(MemoryFile file) {
@@ -144,7 +123,7 @@ public class MemoryFileSystem
     }
 
     public InternalResource getResource(MemoryFile file) {
-        return fileContents.get( file.getPath().toPortableString() );
+        return fileContents.get( file.getPath() );
     }
 
     public void setFileContents(MemoryFile file, byte[] contents) throws IOException {
@@ -156,21 +135,21 @@ public class MemoryFileSystem
             createFolder( (MemoryFolder) file.getFolder() );
         }
 
-        String fileName = file.getPath().toPortableString();
+        PortablePath filePath = file.getPath();
         if (modifiedFilesSinceLastMark != null) {
             byte[] contents = resourceToBytes( resource );
-            byte[] oldContent = resourceToBytes( fileContents.get( fileName ) );
+            byte[] oldContent = resourceToBytes( fileContents.get( filePath ) );
             if (oldContent == null || !Arrays.equals(oldContent, contents)) {
-                modifiedFilesSinceLastMark.add(fileName);
+                modifiedFilesSinceLastMark.add(filePath.asString());
             }
         }
-        fileContents.put( fileName, (InternalResource) resource );
-        resource.setSourcePath( file.getPath().toPortableString() );
-        folders.get( file.getFolder().getPath().toPortableString() ).add( file );
+        fileContents.put( filePath, (InternalResource) resource );
+        resource.setSourcePath( file.getPath().asString() );
+        folders.get( file.getFolder().getPath() ).add( file );
     }
 
     public void mark() {
-        modifiedFilesSinceLastMark = new HashSet<String>();
+        modifiedFilesSinceLastMark = new HashSet<>();
     }
 
     public Collection<String> getModifiedResourcesSinceLastMark() {
@@ -178,21 +157,15 @@ public class MemoryFileSystem
     }
 
     public boolean existsFolder(MemoryFolder folder) {
-        return existsFolder( folder.getPath().toPortableString() );
+        return existsFolder( folder.getPath() );
     }
 
-    public boolean existsFolder(String path) {
-        if (path == null) {
-            throw new NullPointerException("Folder path can not be null!");
-        }
-        return folders.get(MemoryFolder.trimLeadingAndTrailing(path)) != null;
+    public boolean existsFolder(PortablePath path) {
+        return folders.get(path) != null;
     }
 
-    public boolean existsFile(String path) {
-        if (path == null) {
-            throw new NullPointerException("File path can not be null!");
-        }
-        return fileContents.containsKey(MemoryFolder.trimLeadingAndTrailing(path));
+    public boolean existsFile(PortablePath path) {
+        return fileContents.containsKey(path);
     }
 
     public void createFolder(MemoryFolder folder) {
@@ -203,18 +176,17 @@ public class MemoryFileSystem
                 createFolder( (MemoryFolder) folder.getParent() );
             }
 
-            folders.put( folder.getPath().toPortableString(),
-                         new HashSet<FileSystemItem>() );
+            folders.put( folder.getPath(), new HashSet<>() );
 
             Folder parent = folder.getParent();
-            folders.get( parent.getPath().toPortableString() ).add( folder );
+            folders.get( parent.getPath() ).add( folder );
         }
     }
 
     public boolean remove(Folder folder) {
         if ( folder.exists() ) {
-            remove( folders.get( folder.getPath().toPortableString() ) );
-            folders.remove( folder.getPath().toPortableString() );
+            remove( folders.get( folder.getPath() ) );
+            folders.remove( folder.getPath() );
             return true;
         } else {
             return false;
@@ -225,12 +197,12 @@ public class MemoryFileSystem
         for (Iterator<FileSystemItem> it = members.iterator(); it.hasNext(); ) {
             FileSystemItem res = it.next();
             if ( res instanceof Folder ) {
-                remove( folders.get( res.getPath().toPortableString() ) );
+                remove( folders.get( res.getPath() ) );
             } else {
-                String fileName = res.getPath().toPortableString();
-                fileContents.remove( fileName );
+                PortablePath filePath = res.getPath();
+                fileContents.remove( filePath );
                 if (modifiedFilesSinceLastMark != null) {
-                    modifiedFilesSinceLastMark.add( fileName );
+                    modifiedFilesSinceLastMark.add( filePath.asString() );
                 }
             }
             it.remove();
@@ -239,12 +211,12 @@ public class MemoryFileSystem
 
     public boolean remove(File file) {
         if ( file.exists() ) {
-            String fileName = file.getPath().toPortableString();
-            fileContents.remove( fileName );
+            PortablePath filePath = file.getPath();
+            fileContents.remove( filePath );
             if (modifiedFilesSinceLastMark != null) {
-                modifiedFilesSinceLastMark.add( fileName );
+                modifiedFilesSinceLastMark.add( filePath.asString() );
             }
-            folders.get( ((MemoryFile) file).getFolder().getPath().toPortableString() ).remove( file );
+            folders.get( ((MemoryFile) file).getFolder().getPath() ).remove( file );
             return true;
         } else {
             return false;
@@ -323,14 +295,24 @@ public class MemoryFileSystem
 
     @Override
     public boolean equals(Object obj) {
-        if ( this == obj ) return true;
-        if ( obj == null ) return false;
-        if ( getClass() != obj.getClass() ) return false;
+        if ( this == obj ) {
+            return true;
+        }
+        if ( obj == null ) {
+            return false;
+        }
+        if ( getClass() != obj.getClass() ) {
+            return false;
+        }
         MemoryFileSystem other = (MemoryFileSystem) obj;
 
         if ( folder == null ) {
-            if ( other.folder != null ) return false;
-        } else if ( !folder.equals( other.folder ) ) return false;
+            if ( other.folder != null ) {
+                return false;
+            }
+        } else if ( !folder.equals( other.folder ) ) {
+            return false;
+        }
 
         return fileContents.equals( other.fileContents ) && folders.equals( other.folders );
     }
@@ -359,42 +341,38 @@ public class MemoryFileSystem
         }
     }
 
-    public boolean isAvailable(String pResourceName) {
-        return existsFile( pResourceName );
-    }
-
-    public byte[] getBytes(String pResourceName) {
-        return getFileContents((MemoryFile) getFile(pResourceName));
+    @Override
+    public boolean isAvailable(PortablePath resourcePath) {
+        return existsFile( resourcePath );
     }
 
     @Override
-    public InternalResource getResource(String pResourceName) {
-        return getResource((MemoryFile) getFile(pResourceName));
+    public byte[] getBytes(PortablePath resourcePath) {
+        return getFileContents((MemoryFile) getFile(resourcePath));
     }
 
-    public void write(String pResourceName, byte[] pResourceData) {
-        write( pResourceName, pResourceData, false );
+    public InternalResource getResource(PortablePath resourcePath) {
+        return getResource((MemoryFile) getFile(resourcePath));
     }
 
-    public void write(String pResourceName, byte[] pResourceData, boolean createFolder) {
-        write( pResourceName, new ByteArrayResource( pResourceData ), createFolder );
+    @Override
+    public void write(PortablePath resourcePath, byte[] pResourceData) {
+        write( resourcePath, pResourceData, false );
     }
 
-    public void write(String pResourceName, Resource resource) {
-        write( pResourceName, resource, false );
+    @Override
+    public void write(PortablePath resourcePath, byte[] pResourceData, boolean createFolder) {
+        write( resourcePath, new ByteArrayResource( pResourceData ), createFolder );
     }
 
-    public void write(String pResourceName, Resource resource, boolean createFolder) {
-        pResourceName = pResourceName.replace( java.io.File.separatorChar, '/' );
+    public void write(PortablePath resourcePath, Resource resource) {
+        write( resourcePath, resource, false );
+    }
 
-        if (pResourceName.endsWith( "/" )) {
-            // avoid to create files for empty folders
-            return;
-        }
-
-        MemoryFile memoryFile = (MemoryFile) getFile( pResourceName );
+    public void write(PortablePath resourcePath, Resource resource, boolean createFolder) {
+        MemoryFile memoryFile = (MemoryFile) getFile( resourcePath );
         if ( createFolder ) {
-            String folderPath = memoryFile.getFolder().getPath().toPortableString();
+            PortablePath folderPath = memoryFile.getFolder().getPath();
             if ( !existsFolder( folderPath ) ) {
                 memoryFile.getFolder().create();
             }
@@ -406,12 +384,14 @@ public class MemoryFileSystem
         }
     }
 
-    public byte[] read(String pResourceName) {
-        return getBytes( pResourceName );
+    @Override
+    public byte[] read(PortablePath resourcePath) {
+        return getBytes( resourcePath );
     }
 
-    public void remove(String pResourceName) {
-        remove(getFile(pResourceName));
+    @Override
+    public void remove(PortablePath resourcePath) {
+        remove(getFile(resourcePath));
     }
 
     public byte[] writeAsBytes() {
@@ -481,7 +461,7 @@ public class MemoryFileSystem
     private void writeJarEntries(Folder f,
                                  ZipOutputStream out) throws IOException {
         for ( FileSystemItem rs : f.getMembers() ) {
-            String rname = rs.getPath().toPortableString();
+            String rname = rs.getPath().asString();
             if ( rs instanceof Folder ) {
                 rname = rname.endsWith("/") ? rname : rname + "/"; // a folder name must end with / according to ZIP spec
                 ZipEntry entry = new ZipEntry( rname );
@@ -507,14 +487,12 @@ public class MemoryFileSystem
 
     public static MemoryFileSystem readFromJar(java.io.File jarFile) {
         MemoryFileSystem mfs = new MemoryFileSystem();
-        ZipFile zipFile = null;
-        try {
-            zipFile = new ZipFile( jarFile );
+        try ( ZipFile zipFile = new ZipFile( jarFile ) ) {
             Enumeration< ? extends ZipEntry> entries = zipFile.entries();
             while ( entries.hasMoreElements() ) {
                 ZipEntry entry = entries.nextElement();
                 int separator = entry.getName().lastIndexOf( '/' );
-                String path = separator > 0 ? entry.getName().substring( 0, separator ) : "";
+                PortablePath path = separator > 0 ? PortablePath.of( entry.getName().substring( 0, separator ) ) : ROOT_PATH;
                 String name = entry.getName().substring( separator + 1 );
 
                 Folder folder = mfs.getFolder( path );
@@ -525,14 +503,6 @@ public class MemoryFileSystem
             }
         } catch ( IOException e ) {
             throw new RuntimeException( e );
-        } finally {
-            if ( zipFile != null ) {
-                try {
-                    zipFile.close();
-                } catch ( IOException e ) {
-                    log.error(e.getMessage(), e);
-                }
-            }
         }
         return mfs;
     }
@@ -543,9 +513,7 @@ public class MemoryFileSystem
 
     public static MemoryFileSystem readFromJar(InputStream jarFile) {
         MemoryFileSystem mfs = new MemoryFileSystem();
-        JarInputStream zipFile = null;
-        try {
-            zipFile = new JarInputStream( jarFile );
+        try (JarInputStream zipFile = new JarInputStream( jarFile )) {
             ZipEntry entry;
             while ( (entry = zipFile.getNextEntry()) != null ) {
                 if (entry.isDirectory()) {
@@ -561,20 +529,12 @@ public class MemoryFileSystem
             }
         } catch ( IOException e ) {
             throw new RuntimeException( e );
-        } finally {
-            if ( zipFile != null ) {
-                try {
-                    zipFile.close();
-                } catch ( IOException e ) {
-                    log.error(e.getMessage(), e);
-                }
-            }
         }
         return mfs;
     }
 
     public String findPomProperties() {
-        for( Entry<String, InternalResource> content : fileContents.entrySet() ) {
+        for( Entry<PortablePath, InternalResource> content : fileContents.entrySet() ) {
             if ( content.getKey().endsWith( "pom.properties" ) && content.getKey().startsWith( "META-INF/maven/" ) ) {
                 try (InputStream resourceStream = content.getValue().getInputStream()) {
                     return StringUtils.readFileAsString( new InputStreamReader( resourceStream, IoUtils.UTF8_CHARSET ) );
@@ -588,7 +548,7 @@ public class MemoryFileSystem
 
     public MemoryFileSystem clone() {
         MemoryFileSystem clone = new MemoryFileSystem();
-        for (Map.Entry<String, InternalResource> entry : fileContents.entrySet()) {
+        for (Map.Entry<PortablePath, InternalResource> entry : fileContents.entrySet()) {
             clone.write(entry.getKey(), entry.getValue());
         }
         return clone;
@@ -604,14 +564,13 @@ public class MemoryFileSystem
         public ByteClassLoader(ClassLoader parent, MemoryFileSystem memoryFileSystem) {
             super(new URL[0], parent);
             memoryFileSystem
-                    .getFileNames()
+                    .getFilePaths()
                     .stream()
                     .filter(fn -> fn.endsWith(".class"))
                     .forEach(f -> {
                         MemoryFile file = (MemoryFile) memoryFileSystem.getFile(f);
                         byte[] fileContents = memoryFileSystem.getFileContents(file);
-                        String className = f.replace("/", ".").replace(".class", "");
-                        extraClassDefs.put(className, fileContents);
+                        extraClassDefs.put(f.asClassName(), fileContents);
                     });
         }
 

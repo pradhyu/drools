@@ -1,176 +1,128 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.util.index;
-
-import org.drools.core.reteoo.TupleMemory;
-import org.drools.core.spi.Tuple;
-import org.drools.core.util.AbstractHashTable;
-import org.drools.core.util.Entry;
-import org.drools.core.util.FastIterator;
-import org.drools.core.util.Iterator;
-import org.drools.core.util.TupleRBTree;
-import org.drools.core.util.TupleRBTree.Boundary;
-import org.drools.core.util.TupleRBTree.Node;
 
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.util.ArrayList;
-import java.util.List;
 
-public class TupleIndexRBTree implements Externalizable, TupleMemory {
+import org.drools.base.util.IndexedValueReader;
+import org.drools.base.util.index.ConstraintTypeOperator;
+import org.drools.core.reteoo.TupleImpl;
+import org.drools.core.reteoo.TupleMemory;
+import org.drools.core.util.FastIterator;
+import org.drools.core.util.Iterator;
+import org.drools.core.util.TupleRBTree;
+import org.drools.core.util.TupleRBTree.Boundary;
+import org.drools.core.util.TupleRBTree.Node;
+import org.drools.util.CoercionUtil;
+
+public class TupleIndexRBTree extends AbstractTupleIndexTree implements Externalizable, TupleMemory {
 
     private TupleRBTree<Comparable<Comparable>> tree;
-
-    private AbstractHashTable.FieldIndex index;
-    private IndexUtil.ConstraintType constraintType;
-
-    private int size;
-
-    private boolean left;
 
     public TupleIndexRBTree() {
         // constructor for serialisation
     }
 
-    public TupleIndexRBTree( IndexUtil.ConstraintType constraintType, AbstractHashTable.FieldIndex index, boolean left ) {
+    public TupleIndexRBTree(ConstraintTypeOperator constraintType, IndexedValueReader index, boolean left) {
         this.index = index;
         this.constraintType = constraintType;
         this.left = left;
-        tree = new TupleRBTree<Comparable<Comparable>>();
+        tree = new TupleRBTree<>();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeObject( tree );
         out.writeObject( index );
         out.writeObject( constraintType );
-        out.writeInt(size);
+        out.writeInt(factSize);
         out.writeBoolean( left );
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         tree = (TupleRBTree<Comparable<Comparable>>) in.readObject();
-        index = (AbstractHashTable.FieldIndex) in.readObject();
-        constraintType = (IndexUtil.ConstraintType) in.readObject();
-        size = in.readInt();
+        index = (IndexedValueReader) in.readObject();
+        constraintType = (ConstraintTypeOperator) in.readObject();
+        factSize = in.readInt();
         left = in.readBoolean();
     }
 
-    public void add(Tuple tuple) {
-        Comparable key = getLeftIndexedValue( tuple );
+    public void add(TupleImpl tuple) {
+        Comparable key = getIndexedValue(tuple, left);
         TupleList list = tree.insert(key);
         list.add(tuple);
-        size++;
+        factSize++;
     }
 
-    public void remove(Tuple tuple) {
+    public void remove(TupleImpl tuple) {
         TupleList list = tuple.getMemory();
         list.remove(tuple);
         if (list.getFirst() == null) {
             tree.delete(((Node<Comparable<Comparable>>)list).key);
         }
-        size--;
+        factSize--;
     }
 
-    public void removeAdd(Tuple tuple) {
+    public void removeAdd(TupleImpl tuple) {
         remove(tuple);
         add(tuple);
     }
 
-    public boolean isIndexed() {
-        return true;
-    }
-
     public int size() {
-        return size;
+        return factSize;
     }
 
-    public Entry[] toArray() {
-        FastIterator it = tree.fastIterator();
-        if (it == null) {
-            return new Entry[0];
-        }
 
-        List<Comparable> toBeRemoved = new ArrayList<Comparable>();
-        List<Tuple> result = new ArrayList<Tuple>();
-
-        TupleList list = null;
-        while ( (list = (TupleList) it.next( list )) != null ) {
-            Tuple entry = list.getFirst();
-            while (entry != null) {
-                result.add(entry);
-                entry = (Tuple) entry.getNext();
-            }
-        }
-
-        return result.toArray(new Tuple[result.size()]);
+    public TupleImpl getFirst(TupleImpl rightTuple) {
+        Comparable key = getIndexedValue( rightTuple, !left );
+        return getNext(key, true);
     }
 
-    public Tuple getFirst(Tuple rightTuple) {
-        Comparable key = getRightIndexedValue( rightTuple );
-        return (Tuple)getNext(key, true);
-    }
-
-    public Iterator<Tuple> iterator() {
+    public Iterator<TupleImpl> iterator() {
         TupleList list = tree.first();
-        Tuple firstTuple = list != null ? list.getFirst() : null;
+        TupleImpl firstTuple = list != null ? list.getFirst() : null;
         return new FastIterator.IteratorAdapter(fastIterator(), firstTuple);
     }
 
-    public boolean contains(Tuple leftTuple) {
-        Comparable key = getLeftIndexedValue( leftTuple );
-        return tree.lookup(key) != null;
-    }
-
-    public FastIterator fastIterator() {
+    public FastIterator<TupleImpl> fastIterator() {
         return new TupleFastIterator();
     }
 
-    public FastIterator fullFastIterator() {
+    public FastIterator<TupleImpl> fullFastIterator() {
         return new TupleFastIterator();
     }
 
-    public FastIterator fullFastIterator(Tuple leftTuple) {
+    public FastIterator<TupleImpl> fullFastIterator(TupleImpl leftTuple) {
         FastIterator fastIterator = fullFastIterator();
-        Comparable key = getLeftIndexedValue( leftTuple );
+        Comparable key = getLeftIndexedValue(leftTuple);
         fastIterator.next(getNext(key, true));
         return fastIterator;
     }
 
-    private Comparable getLeftIndexedValue( Tuple tuple ) {
-        return getIndexedValue( tuple, left );
-    }
-
-    private Comparable getRightIndexedValue( Tuple tuple ) {
-        return getIndexedValue( tuple, !left );
-    }
-
-    private Comparable getIndexedValue( Tuple tuple, boolean left ) {
-        return left ?
-               (Comparable) index.getDeclaration().getExtractor().getValue( tuple.getObject( index.getDeclaration() ) ) :
-               (Comparable) index.getExtractor().getValue( tuple.getFactHandle().getObject() );
-    }
-
-    private Tuple getNext(Comparable key, boolean first) {
+    private TupleImpl getNext(Comparable key, boolean first) {
         return left ? getNextLeft( key, first ) : getNextRight( key, first );
     }
 
-    private Tuple getNextLeft(Comparable key, boolean first) {
+    private TupleImpl getNextLeft(Comparable key, boolean first) {
+        key = coerceType(index, tree.root != null ? tree.root.key : null, key);
         Node<Comparable<Comparable>> firstNode;
         switch (constraintType) {
             case LESS_THAN:
@@ -191,7 +143,11 @@ public class TupleIndexRBTree implements Externalizable, TupleMemory {
         return firstNode == null ? null : firstNode.getFirst();
     }
 
-    private Tuple getNextRight(Comparable key, boolean first) {
+    private TupleImpl getNextRight(Comparable key, boolean first) {
+        if (key == null) {
+            return null;
+        }
+        key = coerceType(index, tree.root != null ? tree.root.key : null, key);
         Node<Comparable<Comparable>> firstNode;
         switch (constraintType) {
             case LESS_THAN:
@@ -212,18 +168,29 @@ public class TupleIndexRBTree implements Externalizable, TupleMemory {
         return firstNode == null ? null : firstNode.getFirst();
     }
 
-    public class TupleFastIterator implements FastIterator {
-        public Entry next(Entry object) {
-            if (object == null) {
+    public static Comparable coerceType(IndexedValueReader index, Comparable treeRootKey, Comparable key) {
+        // We don't do dynamic coercion other than Numbers. See IndexUtil.areRangeIndexCompatibleOperands().
+        if (index.requiresCoercion() && key != null && treeRootKey != null && !key.getClass().equals(treeRootKey.getClass())) {
+            if (treeRootKey instanceof Number && key instanceof Number) {
+                key = (Comparable) CoercionUtil.coerceToNumber((Number) key, (Class<?>) treeRootKey.getClass());
+            } else {
+                throw new RuntimeException("Not possible to coerce [" + key + "] from class " + key.getClass() + " to class " + treeRootKey.getClass());
+            }
+        }
+        return key;
+    }
+
+    public class TupleFastIterator implements FastIterator<TupleImpl> {
+        public TupleImpl next(TupleImpl tuple) {
+            if (tuple == null) {
                 Node<Comparable<Comparable>> firstNode = tree.first();
                 return firstNode == null ? null : firstNode.getFirst();
             }
-            Tuple tuple = (Tuple) object;
-            Tuple next = (Tuple) tuple.getNext();
+            TupleImpl next = tuple.getNext();
             if (next != null) {
                 return next;
             }
-            Comparable key = getLeftIndexedValue( tuple );
+            Comparable key = getLeftIndexedValue(tuple);
             return getNext(key, false);
         }
 
@@ -233,7 +200,7 @@ public class TupleIndexRBTree implements Externalizable, TupleMemory {
     }
 
     public void clear() {
-        tree = new TupleRBTree<Comparable<Comparable>>();
+        tree = new TupleRBTree<>();
     }
 
     public IndexType getIndexType() {

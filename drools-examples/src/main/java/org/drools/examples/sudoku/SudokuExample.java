@@ -1,36 +1,55 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.examples.sudoku;
 
-import org.drools.core.util.IoUtils;
-import org.drools.examples.sudoku.swing.SudokuGridSamples;
-import org.drools.examples.sudoku.swing.SudokuGridView;
-import org.kie.api.KieServices;
-import org.kie.api.runtime.KieContainer;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.WindowConstants;
+
+import org.drools.examples.sudoku.swing.SudokuGridSamples;
+import org.drools.examples.sudoku.swing.SudokuGridView;
+import org.drools.util.IoUtils;
+import org.kie.api.KieServices;
+import org.kie.api.builder.KieBuilder;
+import org.kie.api.builder.KieFileSystem;
+import org.kie.api.builder.Message.Level;
+import org.kie.api.builder.ReleaseId;
+import org.kie.api.builder.model.KieModuleModel;
+import org.kie.api.runtime.KieContainer;
+import org.kie.internal.builder.conf.PropertySpecificOption;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This example shows how Drools can be used to solve a 9x9 Sudoku Grid.
@@ -55,6 +74,7 @@ import java.io.Reader;
  * &lt;/pre&gt;
  */
 public class SudokuExample implements ActionListener {
+    private static final Logger LOG = LoggerFactory.getLogger(SudokuExample.class);
     private JFrame mainFrame;
     private SudokuGridView sudokuGridView;
     private Sudoku sudoku;
@@ -72,9 +92,30 @@ public class SudokuExample implements ActionListener {
     private JFileChooser fileChooser;
 
     public static void main(String[] args) {
-        KieContainer kc = KieServices.Factory.get().getKieClasspathContainer();
+        KieContainer kc = createSudokuKieContainer();
         new SudokuExample().init(kc, true);
     }
+
+    public static KieContainer createSudokuKieContainer() {
+        // Create a KieContainer separately from other examples because Sudoku rules were written without property reactivity
+        KieServices ks = KieServices.Factory.get();
+        KieFileSystem kfs = ks.newKieFileSystem();
+        kfs.write("src/main/resources/org/drools/examples/sudoku/sudoku.drl",
+                  ks.getResources().newInputStreamResource(SudokuExample.class.getResourceAsStream("/org/drools/examples/sudoku/sudoku.drl")));
+        kfs.write("src/main/resources/org/drools/examples/sudoku/validate.drl",
+                  ks.getResources().newInputStreamResource(SudokuExample.class.getResourceAsStream("/org/drools/examples/sudoku/validate.drl")));
+        ReleaseId releaseId = ks.newReleaseId("org.drools.examples.sudoku", "sudoku", "1.0.0");
+        kfs.generateAndWritePomXML(releaseId);
+        KieModuleModel kieModuleModel = ks.newKieModuleModel();
+        kieModuleModel.setConfigurationProperty(PropertySpecificOption.PROPERTY_NAME, PropertySpecificOption.ALLOWED.name());
+        kfs.writeKModuleXML(kieModuleModel.toXML());
+        KieBuilder kieBuilder = ks.newKieBuilder(kfs).buildAll();
+        if (kieBuilder.getResults().hasMessages(Level.ERROR)) {
+            LOG.error("Build error : {}", kieBuilder.getResults().getMessages());
+        }
+        return ks.newKieContainer(releaseId);
+    }
+
     public SudokuExample() {
     }
 
@@ -142,7 +183,7 @@ public class SudokuExample implements ActionListener {
             sudoku.setCellValues( values );
             sudoku.validate();
         } catch ( IOException e ) {
-            e.printStackTrace();
+            LOG.error("Exception", e);
         }
     }
 
@@ -179,7 +220,7 @@ public class SudokuExample implements ActionListener {
                     buttonsActive(true);
                 }
             } catch (IOException ex) {
-                ex.printStackTrace();
+                LOG.error("Exception", ex);
             }
 
         } else if (ev.getSource().equals(exitMenuItem)) {

@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.kie.dmn.feel.jandex;
 
 import java.io.File;
@@ -13,19 +31,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.json.bind.Jsonb;
-import javax.json.bind.JsonbBuilder;
-import javax.json.bind.JsonbConfig;
-
-import org.assertj.core.api.Assertions;
+import jakarta.json.bind.Jsonb;
+import jakarta.json.bind.JsonbBuilder;
+import jakarta.json.bind.JsonbConfig;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.Index;
 import org.jboss.jandex.Indexer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.kie.dmn.feel.runtime.FEELFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class AbstractJandexTest {
 
@@ -37,7 +55,7 @@ public abstract class AbstractJandexTest {
     }
 
     @Test
-    public void testReflectConfigJSON() throws Exception {
+    public void reflectConfigJSON() throws Exception {
         Indexer indexer = new Indexer();
         InputStream stream = getClass().getClassLoader()
                                        .getResourceAsStream("org/kie/dmn/feel/runtime/FEELFunction.class");
@@ -50,6 +68,7 @@ public abstract class AbstractJandexTest {
         Index index = indexer.complete();
 
         Set<ClassInfo> founds = index.getAllKnownImplementors(DotName.createSimple(FEELFunction.class.getCanonicalName()));
+        boolean removeIf = founds.removeIf(ci -> ci.name().toString().contains("ASTTemporalConstantVisitor")); // not needed at run-time.
         LOG.debug("founds: \n{}", founds);
         Jsonb jsonb = JsonbBuilder.create(new JsonbConfig().withFormatting(true));
         List<Object> results = new ArrayList<>();
@@ -67,7 +86,7 @@ public abstract class AbstractJandexTest {
 
         Set<DotName> foundsViaJandex = founds.stream().map(ClassInfo::name).collect(Collectors.toSet());
         Set<DotName> foundsViaJSON = dotNamesInJSON.stream().collect(Collectors.toSet());
-        Assertions.assertThat(foundsViaJandex)
+        assertThat(foundsViaJandex)
                   .as("List of classes found via Jandex during test and listed in JSON file must be same.")
                   .isEqualTo(foundsViaJSON)
         ;
@@ -103,7 +122,7 @@ public abstract class AbstractJandexTest {
 
         LOG.trace("scan: {}", source);
         try (FileInputStream input = new FileInputStream(source);) {
-            ClassInfo info = indexer.index(input);
+            indexer.index(input);
         }
     }
 }

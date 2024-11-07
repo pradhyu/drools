@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.integrationtests;
 
 import java.io.ByteArrayInputStream;
@@ -27,7 +30,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -40,27 +42,27 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
 import org.drools.core.WorkingMemory;
-import org.drools.core.audit.WorkingMemoryFileLogger;
-import org.drools.core.base.ClassObjectType;
-import org.drools.core.base.evaluators.TimeIntervalParser;
+import org.drools.base.base.ClassObjectType;
 import org.drools.core.common.DefaultFactHandle;
-import org.drools.core.common.EventFactHandle;
+import org.drools.core.common.DefaultEventHandle;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.common.NamedEntryPoint;
-import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.impl.KnowledgeBaseImpl;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
+import org.drools.core.common.ReteEvaluator;
+import org.drools.core.common.TruthMaintenanceSystemFactory;
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.core.impl.InternalRuleBase;
 import org.drools.core.reteoo.ObjectTypeNode;
-import org.drools.core.rule.EntryPointId;
-import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.spi.ObjectType;
+import org.drools.base.rule.EntryPointId;
+import org.drools.base.rule.TypeDeclaration;
+import org.drools.base.base.ObjectType;
 import org.drools.core.time.impl.DurationTimer;
 import org.drools.core.time.impl.PseudoClockScheduler;
-import org.drools.core.util.DateUtils;
+import org.drools.base.util.TimeIntervalParser;
+import org.drools.kiesession.audit.WorkingMemoryFileLogger;
+import org.drools.kiesession.session.StatefulKnowledgeSessionImpl;
 import org.drools.testcoverage.common.model.OrderEvent;
 import org.drools.testcoverage.common.model.StockTick;
 import org.drools.testcoverage.common.model.StockTickEvent;
@@ -69,12 +71,13 @@ import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieSessionTestConfiguration;
 import org.drools.testcoverage.common.util.KieUtil;
 import org.drools.testcoverage.common.util.SerializationHelper;
-import org.drools.testcoverage.common.util.TestParametersUtil;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
 import org.drools.testcoverage.common.util.TimeUtil;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.util.DateUtils;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
@@ -97,32 +100,22 @@ import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.time.SessionPseudoClock;
 import org.mockito.ArgumentCaptor;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-@RunWith(Parameterized.class)
 public class CepEspTest extends AbstractCepEspTest {
 
-    public CepEspTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        super(kieBaseTestConfiguration);
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseStreamConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseStreamConfigurations(true);
-    }
-
-    @Test(timeout=10000)
-    public void testComplexTimestamp() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testComplexTimestamp(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package " + Message.class.getPackage().getName() + "\n" +
                 "declare " + Message.class.getCanonicalName() + "\n" +
                  "   @role( event ) \n" +
@@ -139,16 +132,18 @@ public class CepEspTest extends AbstractCepEspTest {
             props.put("duration", 52);
             msg.setProperties(props);
 
-            final EventFactHandle efh = (EventFactHandle) ksession.insert(msg);
-            assertEquals(98, efh.getStartTimestamp());
-            assertEquals(53, efh.getDuration());
+            final DefaultEventHandle efh = (DefaultEventHandle) ksession.insert(msg);
+            assertThat(efh.getStartTimestamp()).isEqualTo(98);
+            assertThat(efh.getDuration()).isEqualTo(53);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testJavaSqlTimestamp() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testJavaSqlTimestamp(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package " + Message.class.getPackage().getName() + "\n" +
                 "declare " + Message.class.getCanonicalName() + "\n" +
                  "   @role( event ) \n" +
@@ -163,16 +158,18 @@ public class CepEspTest extends AbstractCepEspTest {
             msg.setStartTime(new Timestamp(10000));
             msg.setDuration(1000L);
 
-            final EventFactHandle efh = (EventFactHandle) ksession.insert(msg);
-            assertEquals(10000, efh.getStartTimestamp());
-            assertEquals(1000, efh.getDuration());
+            final DefaultEventHandle efh = (DefaultEventHandle) ksession.insert(msg);
+            assertThat(efh.getStartTimestamp()).isEqualTo(10000);
+            assertThat(efh.getDuration()).isEqualTo(1000);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testEventAssertion() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventAssertion(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_SimpleEventAssertion.drl");
         final KieSession session = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -197,26 +194,28 @@ public class CepEspTest extends AbstractCepEspTest {
             final InternalFactHandle handle4 = (InternalFactHandle) session.insert(tick4);
             clock.advanceTime(10, TimeUnit.SECONDS);
 
-            assertNotNull(handle1);
-            assertNotNull(handle2);
-            assertNotNull(handle3);
-            assertNotNull(handle4);
+            assertThat(handle1).isNotNull();
+            assertThat(handle2).isNotNull();
+            assertThat(handle3).isNotNull();
+            assertThat(handle4).isNotNull();
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
-            assertTrue(handle3.isEvent());
-            assertTrue(handle4.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
+            assertThat(handle3.isEvent()).isTrue();
+            assertThat(handle4.isEvent()).isTrue();
 
             session.fireAllRules();
 
-            assertEquals(2, ((List) session.getGlobal("results")).size());
+            assertThat(((List) session.getGlobal("results")).size()).isEqualTo(2);
         } finally {
             session.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testAnnotatedEventAssertion() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAnnotatedEventAssertion(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.test;\n" +
                 "\n" +
@@ -254,27 +253,29 @@ public class CepEspTest extends AbstractCepEspTest {
             final InternalFactHandle handle4 = (InternalFactHandle) session.insert(tick4);
             clock.advanceTime(10, TimeUnit.SECONDS);
 
-            assertNotNull(handle1);
-            assertNotNull(handle2);
-            assertNotNull(handle3);
-            assertNotNull(handle4);
+            assertThat(handle1).isNotNull();
+            assertThat(handle2).isNotNull();
+            assertThat(handle3).isNotNull();
+            assertThat(handle4).isNotNull();
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
-            assertTrue(handle3.isEvent());
-            assertTrue(handle4.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
+            assertThat(handle3.isEvent()).isTrue();
+            assertThat(handle4.isEvent()).isTrue();
 
             session.fireAllRules();
 
-            assertEquals(2, ((List) session.getGlobal("results")).size());
+            assertThat(((List) session.getGlobal("results")).size()).isEqualTo(2);
         } finally {
             session.dispose();
         }
     }
 
     @SuppressWarnings("unchecked")
-    @Test(timeout=10000)
-    public void testPackageSerializationWithEvents() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testPackageSerializationWithEvents(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_SimpleEventAssertion.drl");
         final KieSession session = kbase.newKieSession();
@@ -289,23 +290,25 @@ public class CepEspTest extends AbstractCepEspTest {
             final InternalFactHandle handle1 = (InternalFactHandle) session.insert(tick1);
             final InternalFactHandle handle2 = (InternalFactHandle) session.insert(tick2);
 
-            assertNotNull(handle1);
-            assertNotNull(handle2);
+            assertThat(handle1).isNotNull();
+            assertThat(handle2).isNotNull();
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
 
             session.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertEquals(tick2, results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isEqualTo(tick2);
         } finally {
             session.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testEventAssertionWithDuration() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventAssertionWithDuration(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
@@ -342,41 +345,43 @@ public class CepEspTest extends AbstractCepEspTest {
             final InternalFactHandle handle3 = (InternalFactHandle) session.insert(tick3);
             final InternalFactHandle handle4 = (InternalFactHandle) session.insert(tick4);
 
-            assertNotNull(handle1);
-            assertNotNull(handle2);
-            assertNotNull(handle3);
-            assertNotNull(handle4);
+            assertThat(handle1).isNotNull();
+            assertThat(handle2).isNotNull();
+            assertThat(handle3).isNotNull();
+            assertThat(handle4).isNotNull();
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
-            assertTrue(handle3.isEvent());
-            assertTrue(handle4.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
+            assertThat(handle3.isEvent()).isTrue();
+            assertThat(handle4.isEvent()).isTrue();
 
-            final EventFactHandle eh1 = (EventFactHandle) handle1;
-            final EventFactHandle eh2 = (EventFactHandle) handle2;
-            final EventFactHandle eh3 = (EventFactHandle) handle3;
-            final EventFactHandle eh4 = (EventFactHandle) handle4;
+            final DefaultEventHandle eh1 = (DefaultEventHandle) handle1;
+            final DefaultEventHandle eh2 = (DefaultEventHandle) handle2;
+            final DefaultEventHandle eh3 = (DefaultEventHandle) handle3;
+            final DefaultEventHandle eh4 = (DefaultEventHandle) handle4;
 
-            assertEquals(tick1.getTime(), eh1.getStartTimestamp());
-            assertEquals(tick2.getTime(), eh2.getStartTimestamp());
-            assertEquals(tick3.getTime(), eh3.getStartTimestamp());
-            assertEquals(tick4.getTime(), eh4.getStartTimestamp());
+            assertThat(eh1.getStartTimestamp()).isEqualTo(tick1.getTime());
+            assertThat(eh2.getStartTimestamp()).isEqualTo(tick2.getTime());
+            assertThat(eh3.getStartTimestamp()).isEqualTo(tick3.getTime());
+            assertThat(eh4.getStartTimestamp()).isEqualTo(tick4.getTime());
 
-            assertEquals(tick1.getDuration(), eh1.getDuration());
-            assertEquals(tick2.getDuration(), eh2.getDuration());
-            assertEquals(tick3.getDuration(), eh3.getDuration());
-            assertEquals(tick4.getDuration(), eh4.getDuration());
+            assertThat(eh1.getDuration()).isEqualTo(tick1.getDuration());
+            assertThat(eh2.getDuration()).isEqualTo(tick2.getDuration());
+            assertThat(eh3.getDuration()).isEqualTo(tick3.getDuration());
+            assertThat(eh4.getDuration()).isEqualTo(tick4.getDuration());
 
             session.fireAllRules();
 
-            assertEquals(2, results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             session.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testEventAssertionWithDateTimestamp() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventAssertionWithDateTimestamp(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
@@ -412,36 +417,38 @@ public class CepEspTest extends AbstractCepEspTest {
             final InternalFactHandle handle3 = (InternalFactHandle) session.insert(tick3);
             final InternalFactHandle handle4 = (InternalFactHandle) session.insert(tick4);
 
-            assertNotNull(handle1);
-            assertNotNull(handle2);
-            assertNotNull(handle3);
-            assertNotNull(handle4);
+            assertThat(handle1).isNotNull();
+            assertThat(handle2).isNotNull();
+            assertThat(handle3).isNotNull();
+            assertThat(handle4).isNotNull();
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
-            assertTrue(handle3.isEvent());
-            assertTrue(handle4.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
+            assertThat(handle3.isEvent()).isTrue();
+            assertThat(handle4.isEvent()).isTrue();
 
-            final EventFactHandle eh1 = (EventFactHandle) handle1;
-            final EventFactHandle eh2 = (EventFactHandle) handle2;
-            final EventFactHandle eh3 = (EventFactHandle) handle3;
-            final EventFactHandle eh4 = (EventFactHandle) handle4;
+            final DefaultEventHandle eh1 = (DefaultEventHandle) handle1;
+            final DefaultEventHandle eh2 = (DefaultEventHandle) handle2;
+            final DefaultEventHandle eh3 = (DefaultEventHandle) handle3;
+            final DefaultEventHandle eh4 = (DefaultEventHandle) handle4;
 
-            assertEquals(tick1.getTime(), eh1.getStartTimestamp());
-            assertEquals(tick2.getTime(), eh2.getStartTimestamp());
-            assertEquals(tick3.getTime(), eh3.getStartTimestamp());
-            assertEquals(tick4.getTime(), eh4.getStartTimestamp());
+            assertThat(eh1.getStartTimestamp()).isEqualTo(tick1.getTime());
+            assertThat(eh2.getStartTimestamp()).isEqualTo(tick2.getTime());
+            assertThat(eh3.getStartTimestamp()).isEqualTo(tick3.getTime());
+            assertThat(eh4.getStartTimestamp()).isEqualTo(tick4.getTime());
 
             session.fireAllRules();
 
-            assertEquals(2, results.size());
+            assertThat(results.size()).isEqualTo(2);
         } finally {
             session.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testEventExpiration() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventExpiration(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "global java.util.List results;\n" +
@@ -461,21 +468,25 @@ public class CepEspTest extends AbstractCepEspTest {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("cep-esp-test", kieBaseTestConfiguration, drl);
         // read in the source
-        final TypeDeclaration factType = ((KnowledgeBaseImpl) kbase).getTypeDeclaration(StockTick.class);
-        assertEquals(TimeIntervalParser.parse("1h30m")[0], factType.getExpirationOffset());
+        final TypeDeclaration factType = ((InternalRuleBase) kbase).getTypeDeclaration(StockTick.class);
+        assertThat(factType.getExpirationOffset()).isEqualTo(TimeIntervalParser.parse("1h30m")[0]);
     }
 
-    @Test(timeout = 10000)
-    public void testEventExpiration2() {
-        testEventExpiration("15m", "15m");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventExpiration2(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        testEventExpiration(kieBaseTestConfiguration, "15m", "15m");
     }
 
-    @Test(timeout = 10000)
-    public void testEventExpiration3() {
-        testEventExpiration("5m", "5m");
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventExpiration3(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        testEventExpiration(kieBaseTestConfiguration, "5m", "5m");
     }
 
-    private void testEventExpiration(final String afterBoundary, final String windowTime) {
+    private void testEventExpiration(KieBaseTestConfiguration kieBaseTestConfiguration, final String afterBoundary, final String windowTime) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "global java.util.List results;\n" +
@@ -504,17 +515,19 @@ public class CepEspTest extends AbstractCepEspTest {
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("cep-esp-test", kieBaseTestConfiguration, drl);
 
-        final Map<ObjectType, ObjectTypeNode> objectTypeNodes = ((KnowledgeBaseImpl) kbase).getRete().getObjectTypeNodes(EntryPointId.DEFAULT);
+        final Map<ObjectType, ObjectTypeNode> objectTypeNodes = ((InternalRuleBase) kbase).getRete().getObjectTypeNodes(EntryPointId.DEFAULT);
         final ObjectTypeNode node = objectTypeNodes.get(new ClassObjectType(StockTick.class));
 
-        assertNotNull(node);
+        assertThat(node).isNotNull();
 
         // the expiration policy @expires(10m) should override the temporal operator usage
-        assertEquals(TimeIntervalParser.parse("10m")[0] + 1, node.getExpirationOffset());
+        assertThat(node.getExpirationOffset()).isEqualTo(TimeIntervalParser.parse("10m")[0] + 1);
     }
 
-    @Test(timeout = 10000)
-    public void testEventExpiration4() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventExpiration4(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "global java.util.List results;\n" +
@@ -542,7 +555,7 @@ public class CepEspTest extends AbstractCepEspTest {
             final List results = new ArrayList();
             ksession.setGlobal("results", results);
 
-            final EventFactHandle handle1 = (EventFactHandle) eventStream.insert(new StockTick(1, "ACME", 50, System.currentTimeMillis(), 3));
+            final DefaultEventHandle handle1 = (DefaultEventHandle) eventStream.insert(new StockTick(1, "ACME", 50, System.currentTimeMillis(), 3));
 
             ksession.fireAllRules();
 
@@ -553,16 +566,18 @@ public class CepEspTest extends AbstractCepEspTest {
 //             alternative could run fireUntilHalt()
             ksession.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertTrue(handle1.isExpired());
-            assertFalse(ksession.getFactHandles().contains(handle1));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(handle1.isExpired()).isTrue();
+            assertThat(ksession.getFactHandles().contains(handle1)).isFalse();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testTimeRelationalOperators() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testTimeRelationalOperators(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_TimeRelationalOperators.drl");
         final KieSession wm = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -621,73 +636,75 @@ public class CepEspTest extends AbstractCepEspTest {
             clock.advanceTime(2, TimeUnit.MILLISECONDS);
             final InternalFactHandle handle8 = (InternalFactHandle) wm.insert(tick8);
 
-            assertNotNull(handle1);
-            assertNotNull(handle2);
-            assertNotNull(handle3);
-            assertNotNull(handle4);
-            assertNotNull(handle5);
-            assertNotNull(handle6);
-            assertNotNull(handle7);
-            assertNotNull(handle8);
+            assertThat(handle1).isNotNull();
+            assertThat(handle2).isNotNull();
+            assertThat(handle3).isNotNull();
+            assertThat(handle4).isNotNull();
+            assertThat(handle5).isNotNull();
+            assertThat(handle6).isNotNull();
+            assertThat(handle7).isNotNull();
+            assertThat(handle8).isNotNull();
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
-            assertTrue(handle3.isEvent());
-            assertTrue(handle4.isEvent());
-            assertTrue(handle6.isEvent());
-            assertTrue(handle7.isEvent());
-            assertTrue(handle8.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
+            assertThat(handle3.isEvent()).isTrue();
+            assertThat(handle4.isEvent()).isTrue();
+            assertThat(handle6.isEvent()).isTrue();
+            assertThat(handle7.isEvent()).isTrue();
+            assertThat(handle8.isEvent()).isTrue();
 
             wm.fireAllRules();
 
-            assertEquals(1, results_coincides.size());
-            assertEquals(tick5, results_coincides.get(0));
+            assertThat(results_coincides.size()).isEqualTo(1);
+            assertThat(results_coincides.get(0)).isEqualTo(tick5);
 
-            assertEquals(1, results_before.size());
-            assertEquals(tick2, results_before.get(0));
+            assertThat(results_before.size()).isEqualTo(1);
+            assertThat(results_before.get(0)).isEqualTo(tick2);
 
-            assertEquals(1, results_after.size());
-            assertEquals(tick3, results_after.get(0));
+            assertThat(results_after.size()).isEqualTo(1);
+            assertThat(results_after.get(0)).isEqualTo(tick3);
 
-            assertEquals(1, results_meets.size());
-            assertEquals(tick3, results_meets.get(0));
+            assertThat(results_meets.size()).isEqualTo(1);
+            assertThat(results_meets.get(0)).isEqualTo(tick3);
 
-            assertEquals(1, results_met_by.size());
-            assertEquals(tick2, results_met_by.get(0));
+            assertThat(results_met_by.size()).isEqualTo(1);
+            assertThat(results_met_by.get(0)).isEqualTo(tick2);
 
-            assertEquals(1, results_met_by.size());
-            assertEquals(tick2, results_met_by.get(0));
+            assertThat(results_met_by.size()).isEqualTo(1);
+            assertThat(results_met_by.get(0)).isEqualTo(tick2);
 
-            assertEquals(1, results_overlaps.size());
-            assertEquals(tick4, results_overlaps.get(0));
+            assertThat(results_overlaps.size()).isEqualTo(1);
+            assertThat(results_overlaps.get(0)).isEqualTo(tick4);
 
-            assertEquals(1, results_overlapped_by.size());
-            assertEquals(tick8, results_overlapped_by.get(0));
+            assertThat(results_overlapped_by.size()).isEqualTo(1);
+            assertThat(results_overlapped_by.get(0)).isEqualTo(tick8);
 
-            assertEquals(1, results_during.size());
-            assertEquals(tick6, results_during.get(0));
+            assertThat(results_during.size()).isEqualTo(1);
+            assertThat(results_during.get(0)).isEqualTo(tick6);
 
-            assertEquals(1, results_includes.size());
-            assertEquals(tick4, results_includes.get(0));
+            assertThat(results_includes.size()).isEqualTo(1);
+            assertThat(results_includes.get(0)).isEqualTo(tick4);
 
-            assertEquals(1, results_starts.size());
-            assertEquals(tick6, results_starts.get(0));
+            assertThat(results_starts.size()).isEqualTo(1);
+            assertThat(results_starts.get(0)).isEqualTo(tick6);
 
-            assertEquals(1, results_started_by.size());
-            assertEquals(tick7, results_started_by.get(0));
+            assertThat(results_started_by.size()).isEqualTo(1);
+            assertThat(results_started_by.get(0)).isEqualTo(tick7);
 
-            assertEquals(1, results_finishes.size());
-            assertEquals(tick8, results_finishes.get(0));
+            assertThat(results_finishes.size()).isEqualTo(1);
+            assertThat(results_finishes.get(0)).isEqualTo(tick8);
 
-            assertEquals(1, results_finished_by.size());
-            assertEquals(tick7, results_finished_by.get(0));
+            assertThat(results_finished_by.size()).isEqualTo(1);
+            assertThat(results_finished_by.get(0)).isEqualTo(tick7);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testBeforeOperator() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testBeforeOperator(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_BeforeOperator.drl");
         final KieSession ksession = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -723,17 +740,19 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
             final StockTick[] stocks = (StockTick[]) list.get(0);
-            assertSame(tick4, stocks[0]);
-            assertSame(tick2, stocks[1]);
+            assertThat(stocks[0]).isSameAs(tick4);
+            assertThat(stocks[1]).isSameAs(tick2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testMetByOperator() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testMetByOperator(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_MetByOperator.drl");
         final KieSession ksession = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -769,17 +788,19 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
             final StockTick[] stocks = (StockTick[]) list.get(0);
-            assertSame(tick1, stocks[0]);
-            assertSame(tick2, stocks[1]);
+            assertThat(stocks[0]).isSameAs(tick1);
+            assertThat(stocks[1]).isSameAs(tick2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testComplexOperator() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testComplexOperator(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_ComplexOperator.drl");
         final KieSession ksession = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -813,31 +834,37 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
             final StockTick[] stocks = (StockTick[]) list.get(0);
-            assertSame(tick4, stocks[0]);
-            assertSame(tick2, stocks[1]);
+            assertThat(stocks[0]).isSameAs(tick4);
+            assertThat(stocks[1]).isSameAs(tick2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testAfterOnArbitraryDates() {
-        testArbitraryDates("org/drools/compiler/integrationtests/test_CEP_AfterOperatorDates.drl", 100000, 104000);
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAfterOnArbitraryDates(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        testArbitraryDates(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_CEP_AfterOperatorDates.drl", 100000, 104000);
     }
 
-    @Test(timeout = 10000)
-    public void testBeforeOnArbitraryDates() {
-        testArbitraryDates("org/drools/compiler/integrationtests/test_CEP_BeforeOperatorDates.drl", 104000, 100000);
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testBeforeOnArbitraryDates(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        testArbitraryDates(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_CEP_BeforeOperatorDates.drl", 104000, 100000);
     }
 
-    @Test(timeout = 10000)
-    public void testCoincidesOnArbitraryDates() {
-        testArbitraryDates("org/drools/compiler/integrationtests/test_CEP_CoincidesOperatorDates.drl", 100000, 100050);
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testCoincidesOnArbitraryDates(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        testArbitraryDates(kieBaseTestConfiguration, "org/drools/compiler/integrationtests/test_CEP_CoincidesOperatorDates.drl", 100000, 100050);
     }
 
-    private void testArbitraryDates(final String drlClasspathResource, final long tick1Time, final long tick2Time) {
+    private void testArbitraryDates(KieBaseTestConfiguration kieBaseTestConfiguration, final String drlClasspathResource, final long tick1Time, final long tick2Time) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration, drlClasspathResource);
         final KieSession wm = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
         try {
@@ -851,26 +878,28 @@ public class CepEspTest extends AbstractCepEspTest {
             final InternalFactHandle handle2 = (InternalFactHandle) wm.insert(tick2);
             final InternalFactHandle handle1 = (InternalFactHandle) wm.insert(tick1);
 
-            assertNotNull(handle1);
-            assertNotNull(handle2);
+            assertThat(handle1).isNotNull();
+            assertThat(handle2).isNotNull();
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
 
             wm.fireAllRules();
 
-            assertEquals(4, results.size());
-            assertEquals(tick1, results.get(0));
-            assertEquals(tick2, results.get(1));
-            assertEquals(tick1, results.get(2));
-            assertEquals(tick2, results.get(3));
+            assertThat(results.size()).isEqualTo(4);
+            assertThat(results.get(0)).isEqualTo(tick1);
+            assertThat(results.get(1)).isEqualTo(tick2);
+            assertThat(results.get(2)).isEqualTo(tick1);
+            assertThat(results.get(3)).isEqualTo(tick2);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testSimpleTimeWindow() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testSimpleTimeWindow(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_SimpleTimeWindow.drl");
         final KieSession wm = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -882,76 +911,78 @@ public class CepEspTest extends AbstractCepEspTest {
             final SessionPseudoClock clock = wm.getSessionClock();
 
             clock.advanceTime(5, TimeUnit.SECONDS); // 5 seconds
-            final EventFactHandle handle1 = (EventFactHandle) wm.insert(new OrderEvent("1", "customer A", 70));
-            assertEquals(5000, handle1.getStartTimestamp());
-            assertEquals(0, handle1.getDuration());
+            final DefaultEventHandle handle1 = (DefaultEventHandle) wm.insert(new OrderEvent("1", "customer A", 70));
+            assertThat(handle1.getStartTimestamp()).isEqualTo(5000);
+            assertThat(handle1.getDuration()).isEqualTo(0);
 
             wm.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertEquals(70, ((Number) results.get(0)).intValue());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Number) results.get(0)).intValue()).isEqualTo(70);
 
             // advance clock and assert new data
             clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
-            final EventFactHandle handle2 = (EventFactHandle) wm.insert(new OrderEvent("2", "customer A", 60));
-            assertEquals(15000, handle2.getStartTimestamp());
-            assertEquals(0, handle2.getDuration());
+            final DefaultEventHandle handle2 = (DefaultEventHandle) wm.insert(new OrderEvent("2", "customer A", 60));
+            assertThat(handle2.getStartTimestamp()).isEqualTo(15000);
+            assertThat(handle2.getDuration()).isEqualTo(0);
 
             wm.fireAllRules();
 
-            assertEquals(2, results.size());
-            assertEquals(65, ((Number) results.get(1)).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Number) results.get(1)).intValue()).isEqualTo(65);
 
             // advance clock and assert new data
             clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
-            final EventFactHandle handle3 = (EventFactHandle) wm.insert(new OrderEvent("3", "customer A", 50));
-            assertEquals(25000, handle3.getStartTimestamp());
-            assertEquals(0, handle3.getDuration());
+            final DefaultEventHandle handle3 = (DefaultEventHandle) wm.insert(new OrderEvent("3", "customer A", 50));
+            assertThat(handle3.getStartTimestamp()).isEqualTo(25000);
+            assertThat(handle3.getDuration()).isEqualTo(0);
 
             wm.fireAllRules();
 
-            assertEquals(3, results.size());
-            assertEquals(60, ((Number) results.get(2)).intValue());
+            assertThat(results.size()).isEqualTo(3);
+            assertThat(((Number) results.get(2)).intValue()).isEqualTo(60);
 
             // advance clock and assert new data
             clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
-            final EventFactHandle handle4 = (EventFactHandle) wm.insert(new OrderEvent("4", "customer A", 25));
-            assertEquals(35000, handle4.getStartTimestamp());
-            assertEquals(0, handle4.getDuration());
+            final DefaultEventHandle handle4 = (DefaultEventHandle) wm.insert(new OrderEvent("4", "customer A", 25));
+            assertThat(handle4.getStartTimestamp()).isEqualTo(35000);
+            assertThat(handle4.getDuration()).isEqualTo(0);
 
             wm.fireAllRules();
 
             // first event should have expired, making average under the rule threshold, so no additional rule fire
-            assertEquals(3, results.size());
+            assertThat(results.size()).isEqualTo(3);
 
             // advance clock and assert new data
             clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
-            final EventFactHandle handle5 = (EventFactHandle) wm.insert(new OrderEvent("5", "customer A", 70));
-            assertEquals(45000, handle5.getStartTimestamp());
-            assertEquals(0, handle5.getDuration());
+            final DefaultEventHandle handle5 = (DefaultEventHandle) wm.insert(new OrderEvent("5", "customer A", 70));
+            assertThat(handle5.getStartTimestamp()).isEqualTo(45000);
+            assertThat(handle5.getDuration()).isEqualTo(0);
 
             wm.fireAllRules();
 
             // still under the threshold, so no fire
-            assertEquals(3, results.size());
+            assertThat(results.size()).isEqualTo(3);
 
             // advance clock and assert new data
             clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
-            final EventFactHandle handle6 = (EventFactHandle) wm.insert(new OrderEvent("6", "customer A", 115));
-            assertEquals(55000, handle6.getStartTimestamp());
-            assertEquals(0, handle6.getDuration());
+            final DefaultEventHandle handle6 = (DefaultEventHandle) wm.insert(new OrderEvent("6", "customer A", 115));
+            assertThat(handle6.getStartTimestamp()).isEqualTo(55000);
+            assertThat(handle6.getDuration()).isEqualTo(0);
 
             wm.fireAllRules();
 
-            assertEquals(4, results.size());
-            assertEquals(70, ((Number) results.get(3)).intValue());
+            assertThat(results.size()).isEqualTo(4);
+            assertThat(((Number) results.get(3)).intValue()).isEqualTo(70);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testSimpleLengthWindow() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testSimpleLengthWindow(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_SimpleLengthWindow.drl");
         final KieSession wm = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -962,50 +993,52 @@ public class CepEspTest extends AbstractCepEspTest {
             wm.insert(new OrderEvent("1", "customer A", 70));
             wm.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertEquals(70, ((Number) results.get(0)).intValue());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Number) results.get(0)).intValue()).isEqualTo(70);
 
             // assert new data
             wm.insert(new OrderEvent("2", "customer A", 60));
             wm.fireAllRules();
 
-            assertEquals(2, results.size());
-            assertEquals(65, ((Number) results.get(1)).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Number) results.get(1)).intValue()).isEqualTo(65);
 
             // assert new data
             wm.insert(new OrderEvent("3", "customer A", 50));
             wm.fireAllRules();
 
-            assertEquals(3, results.size());
-            assertEquals(60, ((Number) results.get(2)).intValue());
+            assertThat(results.size()).isEqualTo(3);
+            assertThat(((Number) results.get(2)).intValue()).isEqualTo(60);
 
             // assert new data
             wm.insert(new OrderEvent("4", "customer A", 25));
             wm.fireAllRules();
 
             // first event should have expired, making average under the rule threshold, so no additional rule fire
-            assertEquals(3, results.size());
+            assertThat(results.size()).isEqualTo(3);
 
             // assert new data
             wm.insert(new OrderEvent("5", "customer A", 70));
             wm.fireAllRules();
 
             // still under the threshold, so no fire
-            assertEquals(3, results.size());
+            assertThat(results.size()).isEqualTo(3);
 
             // assert new data
             wm.insert(new OrderEvent("6", "customer A", 115));
             wm.fireAllRules();
 
-            assertEquals(4, results.size());
-            assertEquals(70, ((Number) results.get(3)).intValue());
+            assertThat(results.size()).isEqualTo(4);
+            assertThat(((Number) results.get(3)).intValue()).isEqualTo(70);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testDelayingNot() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testDelayingNot(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "global java.util.List results;\n" +
@@ -1026,7 +1059,7 @@ public class CepEspTest extends AbstractCepEspTest {
         final KieSession wm = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
         try {
             final RuleImpl rule = (RuleImpl) kbase.getRule("org.drools.compiler", "Delaying Not");
-            assertEquals(10000, ((DurationTimer) rule.getTimer()).getDuration());
+            assertThat(((DurationTimer) rule.getTimer()).getDuration()).isEqualTo(10000);
 
             final List results = new ArrayList();
 
@@ -1041,14 +1074,14 @@ public class CepEspTest extends AbstractCepEspTest {
             wm.fireAllRules();
 
             // should not fire, because it must wait 10 seconds
-            assertEquals(0, results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             clock.advanceTime(5, TimeUnit.SECONDS);
             wm.insert(new StockTick(1, "DROO", 80, clock.getCurrentTime()));
             wm.fireAllRules();
 
             // should still not fire, because it must wait 5 more seconds, and st2 has lower price (80)
-            assertEquals(0, results.size());
+            assertThat(results.size()).isEqualTo(0);
             // assert new data
             wm.fireAllRules();
 
@@ -1057,16 +1090,18 @@ public class CepEspTest extends AbstractCepEspTest {
             wm.fireAllRules();
 
             // should fire, because waited for 10 seconds and no other event arrived with a price increase
-            assertEquals(1, results.size());
+            assertThat(results.size()).isEqualTo(1);
 
-            assertEquals(st1O, results.get(0));
+            assertThat(results.get(0)).isEqualTo(st1O);
         } finally {
             wm.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testSimpleLengthWindowWithQueue() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testSimpleLengthWindowWithQueue(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_SimpleLengthWindow.drl");
         KieSession ksession = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -1091,29 +1126,31 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertEquals(60, ((Number) results.get(0)).intValue());
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(((Number) results.get(0)).intValue()).isEqualTo(60);
 
             // assert new data
             ksession.insert(new OrderEvent("5", "customer A", 10));
             ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
             ksession.fireAllRules();
 
-            assertEquals(1, results.size());
+            assertThat(results.size()).isEqualTo(1);
 
             ksession.insert(new OrderEvent("6", "customer A", 90));
             ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
             ksession.fireAllRules();
 
-            assertEquals(2, results.size());
-            assertEquals(50, ((Number) results.get(1)).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(((Number) results.get(1)).intValue()).isEqualTo(50);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testDelayingNot2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testDelayingNot2(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "declare A @role(event) symbol : String end\n" +
                 "declare B @role(event) symbol : String end\n" +
@@ -1132,15 +1169,17 @@ public class CepEspTest extends AbstractCepEspTest {
         try {
             // rule X should not be delayed as the delay would be infinite
             final int rules = ksession.fireAllRules();
-            assertEquals( 2, rules );
+            assertThat(rules).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
 
     }
 
-    @Test(timeout=10000)
-    public void testDelayingNotWithPreEpochClock() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testDelayingNotWithPreEpochClock(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "declare A @role(event) symbol : String end\n" +
                 "declare B @role(event) symbol : String end\n" +
@@ -1167,14 +1206,16 @@ public class CepEspTest extends AbstractCepEspTest {
 
             // rule X should not be delayed as the delay would be infinite
             final int rules = ksession.fireAllRules();
-            assertEquals( 2, rules );
+            assertThat(rules).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testIdleTime() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testIdleTime(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_SimpleEventAssertion.drl");
         final KieSession session = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -1190,44 +1231,46 @@ public class CepEspTest extends AbstractCepEspTest {
             final StockTick tick3 = new StockTick(3, "ACME", 10, 10100);
             final StockTick tick4 = new StockTick(4, "DROO", 50, 11000);
 
-            assertEquals(0, ((InternalWorkingMemory) session).getIdleTime());
+            assertThat(((InternalWorkingMemory) session).getIdleTime()).isEqualTo(0);
             final InternalFactHandle handle1 = (InternalFactHandle) session.insert(tick1);
             clock.advanceTime(10, TimeUnit.SECONDS);
-            assertEquals(10000, ((InternalWorkingMemory) session).getIdleTime());
+            assertThat(((InternalWorkingMemory) session).getIdleTime()).isEqualTo(10000);
             final InternalFactHandle handle2 = (InternalFactHandle) session.insert(tick2);
-            assertEquals(0, ((InternalWorkingMemory) session).getIdleTime());
+            assertThat(((InternalWorkingMemory) session).getIdleTime()).isEqualTo(0);
             clock.advanceTime(15, TimeUnit.SECONDS);
-            assertEquals(15000, ((InternalWorkingMemory) session).getIdleTime());
+            assertThat(((InternalWorkingMemory) session).getIdleTime()).isEqualTo(15000);
             clock.advanceTime(15, TimeUnit.SECONDS);
-            assertEquals(30000, ((InternalWorkingMemory) session).getIdleTime());
+            assertThat(((InternalWorkingMemory) session).getIdleTime()).isEqualTo(30000);
             final InternalFactHandle handle3 = (InternalFactHandle) session.insert(tick3);
-            assertEquals(0, ((InternalWorkingMemory) session).getIdleTime());
+            assertThat(((InternalWorkingMemory) session).getIdleTime()).isEqualTo(0);
             clock.advanceTime(20, TimeUnit.SECONDS);
             final InternalFactHandle handle4 = (InternalFactHandle) session.insert(tick4);
             clock.advanceTime(10, TimeUnit.SECONDS);
 
-            assertNotNull(handle1);
-            assertNotNull(handle2);
-            assertNotNull(handle3);
-            assertNotNull(handle4);
+            assertThat(handle1).isNotNull();
+            assertThat(handle2).isNotNull();
+            assertThat(handle3).isNotNull();
+            assertThat(handle4).isNotNull();
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
-            assertTrue(handle3.isEvent());
-            assertTrue(handle4.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
+            assertThat(handle3.isEvent()).isTrue();
+            assertThat(handle4.isEvent()).isTrue();
 
-            assertEquals(10000, ((InternalWorkingMemory) session).getIdleTime());
+            assertThat(((InternalWorkingMemory) session).getIdleTime()).isEqualTo(10000);
             session.fireAllRules();
-            assertEquals(0, ((InternalWorkingMemory) session).getIdleTime());
+            assertThat(((InternalWorkingMemory) session).getIdleTime()).isEqualTo(0);
 
-            assertEquals(2, ((List) session.getGlobal("results")).size());
+            assertThat(((List) session.getGlobal("results")).size()).isEqualTo(2);
         } finally {
             session.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testIdleTimeAndTimeToNextJob() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testIdleTimeAndTimeToNextJob(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_SimpleTimeWindow.drl");
         final StatefulKnowledgeSessionImpl wm =
@@ -1249,62 +1292,58 @@ public class CepEspTest extends AbstractCepEspTest {
                 clock.advanceTime(5, TimeUnit.SECONDS); // 5 seconds
 
                 // there is no next job, so returns -1
-                assertEquals(-1, wm.getTimeToNextJob());
+                assertThat(wm.getTimeToNextJob()).isEqualTo(-1);
                 wm.insert(new OrderEvent("1", "customer A", 70));
                 wm.fireAllRules();
-                assertEquals(0, wm.getIdleTime());
+                assertThat(wm.getIdleTime()).isEqualTo(0);
                 // now, there is a next job in 30 seconds: expire the event
-                assertEquals(30000, wm.getTimeToNextJob());
+                assertThat(wm.getTimeToNextJob()).isEqualTo(30000);
 
                 wm.fireAllRules();
-                assertEquals(1, results.size());
-                assertEquals(70, ((Number) results.get(0)).intValue());
+                assertThat(results.size()).isEqualTo(1);
+                assertThat(((Number) results.get(0)).intValue()).isEqualTo(70);
 
                 // advance clock and assert new data
                 clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
                 // next job is in 20 seconds: expire the event
-                assertEquals(20000, wm.getTimeToNextJob());
+                assertThat(wm.getTimeToNextJob()).isEqualTo(20000);
 
                 wm.insert(new OrderEvent("2", "customer A", 60));
                 wm.fireAllRules();
 
-                assertEquals(2, results.size());
-                assertEquals(65, ((Number) results.get(1)).intValue());
+                assertThat(results.size()).isEqualTo(2);
+                assertThat(((Number) results.get(1)).intValue()).isEqualTo(65);
 
                 // advance clock and assert new data
                 clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
                 // next job is in 10 seconds: expire the event
-                assertEquals(10000, wm.getTimeToNextJob());
+                assertThat(wm.getTimeToNextJob()).isEqualTo(10000);
 
                 wm.insert(new OrderEvent("3", "customer A", 50));
                 wm.fireAllRules();
-                assertEquals(3, results.size());
-                assertEquals(60, ((Number) results.get(2)).intValue());
+                assertThat(results.size()).isEqualTo(3);
+                assertThat(((Number) results.get(2)).intValue()).isEqualTo(60);
 
                 // advance clock and assert new data
                 clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
-                // advancing clock time will cause events to expire
-                assertEquals(0, wm.getIdleTime());
-                // next job is in 10 seconds: expire another event
-                //assertEquals( 10000, iwm.getTimeToNextJob());
 
                 wm.insert(new OrderEvent("4", "customer A", 25));
                 wm.fireAllRules();
 
                 // first event should have expired, making average under the rule threshold, so no additional rule fire
-                assertEquals(3, results.size());
+                assertThat(results.size()).isEqualTo(3);
 
                 // advance clock and assert new data
                 clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
 
                 wm.insert(new OrderEvent("5", "customer A", 70));
-                assertEquals(0, wm.getIdleTime());
+                assertThat(wm.getIdleTime()).isEqualTo(0);
 
                 //        wm  = SerializationHelper.serializeObject(wm);
                 wm.fireAllRules();
 
                 // still under the threshold, so no fire
-                assertEquals(3, results.size());
+                assertThat(results.size()).isEqualTo(3);
             } finally {
                 logger.writeToDisk();
             }
@@ -1313,8 +1352,10 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testCollectWithWindows() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testCollectWithWindows(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("cep-esp-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_CEP_CollectWithWindows.drl");
         final KieSession ksession = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
@@ -1339,30 +1380,30 @@ public class CepEspTest extends AbstractCepEspTest {
 
                 ksession.fireAllRules();
 
-                assertEquals(1, timeResults.size());
-                assertEquals(1, timeResults.get(0).intValue());
-                assertEquals(1, lengthResults.size());
-                assertEquals(1, lengthResults.get(0).intValue());
+                assertThat(timeResults.size()).isEqualTo(1);
+                assertThat(timeResults.get(0).intValue()).isEqualTo(1);
+                assertThat(lengthResults.size()).isEqualTo(1);
+                assertThat(lengthResults.get(0).intValue()).isEqualTo(1);
 
                 // Second interaction: advance clock and assert new data
                 clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
                 ksession.insert(new OrderEvent("2", "customer A", 60));
                 ksession.fireAllRules();
 
-                assertEquals(2, timeResults.size());
-                assertEquals(2, timeResults.get(1).intValue());
-                assertEquals(2, lengthResults.size());
-                assertEquals(2, lengthResults.get(1).intValue());
+                assertThat(timeResults.size()).isEqualTo(2);
+                assertThat(timeResults.get(1).intValue()).isEqualTo(2);
+                assertThat(lengthResults.size()).isEqualTo(2);
+                assertThat(lengthResults.get(1).intValue()).isEqualTo(2);
 
                 // Third interaction: advance clock and assert new data
                 clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
                 ksession.insert(new OrderEvent("3", "customer A", 50));
                 ksession.fireAllRules();
 
-                assertEquals(3, timeResults.size());
-                assertEquals(3, timeResults.get(2).intValue());
-                assertEquals(3, lengthResults.size());
-                assertEquals(3, lengthResults.get(2).intValue());
+                assertThat(timeResults.size()).isEqualTo(3);
+                assertThat(timeResults.get(2).intValue()).isEqualTo(3);
+                assertThat(lengthResults.size()).isEqualTo(3);
+                assertThat(lengthResults.get(2).intValue()).isEqualTo(3);
 
                 // Fourth interaction: advance clock and assert new data
                 clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
@@ -1370,20 +1411,20 @@ public class CepEspTest extends AbstractCepEspTest {
                 ksession.fireAllRules();
 
                 // first event should have expired now
-                assertEquals(4, timeResults.size());
-                assertEquals(3, timeResults.get(3).intValue());
-                assertEquals(4, lengthResults.size());
-                assertEquals(3, lengthResults.get(3).intValue());
+                assertThat(timeResults.size()).isEqualTo(4);
+                assertThat(timeResults.get(3).intValue()).isEqualTo(3);
+                assertThat(lengthResults.size()).isEqualTo(4);
+                assertThat(lengthResults.get(3).intValue()).isEqualTo(3);
 
                 // Fifth interaction: advance clock and assert new data
                 clock.advanceTime(5, TimeUnit.SECONDS); // 10 seconds
                 ksession.insert(new OrderEvent("5", "customer A", 70));
                 ksession.fireAllRules();
 
-                assertEquals(5, timeResults.size());
-                assertEquals(4, timeResults.get(4).intValue());
-                assertEquals(5, lengthResults.size());
-                assertEquals(3, lengthResults.get(4).intValue());
+                assertThat(timeResults.size()).isEqualTo(5);
+                assertThat(timeResults.get(4).intValue()).isEqualTo(4);
+                assertThat(lengthResults.size()).isEqualTo(5);
+                assertThat(lengthResults.get(4).intValue()).isEqualTo(3);
             } finally {
                 logger.writeToDisk();
             }
@@ -1392,8 +1433,10 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testPseudoSchedulerRemoveJobTest() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testPseudoSchedulerRemoveJobTest(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "import " + CepEspTest.class.getName() + ".A\n" +
             "declare A\n" +
             "    @role( event )\n" +
@@ -1450,8 +1493,10 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testEventDeclarationForInterfaces() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventDeclarationForInterfaces(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + "\n" +
                 "declare StockTick \n" +
@@ -1478,17 +1523,19 @@ public class CepEspTest extends AbstractCepEspTest {
             final InternalFactHandle handle3 = (InternalFactHandle) session.insert(tick3);
             final InternalFactHandle handle4 = (InternalFactHandle) session.insert(tick4);
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
-            assertTrue(handle3.isEvent());
-            assertTrue(handle4.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
+            assertThat(handle3.isEvent()).isTrue();
+            assertThat(handle4.isEvent()).isTrue();
         } finally {
             session.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testTemporalOperators() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testTemporalOperators(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "declare StockTick \n" +
@@ -1514,8 +1561,10 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testTemporalOperators2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testTemporalOperators2(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "global java.util.List list;\n" +
@@ -1559,8 +1608,10 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testTemporalOperatorsInfinity() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testTemporalOperatorsInfinity(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "global java.util.List list;\n" +
@@ -1598,14 +1649,16 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ep.insert(new StockTick(3, "B", 10, clock.getCurrentTime()));
             clock.advanceTime(8, TimeUnit.SECONDS);
-            assertEquals(3, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(3);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test (timeout=10000)
-    public void testMultipleSlidingWindows() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testMultipleSlidingWindows(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "declare A\n" +
                      "    @role( event )\n" +
                      "    id : int\n" +
@@ -1652,26 +1705,28 @@ public class CepEspTest extends AbstractCepEspTest {
             final List<AfterMatchFiredEvent> values = captor.getAllValues();
             // first rule
             Match act = values.get(0).getMatch();
-            assertThat(act.getRule().getName(), is("launch"));
+            assertThat(act.getRule().getName()).isEqualTo("launch");
 
             // second rule
             act = values.get(1).getMatch();
-            assertThat(act.getRule().getName(), is("ba"));
-            assertThat(((Number) act.getDeclarationValue("$a")).intValue(), is(3));
-            assertThat(((Number) act.getDeclarationValue("$b")).intValue(), is(2));
+            assertThat(act.getRule().getName()).isEqualTo("ba");
+            assertThat(((Number) act.getDeclarationValue("$a")).intValue()).isEqualTo(3);
+            assertThat(((Number) act.getDeclarationValue("$b")).intValue()).isEqualTo(2);
 
             // third rule
             act = values.get(2).getMatch();
-            assertThat(act.getRule().getName(), is("ab"));
-            assertThat(((Number) act.getDeclarationValue("$a")).intValue(), is(3));
-            assertThat(((Number) act.getDeclarationValue("$b")).intValue(), is(2));
+            assertThat(act.getRule().getName()).isEqualTo("ab");
+            assertThat(((Number) act.getDeclarationValue("$a")).intValue()).isEqualTo(3);
+            assertThat(((Number) act.getDeclarationValue("$b")).intValue()).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testSalienceWithEventsPseudoClock() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testSalienceWithEventsPseudoClock(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                      "import " + StockTick.class.getName() + "\n" +
                      "declare StockTick\n" +
@@ -1713,23 +1768,25 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new StockTick(4, "ACME", 10, 1000));
             clock.advanceTime(5, TimeUnit.SECONDS);
             final int rulesFired = ksession.fireAllRules();
-            assertEquals(4, rulesFired);
+            assertThat(rulesFired).isEqualTo(4);
 
             final ArgumentCaptor<AfterMatchFiredEvent> captor = ArgumentCaptor.forClass(AfterMatchFiredEvent.class);
             verify(ael, times(4)).afterMatchFired(captor.capture());
             final List<AfterMatchFiredEvent> aafe = captor.getAllValues();
 
-            assertThat(aafe.get(0).getMatch().getRule().getName(), is("R1"));
-            assertThat(aafe.get(1).getMatch().getRule().getName(), is("R1"));
-            assertThat(aafe.get(2).getMatch().getRule().getName(), is("R1"));
-            assertThat(aafe.get(3).getMatch().getRule().getName(), is("R3"));
+            assertThat(aafe.get(0).getMatch().getRule().getName()).isEqualTo("R1");
+            assertThat(aafe.get(1).getMatch().getRule().getName()).isEqualTo("R1");
+            assertThat(aafe.get(2).getMatch().getRule().getName()).isEqualTo("R1");
+            assertThat(aafe.get(3).getMatch().getRule().getName()).isEqualTo("R3");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testSalienceWithEventsRealtimeClock() throws InterruptedException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testSalienceWithEventsRealtimeClock(KieBaseTestConfiguration kieBaseTestConfiguration) throws InterruptedException {
         final String drl = "package org.drools.compiler\n" +
                      "import " + StockTick.class.getName() + "\n" +
                      "declare StockTick\n" +
@@ -1768,23 +1825,26 @@ public class CepEspTest extends AbstractCepEspTest {
             // sleep for 1 sec
             Thread.sleep(1000);
             final int rulesFired = ksession.fireAllRules();
-            assertEquals(4, rulesFired);
+            assertThat(rulesFired).isEqualTo(4);
 
             final ArgumentCaptor<AfterMatchFiredEvent> captor = ArgumentCaptor.forClass(AfterMatchFiredEvent.class);
             verify(ael, times(4)).afterMatchFired(captor.capture());
             final List<AfterMatchFiredEvent> aafe = captor.getAllValues();
+            
 
-            assertThat(aafe.get(0).getMatch().getRule().getName(), is("R1"));
-            assertThat(aafe.get(1).getMatch().getRule().getName(), is("R1"));
-            assertThat(aafe.get(2).getMatch().getRule().getName(), is("R1"));
-            assertThat(aafe.get(3).getMatch().getRule().getName(), is("R3"));
+            assertThat(aafe.get(0).getMatch().getRule().getName()).isEqualTo("R1");
+            assertThat(aafe.get(1).getMatch().getRule().getName()).isEqualTo("R1");
+            assertThat(aafe.get(2).getMatch().getRule().getName()).isEqualTo("R1");
+            assertThat(aafe.get(3).getMatch().getRule().getName()).isEqualTo("R3");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testExpireEventOnEndTimestamp() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testExpireEventOnEndTimestamp(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-40
         final String drl =
                 "package org.drools.compiler;\n" +
@@ -1819,14 +1879,16 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new StockTick(2, "ACME", 0, 0, 20));
             ksession.fireAllRules();
 
-            assertEquals(1, resultsAfter.size());
+            assertThat(resultsAfter.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testEventExpirationDuringAccumulate() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventExpirationDuringAccumulate(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         // DROOLS-70
         final String drl =
                 "package org.drools.integrationtests\n" +
@@ -1929,8 +1991,10 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test(timeout=10000)
-    public void testEventExpirationInSlidingWindow() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventExpirationInSlidingWindow(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         // DROOLS-70
         final String drl =
                 "package org.drools.integrationtests\n" +
@@ -1973,8 +2037,10 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test(timeout=10000)
-    public void testSlidingWindowsAccumulateExternalJoin() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testSlidingWindowsAccumulateExternalJoin(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-106
         // The logic may not be optimal, but was used to detect a WM corruption
         final String drl =
@@ -2011,23 +2077,23 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.insert(new StockTick(seq++, "AAA", 10.0, 10L));
             ksession.fireAllRules();
-            assertEquals(list, Collections.singletonList(1));
+            assertThat(Collections.singletonList(1)).isEqualTo(list);
 
             ksession.insert(new StockTick(seq++, "AAA", 15.0, 10L));
             ksession.fireAllRules();
-            assertEquals(list, Arrays.asList(1, 2));
+            assertThat(Arrays.asList(1, 2)).isEqualTo(list);
 
             ksession.insert(new StockTick(seq++, "CCC", 10.0, 10L));
             ksession.fireAllRules();
-            assertEquals(list, Arrays.asList(1, 2, 1));
+            assertThat(Arrays.asList(1, 2, 1)).isEqualTo(list);
 
             ksession.insert(new StockTick(seq++, "DDD", 13.0, 20L));
             ksession.fireAllRules();
-            assertEquals(list, Arrays.asList(1, 2, 1, 1));
+            assertThat(Arrays.asList(1, 2, 1, 1)).isEqualTo(list);
 
             ksession.insert(new StockTick(seq, "AAA", 11.0, 20L));
             ksession.fireAllRules();
-            assertEquals(list, Arrays.asList(1, 2, 1, 1, 3));
+            assertThat(Arrays.asList(1, 2, 1, 1, 3)).isEqualTo(list);
 
             // NPE Here
             ksession.fireAllRules();
@@ -2036,8 +2102,10 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test (timeout=10000)
-    public void testTimeAndLengthWindowConflict() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testTimeAndLengthWindowConflict(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3671
         final String drl = "package org.drools.compiler;\n" +
                      "import java.util.List\n" +
@@ -2082,20 +2150,20 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new OrderEvent("1", "customer A", 70));
             ksession.fireAllRules();
             System.out.println(lengthResults);
-            assertTrue(lengthResults.contains(70.0));
+            assertThat(lengthResults.contains(70.0)).isTrue();
 
             clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
             ksession.insert(new OrderEvent("2", "customer A", 60));
             ksession.fireAllRules();
             System.out.println(lengthResults);
-            assertTrue(lengthResults.contains(65.0));
+            assertThat(lengthResults.contains(65.0)).isTrue();
 
             // Third interaction: advance clock and assert new data
             clock.advanceTime(10, TimeUnit.SECONDS); // 10 seconds
             ksession.insert(new OrderEvent("3", "customer A", 50));
             ksession.fireAllRules();
             System.out.println(lengthResults);
-            assertTrue(lengthResults.contains(60.0));
+            assertThat(lengthResults.contains(60.0)).isTrue();
 
             // Fourth interaction: advance clock and assert new data
             clock.advanceTime(60, TimeUnit.SECONDS); // 60 seconds
@@ -2106,8 +2174,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testTimeStampOnNonExistingField() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTimeStampOnNonExistingField(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // BZ-985942
         final String drl = "package org.drools.compiler;\n" +
                      "import " + StockTick.class.getCanonicalName() + ";\n" +
@@ -2117,11 +2186,13 @@ public class CepEspTest extends AbstractCepEspTest {
                      "end\n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
-    @Test (timeout=10000)
-    public void testTimeWindowWithPastEvents() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testTimeWindowWithPastEvents(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-2258 
         final String drl = "package org.drools.compiler;\n" +
                      "import java.util.List\n" +
@@ -2168,26 +2239,27 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(tick5);
 
             ksession.fireAllRules();
-            assertTrue(timeResults.isEmpty());
+            assertThat(timeResults.isEmpty()).isTrue();
 
             clock.advanceTime(0, TimeUnit.MILLISECONDS);
             ksession.fireAllRules();
-            assertTrue(timeResults.isEmpty());
+            assertThat(timeResults.isEmpty()).isTrue();
 
             clock.advanceTime(3, TimeUnit.MILLISECONDS);
             ksession.fireAllRules();
-            assertTrue(timeResults.isEmpty());
+            assertThat(timeResults.isEmpty()).isTrue();
 
             clock.advanceTime(10, TimeUnit.MILLISECONDS);
             ksession.fireAllRules();
-            assertTrue(timeResults.isEmpty());
+            assertThat(timeResults.isEmpty()).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testLeakingActivationsWithDetachedExpiredNonCancelling() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testLeakingActivationsWithDetachedExpiredNonCancelling(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         // JBRULES-3558 - DROOLS 311
         // TODO: it is still possible to get multiple insertions of the Recording object
         // if you set the @expires of Motion to 1ms, maybe because the event expires too soon
@@ -2235,14 +2307,16 @@ public class CepEspTest extends AbstractCepEspTest {
             Thread.sleep(1000);
 
             ksession.fireAllRules();
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testTwoWindowsInsideCEAndOut() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testTwoWindowsInsideCEAndOut(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler;\n" +
                      "import java.util.List\n" +
                      "import " + OrderEvent.class.getCanonicalName() + ";\n" +
@@ -2277,8 +2351,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testUpdateEventThroughEntryPoint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testUpdateEventThroughEntryPoint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "import " + CepEspTest.TestEvent.class.getCanonicalName() + "\n" +
                      "\n" +
                      "declare TestEvent\n" +
@@ -2306,9 +2381,9 @@ public class CepEspTest extends AbstractCepEspTest {
             entryPoint.update(handle, event2);
 
             // make sure the event is in the entry-point
-            assertFalse(entryPoint.getObjects().contains(event));
-            assertTrue(entryPoint.getObjects().contains(event2));
-            assertEquals(entryPoint.getObject(handle), event2);
+            assertThat(entryPoint.getObjects().contains(event)).isFalse();
+            assertThat(entryPoint.getObjects().contains(event2)).isTrue();
+            assertThat(event2).isEqualTo(entryPoint.getObject(handle));
         } finally {
             kieSession.dispose();
         }
@@ -2332,8 +2407,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testStreamModeWithSubnetwork() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testStreamModeWithSubnetwork(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // BZ-1009348
 
         final String drl = "package org.drools.compiler.integrationtests\n" +
@@ -2363,7 +2439,7 @@ public class CepEspTest extends AbstractCepEspTest {
             final ArrayList<String> list = new ArrayList<>();
             ksession.setGlobal("list", list);
             ksession.fireAllRules();
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
@@ -2411,8 +2487,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testEventTimestamp() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEventTimestamp(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-268
         final String drl = "\n" +
                      "import " + CepEspTest.Event.class.getCanonicalName() + "; \n" +
@@ -2469,18 +2546,19 @@ public class CepEspTest extends AbstractCepEspTest {
             clock.advanceTime(1000, TimeUnit.MILLISECONDS);
             ksession.fireAllRules();
 
-            assertFalse(list.isEmpty());
-            assertEquals(1, list.size());
+            assertThat(list.isEmpty()).isFalse();
+            assertThat(list.size()).isEqualTo(1);
             final Long time = (Long) list.get(0);
 
-            assertTrue(time > 1000 && time < 1500);
+            assertThat(time > 1000 && time < 1500).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testEventTimestamp2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEventTimestamp2(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-268
         final String drl = "\n" +
                      "import " + CepEspTest.Event.class.getCanonicalName() + ";\n" +
@@ -2526,18 +2604,19 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new Event(3, 0, clock.getCurrentTime()));
             ksession.fireAllRules();
 
-            assertFalse(list.isEmpty());
-            assertEquals(1, list.size());
+            assertThat(list.isEmpty()).isFalse();
+            assertThat(list.size()).isEqualTo(1);
             final long time = (Long) list.get(0);
 
-            assertEquals(1300, time);
+            assertThat(time).isEqualTo(1300);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testModifyInStreamMode() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testModifyInStreamMode(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // BZ-1012933
         final String drl =
                 "import " + CepEspTest.SimpleFact.class.getCanonicalName() + ";\n" +
@@ -2564,15 +2643,16 @@ public class CepEspTest extends AbstractCepEspTest {
             final SimpleFact fact = new SimpleFact("id1");
             ksession.insert(fact);
             ksession.fireAllRules();
-            assertEquals(1, list.size());
-            assertEquals("OK", fact.getStatus());
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(fact.getStatus()).isEqualTo("OK");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testCollectAfterRetract() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCollectAfterRetract(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // BZ-1015109
         final String drl =
                 "import " + CepEspTest.SimpleFact.class.getCanonicalName() + ";\n" +
@@ -2611,14 +2691,15 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new SimpleFact("id3"));
 
             ksession.fireAllRules();
-            assertEquals(0, list.size());
+            assertThat(list.size()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testCollectAfterUpdate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCollectAfterUpdate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-295
         final String drl =
                 "import " + CepEspTest.SimpleFact.class.getCanonicalName() + ";\n" +
@@ -2654,11 +2735,11 @@ public class CepEspTest extends AbstractCepEspTest {
                 ksession.insert(new SimpleFact("id" + i));
             }
             ksession.fireAllRules();
-            assertEquals("all events should be in WM", 4, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).as("all events should be in WM").isEqualTo(4);
 
             ksession.insert(new SimpleFact("last"));
             ksession.fireAllRules();
-            assertEquals("only one event should be still in WM", 1, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).as("only one event should be still in WM").isEqualTo(1);
         } finally {
             ksession.dispose();
         }
@@ -2693,7 +2774,7 @@ public class CepEspTest extends AbstractCepEspTest {
 
     public static class ProbeEvent {
 
-        private int value = 1;
+        private int value;
 
         public int getValue() {
             return value;
@@ -2736,9 +2817,10 @@ public class CepEspTest extends AbstractCepEspTest {
         public void addValue () { total += 1; }
     }
 
-    @Test
-    @Ignore
-    public void testExpirationAtHighRates() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    @Disabled
+    public void testExpirationAtHighRates(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-130
         final String drl = "package droolsfusioneval\n" +
                      "" +
@@ -2786,9 +2868,9 @@ public class CepEspTest extends AbstractCepEspTest {
                 fail(t.getMessage());
             }
 
-            assertEquals(eventLimit, myTotal);
-            assertEquals(eventLimit, list.size());
-            assertEquals(0, session.getEntryPoint("ep01").getObjects().size());
+            assertThat(myTotal).isEqualTo(eventLimit);
+            assertThat(list.size()).isEqualTo(eventLimit);
+            assertThat(session.getEntryPoint("ep01").getObjects().size()).isEqualTo(0);
         } finally {
             session.halt();
             session.dispose();
@@ -2796,8 +2878,9 @@ public class CepEspTest extends AbstractCepEspTest {
     }
 
 
-    @Test
-    public void AfterOperatorInCEPQueryTest() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void AfterOperatorInCEPQueryTest(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools;\n" +
                      "import " + StockTick.class.getCanonicalName() + ";\n" +
@@ -2842,22 +2925,23 @@ public class CepEspTest extends AbstractCepEspTest {
 
             QueryResults results = ksession.getQueryResults("EventsBeforeNineSeconds");
 
-            assertEquals(0, results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             results = ksession.getQueryResults("EventsBeforeNineteenSeconds");
 
-            assertEquals(0, results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             results = ksession.getQueryResults("EventsBeforeHundredSeconds");
 
-            assertEquals(1, results.size());
+            assertThat(results.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testFromWithEvents() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testFromWithEvents(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "\n" +
                      "\n" +
                      "package org.drools.test\n" +
@@ -2882,7 +2966,7 @@ public class CepEspTest extends AbstractCepEspTest {
                      "MyBean bin = new MyBean( 99, ev );\n" +
                      "MyEvent ev2 = new MyEvent( 2, 2000 );\n" +
                      "\n" +
-                     "drools.getWorkingMemory().getWorkingMemoryEntryPoint( \"X\" ).insert( ev2 );\n" +
+                     "drools.getWorkingMemory().getEntryPoint( \"X\" ).insert( ev2 );\n" +
                      "insert( bin );\n" +
                      "end\n" +
                      "\n" +
@@ -2902,14 +2986,15 @@ public class CepEspTest extends AbstractCepEspTest {
             final ArrayList list = new ArrayList(1);
             ks.setGlobal("list", list);
             ks.fireAllRules();
-            assertEquals(Collections.singletonList(1), list);
+            assertThat(list).isEqualTo(Collections.singletonList(1));
         } finally {
             ks.dispose();
         }
     }
 
-    @Test
-    public void testDeserializationWithTrackableTimerJob() throws InterruptedException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeserializationWithTrackableTimerJob(KieBaseTestConfiguration kieBaseTestConfiguration) throws InterruptedException {
         final String drl = "package org.drools.test;\n" +
                 "import " + StockTick.class.getCanonicalName() + "; \n" +
                 "global java.util.List list;\n" +
@@ -2958,15 +3043,16 @@ public class CepEspTest extends AbstractCepEspTest {
             ks.insert(new StockTick(3, "BBB", 1.0, 0));
             ks.fireAllRules();
 
-            assertEquals(2, list.size());
-            assertEquals(Arrays.asList(2L, 3L), list);
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list).isEqualTo(Arrays.asList(2L, 3L));
         } finally {
             ks.dispose();
         }
     }
 
-    @Test
-    public void testDeserializationWithTrackableTimerJobShortExpiration() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeserializationWithTrackableTimerJobShortExpiration(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.test;\n" +
                 "import " + StockTick.class.getCanonicalName() + "; \n" +
                 "global java.util.List list;\n" +
@@ -3000,8 +3086,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testDeserializationWithExpiringEventAndAccumulate() throws InterruptedException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeserializationWithExpiringEventAndAccumulate(KieBaseTestConfiguration kieBaseTestConfiguration) throws InterruptedException {
         final String drl = "package org.drools.test;\n" +
                      "import " + StockTick.class.getCanonicalName() + "; \n" +
                      "global java.util.List list;\n" +
@@ -3042,15 +3129,16 @@ public class CepEspTest extends AbstractCepEspTest {
             ks.insert(new StockTick(3, "BBB", 3.0, 0));
             ks.fireAllRules();
 
-            assertEquals(2, list.size());
-            assertEquals(Arrays.asList(2.0, 5.0), list);
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list).isEqualTo(Arrays.asList(2.0, 5.0));
         } finally {
             ks.dispose();
         }
     }
 
-    @Test
-    public void testDeserializationWithCompositeTrigger() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeserializationWithCompositeTrigger(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.test;\n" +
                      "import " + StockTick.class.getCanonicalName() + "; \n" +
                      "global java.util.List list;\n" +
@@ -3086,8 +3174,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testWindowExpireActionDeserialization() throws InterruptedException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testWindowExpireActionDeserialization(KieBaseTestConfiguration kieBaseTestConfiguration) throws InterruptedException {
         final String drl = "package org.drools.test;\n" +
                      "import " + StockTick.class.getCanonicalName() + "; \n" +
                      "global java.util.List list; \n" +
@@ -3125,15 +3214,16 @@ public class CepEspTest extends AbstractCepEspTest {
             ks.insert(new StockTick(3, "BBB", 1.0, 0));
             ks.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals(Collections.singletonList(3L), list);
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list).isEqualTo(Collections.singletonList(3L));
         } finally {
             ks.dispose();
         }
     }
 
-    @Test
-    public void testDuplicateFiring1() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDuplicateFiring1(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.test;\n" +
                      "import " + StockTick.class.getCanonicalName() + ";\n " +
@@ -3185,14 +3275,15 @@ public class CepEspTest extends AbstractCepEspTest {
             clock.advanceTime(100 * 40, TimeUnit.MILLISECONDS);
             ksession.fireAllRules();
 
-            assertEquals(Arrays.asList(1L, 2L, 3L, 3L, 3L, 3L, -1), list);
+            assertThat(list).isEqualTo(Arrays.asList(1L, 2L, 3L, 3L, 3L, 3L, -1));
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testPastEventExipration() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testPastEventExipration(KieBaseTestConfiguration kieBaseTestConfiguration) {
         //DROOLS-257
         final String drl = "package org.test;\n" +
                      "import " + StockTick.class.getCanonicalName() + ";\n " +
@@ -3237,7 +3328,7 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.fireAllRules();
 
-            assertEquals(Arrays.asList(3L, 1L), list);
+            assertThat(list).isEqualTo(Arrays.asList(3L, 1L));
         } finally {
             ksession.dispose();
         }
@@ -3252,8 +3343,9 @@ public class CepEspTest extends AbstractCepEspTest {
         public String toString() { return "MyEvent{" + "timestamp=" + timestamp + '}';  }
     }
 
-    @Test
-    public void testEventStreamWithEPsAndDefaultPseudo() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEventStreamWithEPsAndDefaultPseudo(KieBaseTestConfiguration kieBaseTestConfiguration) {
         //DROOLS-286
         final String drl = "\n" +
                      "import java.util.*;\n" +
@@ -3342,18 +3434,18 @@ public class CepEspTest extends AbstractCepEspTest {
                 System.out.println(list);
                 switch (j) {
                     case 0:
-                        assertEquals(Arrays.asList("r6:1", "r5:1", "r3:1", "r2:1"), list);
+                        assertThat(list).isEqualTo(Arrays.asList("r6:1", "r5:1", "r3:1", "r2:1"));
                         break;
                     case 1:
-                        assertEquals(Arrays.asList("r6:2", "r5:1", "r3:2", "r2:1"), list);
+                        assertThat(list).isEqualTo(Arrays.asList("r6:2", "r5:1", "r3:2", "r2:1"));
                         break;
                     case 2:
                     case 3:
                     case 4:
-                        assertEquals(Arrays.asList("r6:3", "r5:1", "r3:3", "r2:1"), list);
+                        assertThat(list).isEqualTo(Arrays.asList("r6:3", "r5:1", "r3:3", "r2:1"));
                         break;
                     default:
-                        fail();
+                        fail("Unexpected condition");
                 }
                 list.clear();
             }
@@ -3362,8 +3454,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testExpirationOnModification() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpirationOnModification(KieBaseTestConfiguration kieBaseTestConfiguration) {
         //DROOLS-374
         final String drl = "\n" +
                      "import java.util.*;\n" +
@@ -3418,14 +3511,15 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert("go");
             ksession.fireAllRules();
 
-            assertEquals(Arrays.asList(1L, 2L, 1L), list);
+            assertThat(list).isEqualTo(Arrays.asList(1L, 2L, 1L));
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testTemporalEvaluatorsWithEventsFromNode() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTemporalEvaluatorsWithEventsFromNode(KieBaseTestConfiguration kieBaseTestConfiguration) {
         //DROOLS-421
         final String drl = "\n" +
                      "import java.util.*; " +
@@ -3463,11 +3557,12 @@ public class CepEspTest extends AbstractCepEspTest {
 
                      "";
 
-        testTemporalEvaluators(drl);
+        testTemporalEvaluators(kieBaseTestConfiguration, drl);
     }
 
-    @Test
-    public void testTemporalEvaluatorsUsingRawDateFields() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTemporalEvaluatorsUsingRawDateFields(KieBaseTestConfiguration kieBaseTestConfiguration) {
         //DROOLS-421
         final String drl = "\n" +
                      "import java.util.*; " +
@@ -3502,11 +3597,12 @@ public class CepEspTest extends AbstractCepEspTest {
 
                      "";
 
-        testTemporalEvaluators(drl);
+        testTemporalEvaluators(kieBaseTestConfiguration, drl);
     }
 
-    @Test
-    public void testTemporalEvaluatorsUsingRawDateFieldsFromFrom() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTemporalEvaluatorsUsingRawDateFieldsFromFrom(KieBaseTestConfiguration kieBaseTestConfiguration) {
         //DROOLS-421
         final String drl = "\n" +
                      "import java.util.*; " +
@@ -3530,11 +3626,12 @@ public class CepEspTest extends AbstractCepEspTest {
 
                      "";
 
-        testTemporalEvaluators(drl);
+        testTemporalEvaluators(kieBaseTestConfiguration, drl);
     }
 
-    @Test
-    public void testTemporalEvaluatorsUsingSelfDates() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTemporalEvaluatorsUsingSelfDates(KieBaseTestConfiguration kieBaseTestConfiguration) {
         //DROOLS-421
         final String drl = "\n" +
                      "import java.util.*; " +
@@ -3556,28 +3653,29 @@ public class CepEspTest extends AbstractCepEspTest {
 
                      "";
 
-        testTemporalEvaluators(drl);
+        testTemporalEvaluators(kieBaseTestConfiguration, drl);
     }
 
-    private void testTemporalEvaluators(final String drl) {
+    private void testTemporalEvaluators(KieBaseTestConfiguration kieBaseTestConfiguration, final String drl) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("cep-esp-test", kieBaseTestConfiguration, drl);
         final KieSession ksession = kbase.newKieSession();
         try {
-            assertNotNull(ksession);
+            assertThat(ksession).isNotNull();
 
             final List list = new ArrayList();
             ksession.setGlobal("list", list);
 
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testEventOffsetExpirationOverflow() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEventOffsetExpirationOverflow(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-455
         final String drl = "\n" +
                      "import java.util.*; " +
@@ -3616,7 +3714,7 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.fireAllRules();
 
             // The event should still be there...
-            assertEquals(1, ksession.getObjects().size());
+            assertThat(ksession.getObjects().size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
@@ -3640,8 +3738,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testExpiredEventModification() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpiredEventModification(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // BZ-1082990
         final String drl = "import " + SimpleEvent.class.getCanonicalName() + "\n" +
                      "import java.util.Date\n" +
@@ -3718,8 +3817,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testTemporalOperatorWithConstant() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTemporalOperatorWithConstant(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // BZ-1096243
         final String drl = "import " + SimpleEvent.class.getCanonicalName() + "\n" +
                      "import java.util.Date\n" +
@@ -3748,14 +3848,15 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(event);
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testTemporalOperatorWithConstantAndJoin() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTemporalOperatorWithConstantAndJoin(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // BZ 1096243
         final String drl = "import " + SimpleEvent.class.getCanonicalName() + "\n" +
                      "import java.util.Date\n" +
@@ -3787,14 +3888,15 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(event2);
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testDynamicSalienceInStreamMode() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDynamicSalienceInStreamMode(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-526
         final String drl =
                 "import java.util.concurrent.atomic.AtomicInteger;\n" +
@@ -3840,14 +3942,15 @@ public class CepEspTest extends AbstractCepEspTest {
                 ksession.fireAllRules();
             }
 
-            assertEquals(list, Arrays.asList(2, 1, 2, 1, 2, 1, 2, 1, 2, 1));
+            assertThat(Arrays.asList(2, 1, 2, 1, 2, 1, 2, 1, 2, 1)).isEqualTo(list);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void test2NotsWithTemporalConstraints() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void test2NotsWithTemporalConstraints(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // BZ-1122738 DROOLS-479
         final String drl = "import " + SimpleEvent.class.getCanonicalName() + "\n" +
                      "import java.util.Date\n" +
@@ -3882,14 +3985,15 @@ public class CepEspTest extends AbstractCepEspTest {
             event.setDateEvt(System.currentTimeMillis() - (2 * 60 * 60 * 1000));
             ksession.insert(event);
             ksession.fireAllRules();
-            assertEquals("code2", event.getCode());
+            assertThat(event.getCode()).isEqualTo("code2");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testRetractFromWindow() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testRetractFromWindow(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-636
         final String drl =
                 "import " + StockTick.class.getCanonicalName() + ";\n " +
@@ -3918,8 +4022,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testCEPNamedCons() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCEPNamedCons(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools " +
 
@@ -3981,18 +4086,19 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert("Peter");
             ksession.fireAllRules();
 
-            assertTrue(list.contains(0));
-            assertTrue(list.contains(1));
-            assertTrue(list.contains(2));
-            assertFalse(list.contains(-1));
-            assertFalse(list.contains(-2));
+            assertThat(list.contains(0)).isTrue();
+            assertThat(list.contains(1)).isTrue();
+            assertThat(list.contains(2)).isTrue();
+            assertThat(list.contains(-1)).isFalse();
+            assertThat(list.contains(-2)).isFalse();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testCEPNamedConsTimers() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCEPNamedConsTimers(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools " +
 
@@ -4031,20 +4137,21 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.insert("John");
             ksession.fireAllRules();
-            assertTrue(list.isEmpty());
+            assertThat(list.isEmpty()).isTrue();
 
             ((PseudoClockScheduler) ksession.getSessionClock()).advanceTime(1000, TimeUnit.MILLISECONDS);
 
             ksession.fireAllRules();
-            assertTrue(list.contains(-2));
-            assertTrue(list.contains(0));
+            assertThat(list.contains(-2)).isTrue();
+            assertThat(list.contains(0)).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void test2TimersWithNamedCons() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void test2TimersWithNamedCons(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools " +
 
                      "global java.util.List list; " +
@@ -4071,11 +4178,12 @@ public class CepEspTest extends AbstractCepEspTest {
                      "  list.add( 1 );\n" +
                      "end\n";
 
-        test2Timers(drl);
+        test2Timers(kieBaseTestConfiguration, drl);
     }
 
-    @Test
-    public void test2TimersWith2Rules() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void test2TimersWith2Rules(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools " +
 
                      "global java.util.List list; " +
@@ -4106,10 +4214,10 @@ public class CepEspTest extends AbstractCepEspTest {
                      "  list.add( 1 );\n" +
                      "end\n";
 
-        test2Timers(drl);
+        test2Timers(kieBaseTestConfiguration, drl);
     }
     
-    private void test2Timers(final String drl) {
+    private void test2Timers(KieBaseTestConfiguration kieBaseTestConfiguration, final String drl) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("cep-esp-test", kieBaseTestConfiguration, drl);
         final KieSession ksession = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
         try {
@@ -4118,20 +4226,21 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.insert("Alice");
             ksession.fireAllRules();
-            assertTrue(list.isEmpty());
+            assertThat(list.isEmpty()).isTrue();
 
             ((PseudoClockScheduler) ksession.getSessionClock()).advanceTime(150, TimeUnit.MILLISECONDS);
 
             ksession.fireAllRules();
-            assertEquals(1, list.size());
-            assertEquals(1, (int) list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat((int) list.get(0)).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     } 
 
-    @Test
-    public void testCEPWith2NamedConsAndEagerRule() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCEPWith2NamedConsAndEagerRule(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools " +
 
                      "global java.util.List list; " +
@@ -4175,22 +4284,23 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.insert("Alice");
             ksession.fireAllRules();
-            assertTrue(list.isEmpty());
+            assertThat(list.isEmpty()).isTrue();
 
             ((PseudoClockScheduler) ksession.getSessionClock()).advanceTime(150, TimeUnit.MILLISECONDS);
 
             ksession.fireAllRules();
-            assertEquals(3, list.size());
-            assertTrue(list.contains(0));
-            assertTrue(list.contains(1));
-            assertTrue(list.contains(2));
+            assertThat(list.size()).isEqualTo(3);
+            assertThat(list.contains(0)).isTrue();
+            assertThat(list.contains(1)).isTrue();
+            assertThat(list.contains(2)).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testExpireLogicalEvent() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpireLogicalEvent(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools; " +
                      "declare Foo " +
                      "  @role(event) " +
@@ -4210,15 +4320,16 @@ public class CepEspTest extends AbstractCepEspTest {
             ((PseudoClockScheduler) ksession.getSessionClock()).advanceTime(1, TimeUnit.SECONDS);
             ksession.fireAllRules();
 
-            assertEquals(0, ksession.getObjects().size());
-            assertEquals(0, ((NamedEntryPoint) ksession.getEntryPoint(EntryPointId.DEFAULT.getEntryPointId())).getTruthMaintenanceSystem().getEqualityKeyMap().size());
+            assertThat(ksession.getObjects().size()).isEqualTo(0);
+            assertThat(TruthMaintenanceSystemFactory.get().getOrCreateTruthMaintenanceSystem((ReteEvaluator) ksession).getEqualityKeysSize()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSerializationWithEventInPast() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSerializationWithEventInPast(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-749
         final String drl =
                 "import " + Event1.class.getCanonicalName() + "\n" +
@@ -4278,8 +4389,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testUseMapAsEvent() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testUseMapAsEvent(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-753
         final String drl =
                 "import java.util.Map\n " +
@@ -4304,8 +4416,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testDisconnectedEventFactHandle() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDisconnectedEventFactHandle(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-924
         final String drl =
                 "declare String \n"+
@@ -4319,19 +4432,21 @@ public class CepEspTest extends AbstractCepEspTest {
             final DefaultFactHandle goodbyeHandle = (DefaultFactHandle) ksession.insert("goodbye");
 
             FactHandle key = DefaultFactHandle.createFromExternalFormat(helloHandle.toExternalForm());
-            assertTrue("FactHandle not deserialized as EventFactHandle", key instanceof EventFactHandle);
-            assertEquals("hello", ksession.getObject(key));
+            assertThat(key instanceof DefaultEventHandle).as("FactHandle not deserialized as EventFactHandle").isTrue();
+            assertThat(ksession.getObject(key)).isEqualTo("hello");
 
             key = DefaultFactHandle.createFromExternalFormat(goodbyeHandle.toExternalForm());
-            assertTrue("FactHandle not deserialized as EventFactHandle", key instanceof EventFactHandle);
-            assertEquals("goodbye", ksession.getObject(key));
+            assertThat(key instanceof DefaultEventHandle).as("FactHandle not deserialized as EventFactHandle").isTrue();
+            assertThat(ksession.getObject(key)).isEqualTo("goodbye");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 5000)
-    public void testEventWithShortExpiration() throws InterruptedException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    @Timeout(5000)
+    public void testEventWithShortExpiration(KieBaseTestConfiguration kieBaseTestConfiguration) throws InterruptedException {
         // DROOLS-921
         final String drl = "declare String\n" +
                      "  @expires( 1ms )\n" +
@@ -4347,24 +4462,25 @@ public class CepEspTest extends AbstractCepEspTest {
         final KieSession ksession = kbase.newKieSession();
         try {
             ksession.insert("test");
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
             TimeUtil.sleepMillis(2L);
-            assertEquals(0, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(0);
             while (ksession.getObjects().size() != 0) {
                 TimeUtil.sleepMillis(30L);
                 // Expire action is put into propagation queue by timer job, so there
                 // can be a race condition where it puts it there right after previous fireAllRules
                 // flushes the queue. So there needs to be another flush -> another fireAllRules
                 // to flush the queue.
-                assertEquals(0, ksession.fireAllRules());
+                assertThat(ksession.fireAllRules()).isEqualTo(0);
             }
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testDeleteExpiredEvent() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeleteExpiredEvent(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // BZ-1274696
         final String drl =
                 "import " + StockTick.class.getCanonicalName() + "\n" +
@@ -4386,21 +4502,22 @@ public class CepEspTest extends AbstractCepEspTest {
         try {
             final PseudoClockScheduler clock = ksession.getSessionClock();
 
-            final EventFactHandle handle1 = (EventFactHandle) ksession.insert(new StockTick(1, "ACME", 50));
+            final DefaultEventHandle handle1 = (DefaultEventHandle) ksession.insert(new StockTick(1, "ACME", 50));
             ksession.fireAllRules();
 
             clock.advanceTime(2, TimeUnit.SECONDS);
             ksession.fireAllRules();
 
-            assertTrue(handle1.isExpired());
-            assertFalse(ksession.getFactHandles().contains(handle1));
+            assertThat(handle1.isExpired()).isTrue();
+            assertThat(ksession.getFactHandles().contains(handle1)).isFalse();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testDeleteExpiredEventWithTimestampAndEqualityKey() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeleteExpiredEventWithTimestampAndEqualityKey(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1017
         final String drl =
                 "import " + StockTick.class.getCanonicalName() + "\n" +
@@ -4423,20 +4540,21 @@ public class CepEspTest extends AbstractCepEspTest {
             final PseudoClockScheduler clock = ksession.getSessionClock();
             clock.setStartupTime(5000L);
 
-            final EventFactHandle handle1 = (EventFactHandle) ksession.insert(new StockTick(1, "ACME", 50, 0L));
+            final DefaultEventHandle handle1 = (DefaultEventHandle) ksession.insert(new StockTick(1, "ACME", 50, 0L));
 
             clock.advanceTime(2, TimeUnit.SECONDS);
             ksession.fireAllRules();
 
-            assertTrue(handle1.isExpired());
-            assertFalse(ksession.getFactHandles().contains(handle1));
+            assertThat(handle1.isExpired()).isTrue();
+            assertThat(ksession.getFactHandles().contains(handle1)).isFalse();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSerializationWithWindowLength() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSerializationWithWindowLength(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-953
         final String drl =
                 "import " + StockTick.class.getCanonicalName() + "\n" +
@@ -4462,8 +4580,8 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new StockTick(3, "JBPM", 50));
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals("JBPM", list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo("JBPM");
 
             try {
                 ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
@@ -4476,14 +4594,15 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.setGlobal("list", list);
 
             ksession.fireAllRules();
-            assertEquals(0, list.size());
+            assertThat(list.size()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSerializationWithWindowLengthAndLiaSharing() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSerializationWithWindowLengthAndLiaSharing(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-953
         final String drl =
                 "import " + StockTick.class.getCanonicalName() + "\n" +
@@ -4515,8 +4634,8 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new StockTick(3, "JBPM", 50));
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals("JBPM", list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo("JBPM");
 
             try {
                 ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
@@ -4529,14 +4648,15 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.setGlobal("list", list);
 
             ksession.fireAllRules();
-            assertEquals(0, list.size());
+            assertThat(list.size()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSerializationBeforeFireWithWindowLength() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSerializationBeforeFireWithWindowLength(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-953
         final String drl =
                 "import " + StockTick.class.getCanonicalName() + "\n" +
@@ -4572,15 +4692,16 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.setGlobal("list", list);
 
             ksession.fireAllRules();
-            assertEquals(1, list.size());
-            assertEquals("JBPM", list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo("JBPM");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSubclassWithLongerExpirationThanSuper() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSubclassWithLongerExpirationThanSuper(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-983
         final String drl =
                 "import " + SuperClass.class.getCanonicalName() + "\n" +
@@ -4601,25 +4722,26 @@ public class CepEspTest extends AbstractCepEspTest {
         try {
             final PseudoClockScheduler clock = ksession.getSessionClock();
 
-            final EventFactHandle handle1 = (EventFactHandle) ksession.insert(new SubClass());
+            final DefaultEventHandle handle1 = (DefaultEventHandle) ksession.insert(new SubClass());
             ksession.fireAllRules();
 
             clock.advanceTime(15, TimeUnit.SECONDS);
             ksession.fireAllRules();
-            assertFalse(handle1.isExpired());
-            assertEquals(1, ksession.getObjects().size());
+            assertThat(handle1.isExpired()).isFalse();
+            assertThat(ksession.getObjects().size()).isEqualTo(1);
 
             clock.advanceTime(10, TimeUnit.SECONDS);
             ksession.fireAllRules();
-            assertTrue(handle1.isExpired());
-            assertEquals(0, ksession.getObjects().size());
+            assertThat(handle1.isExpired()).isTrue();
+            assertThat(ksession.getObjects().size()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSubclassWithLongerExpirationThanSuperWithSerialization() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSubclassWithLongerExpirationThanSuperWithSerialization(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-983
         final String drl =
                 "import " + SuperClass.class.getCanonicalName() + "\n" +
@@ -4640,13 +4762,13 @@ public class CepEspTest extends AbstractCepEspTest {
         try {
             PseudoClockScheduler clock = ksession.getSessionClock();
 
-            final EventFactHandle handle1 = (EventFactHandle) ksession.insert(new SubClass());
+            final DefaultEventHandle handle1 = (DefaultEventHandle) ksession.insert(new SubClass());
             ksession.fireAllRules();
 
             clock.advanceTime(15, TimeUnit.SECONDS);
             ksession.fireAllRules();
-            assertFalse(handle1.isExpired());
-            assertEquals(1, ksession.getObjects().size());
+            assertThat(handle1.isExpired()).isFalse();
+            assertThat(ksession.getObjects().size()).isEqualTo(1);
 
             try {
                 ksession = SerializationHelper.getSerialisedStatefulKnowledgeSession(ksession, true);
@@ -4658,7 +4780,7 @@ public class CepEspTest extends AbstractCepEspTest {
             clock = ksession.getSessionClock();
             clock.advanceTime(10, TimeUnit.SECONDS);
             ksession.fireAllRules();
-            assertEquals(0, ksession.getObjects().size());
+            assertThat(ksession.getObjects().size()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
@@ -4672,8 +4794,9 @@ public class CepEspTest extends AbstractCepEspTest {
     @Expires( "20s" )
     public static class SubClass extends SuperClass { }
 
-    @Test
-    public void testTemporalOperatorWithGlobal() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTemporalOperatorWithGlobal(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-993
         final String drl = "import " + SimpleEvent.class.getCanonicalName() + "\n" +
                      "global java.util.List list;\n" +
@@ -4704,32 +4827,35 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(event1);
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testNoExpirationWithNot() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNoExpirationWithNot(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-984
-        checkNoExpiration("$s: SimpleEvent ()\n" +
+        checkNoExpiration(kieBaseTestConfiguration, "$s: SimpleEvent ()\n" +
                           "not SimpleEvent (this != $s, this after[0, 30s] $s)\n" );
     }
 
-    @Test
-    public void testNoExpirationWithSlidingWindow() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNoExpirationWithSlidingWindow(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-984
-        checkNoExpiration("SimpleEvent( ) over window:time(30s)\n" );
+        checkNoExpiration(kieBaseTestConfiguration, "SimpleEvent( ) over window:time(30s)\n" );
     }
 
-    @Test
-    public void testNoExpirationWithNoTemporalConstraint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNoExpirationWithNoTemporalConstraint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-984
-        checkNoExpiration("SimpleEvent( )\n" );
+        checkNoExpiration(kieBaseTestConfiguration, "SimpleEvent( )\n" );
     }
 
-    private void checkNoExpiration(final String lhs) {
+    private void checkNoExpiration(KieBaseTestConfiguration kieBaseTestConfiguration, final String lhs) {
         final String drl = "import " + SimpleEvent.class.getCanonicalName() + "\n" +
                      "declare SimpleEvent\n" +
                      "    @role( event )\n" +
@@ -4752,20 +4878,21 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.fireAllRules();
 
             //Session should only contain the fact we just inserted.
-            assertEquals(1, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(1);
 
             clock.advanceTime(60000, TimeUnit.MILLISECONDS);
             ksession.fireAllRules();
 
             //We've disabled expiration, so fact should still be in WorkingMemory.
-            assertEquals(1, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testCancelActivationWithExpiredEvent() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCancelActivationWithExpiredEvent(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // RHBRMS-2463
         final String drl = "import " + MyEvent.class.getCanonicalName() + "\n" +
                      "import " + AtomicInteger.class.getCanonicalName() + "\n" +
@@ -4805,19 +4932,20 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(event3);
 
             ksession.fireAllRules(); // Nothing Happens
-            assertEquals(1, counter.get());
+            assertThat(counter.get()).isEqualTo(1);
 
             sessionClock.advanceTime(10000, TimeUnit.MILLISECONDS);
             ksession.fireAllRules();
 
-            assertEquals(0, counter.get());
+            assertThat(counter.get()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testRightTupleExpiration() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testRightTupleExpiration(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // RHBRMS-2463
         final String drl = "import " + MyEvent.class.getCanonicalName() + "\n" +
                      "import " + AtomicInteger.class.getCanonicalName() + "\n" +
@@ -4852,20 +4980,21 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new MyEvent(15));
 
             ksession.fireAllRules();
-            assertEquals(0, counter.get());
+            assertThat(counter.get()).isEqualTo(0);
 
             sessionClock.advanceTime(20, TimeUnit.MILLISECONDS);
             ksession.insert(1);
             ksession.fireAllRules(); // MyEvent is expired
 
-            assertEquals(1, counter.get());
+            assertThat(counter.get()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testLeftTupleExpiration() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testLeftTupleExpiration(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // RHBRMS-2463
         final String drl = "import " + MyEvent.class.getCanonicalName() + "\n" +
                      "import " + AtomicInteger.class.getCanonicalName() + "\n" +
@@ -4898,20 +5027,21 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new MyEvent(15));
 
             ksession.fireAllRules();
-            assertEquals(0, counter.get());
+            assertThat(counter.get()).isEqualTo(0);
 
             sessionClock.advanceTime(20, TimeUnit.MILLISECONDS);
             ksession.insert(1);
             ksession.fireAllRules(); // MyEvent is expired
 
-            assertEquals(1, counter.get());
+            assertThat(counter.get()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testLeftTupleExpirationWithNot() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testLeftTupleExpirationWithNot(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // RHBRMS-2463
         final String drl = "import " + MyEvent.class.getCanonicalName() + "\n" +
                      "import " + AtomicInteger.class.getCanonicalName() + "\n" +
@@ -4945,20 +5075,21 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new MyEvent(15));
 
             ksession.fireAllRules();
-            assertEquals(0, counter.get());
+            assertThat(counter.get()).isEqualTo(0);
 
             sessionClock.advanceTime(20, TimeUnit.MILLISECONDS);
             ksession.delete(iFh);
             ksession.fireAllRules(); // MyEvent is expired
 
-            assertEquals(1, counter.get());
+            assertThat(counter.get()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testExpireLogicallyInsertedEvent() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpireLogicallyInsertedEvent(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // RHBRMS-2515
         final String drl = "import " + MyEvent.class.getCanonicalName() + "\n" +
                      "declare MyEvent\n" +
@@ -4980,21 +5111,22 @@ public class CepEspTest extends AbstractCepEspTest {
             sessionClock.setStartupTime(0);
 
             ksession.insert(new MyEvent(0));
-            assertEquals(1L, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(1L);
 
             ksession.fireAllRules();
-            assertEquals(2L, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(2L);
 
             sessionClock.advanceTime(20, TimeUnit.MILLISECONDS);
             ksession.fireAllRules();
-            assertEquals(0L, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(0L);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testExpiredEventWithPendingActivations() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpiredEventWithPendingActivations(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         final String drl = "package org.drools.drools_usage_pZB7GRxZp64;\n" +
                      "\n" +
                      "declare time_Var\n" +
@@ -5094,9 +5226,9 @@ public class CepEspTest extends AbstractCepEspTest {
 
             // actually should be empty..
             for (final Object o : session.getFactHandles()) {
-                if (o instanceof EventFactHandle) {
-                    final EventFactHandle eventFactHandle = (EventFactHandle) o;
-                    assertFalse(eventFactHandle.isExpired());
+                if (o instanceof DefaultEventHandle) {
+                    final DefaultEventHandle eventFactHandle = (DefaultEventHandle) o;
+                    assertThat(eventFactHandle.isExpired()).isFalse();
                 }
             }
         } finally {
@@ -5104,8 +5236,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testTimerWithMillisPrecision() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTimerWithMillisPrecision(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // RHBRMS-2627
         final String drl = "import " + MyEvent.class.getCanonicalName() + "\n" +
                      "import " + AtomicInteger.class.getCanonicalName() + "\n" +
@@ -5145,19 +5278,21 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(event3);
 
             ksession.fireAllRules(); // Nothing Happens
-            assertEquals(1, counter.get());
+            assertThat(counter.get()).isEqualTo(1);
 
             sessionClock.advanceTime(10, TimeUnit.MILLISECONDS);
             ksession.fireAllRules();
 
-            assertEquals(0, counter.get());
+            assertThat(counter.get()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout=10000)
-    public void testSerializationDeserliaizationWithRectractedExpireFact() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testSerializationDeserliaizationWithRectractedExpireFact(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1328
         final String drl =
                 "package " + TestEvent.class.getPackage().getName() + "\n" +
@@ -5188,14 +5323,15 @@ public class CepEspTest extends AbstractCepEspTest {
             }
         } finally {
             ksession.dispose();
-            assertNotNull(kieSessionDeserialized);
+            assertThat(kieSessionDeserialized).isNotNull();
             kieSessionDeserialized.insert(new TestEvent("test2"));
             kieSessionDeserialized.fireAllRules();
         }
     }
 
-    @Test
-    public void testConflictingRightTuplesUpdate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testConflictingRightTuplesUpdate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1338
         final String drl =
                 "declare Integer @role(event) end\n" +
@@ -5212,21 +5348,22 @@ public class CepEspTest extends AbstractCepEspTest {
             final FactHandle fhB = kieSession.insert("B");
             final FactHandle fh1 = kieSession.insert(1);
 
-            assertEquals(0, kieSession.fireAllRules());
+            assertThat(kieSession.fireAllRules()).isEqualTo(0);
 
             kieSession.delete(fh1);
             kieSession.update(fhA, "A");
             kieSession.update(fhB, "B");
             kieSession.insert(2);
 
-            assertEquals(0, kieSession.fireAllRules());
+            assertThat(kieSession.fireAllRules()).isEqualTo(0);
         } finally {
             kieSession.dispose();
         }
     }
 
-    @Test
-    public void testModifyEventOverWindow() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testModifyEventOverWindow(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1346
         final String drl =
                 "import " + AtomicBoolean.class.getCanonicalName() + "\n" +
@@ -5258,15 +5395,16 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert(new AtomicBoolean(false));
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
-            assertEquals("R2", list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo("R2");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testExpirationOnAfter() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpirationOnAfter(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1227
         final String drl = "declare String @role( event ) end\n" +
                      "declare Integer @role( event ) end\n" +
@@ -5286,20 +5424,21 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert("test");
             ksession.insert(1);
 
-            assertEquals(2, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(2);
 
             ksession.fireAllRules();
             sessionClock.advanceTime(11, TimeUnit.SECONDS);
             ksession.fireAllRules();
 
-            assertEquals(0, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testExpirationOnBefore() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpirationOnBefore(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1227
         final String drl = "declare String @role( event ) end\n" +
                      "declare Integer @role( event ) end\n" +
@@ -5318,20 +5457,21 @@ public class CepEspTest extends AbstractCepEspTest {
 
             ksession.insert(1);
 
-            assertEquals(1, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(1);
 
             ksession.fireAllRules();
             sessionClock.advanceTime(11, TimeUnit.SECONDS);
             ksession.fireAllRules();
 
-            assertEquals(0, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testFireExpiredEventOnInactiveGroup() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testFireExpiredEventOnInactiveGroup(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1523
         final String drl = "global java.util.List list;\n" +
                      "declare String  @role(event) @expires( 6d ) end\n" +
@@ -5379,23 +5519,24 @@ public class CepEspTest extends AbstractCepEspTest {
             kieSession.getAgenda().getAgendaGroup("rf-grp0").setFocus();
             kieSession.fireAllRules(); // OK nothing happens
 
-            assertEquals(2, kieSession.getFactCount());
+            assertThat(kieSession.getFactCount()).isEqualTo(2);
 
             sessionClock.advanceTime(145, TimeUnit.HOURS);
             kieSession.getAgenda().getAgendaGroup("rf-grp0").setFocus();
             kieSession.fireAllRules();
 
-            assertEquals("Expiration occured => no more fact in WM", 0, kieSession.getFactCount());
+            assertThat(kieSession.getFactCount()).as("Expiration occured => no more fact in WM").isEqualTo(0);
 
-            assertEquals("RG_1 should fire once", 1, list.stream().filter(r -> r.equals("RG_1")).count());
-            assertEquals("RG_2 should fire once", 1, list.stream().filter(r -> r.equals("RG_2")).count());
+            assertThat(list.stream().filter(r -> r.equals("RG_1")).count()).as("RG_1 should fire once").isEqualTo(1);
+            assertThat(list.stream().filter(r -> r.equals("RG_2")).count()).as("RG_2 should fire once").isEqualTo(1);
         } finally {
             kieSession.dispose();
         }
     }
 
-    @Test
-    public void testExpireUnusedDeclaredTypeEvent() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpireUnusedDeclaredTypeEvent(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1524
         final String drl = "declare String @role( event ) @expires( 1s ) end\n" +
                      "\n" +
@@ -5411,19 +5552,20 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.insert("test");
 
             ksession.fireAllRules();
-            assertEquals(1, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(1);
 
             sessionClock.advanceTime(2, TimeUnit.SECONDS);
             ksession.fireAllRules();
 
-            assertEquals(0, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testExpireUnusedDeclaredTypeClass() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testExpireUnusedDeclaredTypeClass(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1524
         final String drl = "rule R when\n"
                      + "then\n"
@@ -5439,7 +5581,7 @@ public class CepEspTest extends AbstractCepEspTest {
             ksession.fireAllRules();
             sessionClock.advanceTime(2, TimeUnit.SECONDS);
             ksession.fireAllRules();
-            assertEquals(0, ksession.getFactCount());
+            assertThat(ksession.getFactCount()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
@@ -5491,8 +5633,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testDeleteOfDeserializedJob() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeleteOfDeserializedJob(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1660
         final String drl =
                 "import " + EventA.class.getCanonicalName() + "\n" +
@@ -5547,9 +5690,9 @@ public class CepEspTest extends AbstractCepEspTest {
                 KieSession ksession2 = null;
 
                 final Marshaller marshaller = KieServices.Factory.get().getMarshallers().newMarshaller(kieBase);
-
+                System.out.println("1) " + current);
                 try {
-                    assertNotNull(serializedSession);
+                    assertThat(serializedSession).isNotNull();
                     final ByteArrayInputStream bais = new ByteArrayInputStream(serializedSession);
                     ksession2 = marshaller.unmarshall(bais, ksession.getSessionConfiguration(), null);
                     ksession2.setGlobal("list", list);
@@ -5560,6 +5703,7 @@ public class CepEspTest extends AbstractCepEspTest {
                     fail(e.getMessage());
                 }
 
+                System.out.println("2) " + current);
                 long currTime = clock.getCurrentTime();
                 final long nextTime = current.getTimestamp().getTime();
 
@@ -5574,8 +5718,11 @@ public class CepEspTest extends AbstractCepEspTest {
                     clock.advanceTime(diff, TimeUnit.MILLISECONDS);
                 }
 
+                System.out.println("3) " + current);
                 ksession2.insert(current);
                 ksession2.fireAllRules();
+
+                System.out.println("4) " + current);
 
                 // serialize knowledge session
                 try {
@@ -5587,17 +5734,19 @@ public class CepEspTest extends AbstractCepEspTest {
                     fail(e2.getMessage());
                 }
                 ksession2.dispose();
+                System.out.println("5) " + current);
             }
 
-            assertEquals(1, list.size());
-            assertEquals("Fired EventA at 2010-01-01 03:02:00", list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo("Fired EventA at 2010-01-01 03:02:00");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testInvalidWindowPredicate() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testInvalidWindowPredicate(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1723
         final String drl = "declare A\n" +
                      "    @role( event )\n" +
@@ -5610,14 +5759,15 @@ public class CepEspTest extends AbstractCepEspTest {
                      "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
     @Role(Role.Type.EVENT)
     public static class ExpiringEventD { }
 
-    @Test
-    public void testInsertLogicalNoExpires() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testInsertLogicalNoExpires(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-2182
         final String drl = "import " + ExpiringEventD.class.getCanonicalName() + "\n" +
                 "rule Insert when then " +
@@ -5632,8 +5782,9 @@ public class CepEspTest extends AbstractCepEspTest {
         }
     }
 
-    @Test
-    public void testPropertyReactiveWithDurationOnRule() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testPropertyReactiveWithDurationOnRule(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-2238
         final String drl = "package org.drools.test " +
                 " " +
@@ -5664,18 +5815,19 @@ public class CepEspTest extends AbstractCepEspTest {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("cep-esp-test", kieBaseTestConfiguration, drl);
         final KieSession ksession = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
         try {
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
 
             ((SessionPseudoClock) ksession.getSessionClock()).advanceTime(200, TimeUnit.MILLISECONDS);
 
-            assertEquals(1, ksession.fireAllRules(10));
+            assertThat(ksession.fireAllRules(10)).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testNPERiaPathMemWithEvent() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNPERiaPathMemWithEvent(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-2241
         final String drl =
                 "package org.drools  " +
@@ -5697,14 +5849,15 @@ public class CepEspTest extends AbstractCepEspTest {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("cep-esp-test", kieBaseTestConfiguration, drl);
         final KieSession ksession = kbase.newKieSession();
         try {
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testCollectExpiredEvent() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCollectExpiredEvent(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-4393
         final String drl =
                 "import java.util.Collection\n" +
@@ -5727,24 +5880,25 @@ public class CepEspTest extends AbstractCepEspTest {
         final KieSession ksession = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
         try {
 
-            SessionPseudoClock clock = (( SessionPseudoClock ) ksession.getSessionClock());
+            SessionPseudoClock clock = ksession.getSessionClock();
 
             ksession.insert(1);
             clock.advanceTime(2, TimeUnit.HOURS);
             ksession.insert(2L);
-            assertEquals(0, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(0);
 
             clock.advanceTime(2, TimeUnit.HOURS); // Should expire first event
             ksession.insert(1L);
-            assertEquals(0, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(0);
 
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSlidingWindowExpire() throws InterruptedException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSlidingWindowExpire(KieBaseTestConfiguration kieBaseTestConfiguration) throws InterruptedException {
         // DROOLS-4805
         final String drl =
                 "package org.drools.compiler\n" +
@@ -5763,7 +5917,7 @@ public class CepEspTest extends AbstractCepEspTest {
         // Create a session and fire rules
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("cep-esp-test", kieBaseTestConfiguration, drl);
         final KieSession ksession = kbase.newKieSession(KieSessionTestConfiguration.STATEFUL_PSEUDO.getKieSessionConfiguration(), null);
-        SessionPseudoClock clock = (( SessionPseudoClock ) ksession.getSessionClock());
+        SessionPseudoClock clock = ksession.getSessionClock();
 
         FactHandle fh1 = ksession.insert(new EventA(new Date(6000), 1));
         ksession.fireAllRules();
@@ -5775,11 +5929,11 @@ public class CepEspTest extends AbstractCepEspTest {
         ksession.delete(fh3);
         ksession.fireAllRules();
 
-        assertEquals(2, ksession.getObjects().size());
+        assertThat(ksession.getObjects().size()).isEqualTo(2);
 
         clock.advanceTime( 30, TimeUnit.SECONDS );
         ksession.fireAllRules();
 
-        assertEquals(0, ksession.getObjects().size());
+        assertThat(ksession.getObjects().size()).isEqualTo(0);
     }
 }

@@ -1,42 +1,48 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.scenariosimulation.backend.expression;
 
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.drools.scenariosimulation.api.utils.ScenarioSimulationSharedUtils;
 import org.kie.dmn.api.feel.runtime.events.FEELEvent;
+import org.kie.dmn.api.feel.runtime.events.FEELEventListener;
 import org.kie.dmn.core.compiler.profiles.ExtendedDMNProfile;
 import org.kie.dmn.feel.FEEL;
 import org.kie.dmn.feel.lang.EvaluationContext;
-import org.kie.dmn.feel.lang.Type;
-import org.kie.dmn.feel.lang.impl.EvaluationContextImpl;
-import org.kie.dmn.feel.lang.impl.FEELEventListenersManager;
+import org.kie.dmn.feel.lang.impl.FEELBuilder;
+import org.kie.dmn.feel.lang.impl.FEELImpl;
 import org.kie.dmn.feel.lang.types.BuiltInType;
 import org.kie.dmn.feel.runtime.UnaryTest;
 import org.kie.dmn.feel.runtime.events.SyntaxErrorEvent;
 import org.kie.dmn.feel.runtime.functions.FEELFnResult;
 import org.kie.dmn.feel.runtime.functions.extended.CodeFunction;
+import org.kie.dmn.feel.util.Either;
 
 import static java.util.Collections.singletonList;
 import static org.drools.scenariosimulation.api.utils.ConstantsHolder.UNARY_PARAMETER_IDENTIFIER;
@@ -45,7 +51,7 @@ import static org.kie.dmn.api.feel.runtime.events.FEELEvent.Severity.ERROR;
 public class DMNFeelExpressionEvaluator extends AbstractExpressionEvaluator {
 
     private final ClassLoader classLoader;
-    private final CodeFunction codeFunction = new CodeFunction();
+    private final CodeFunction codeFunction = CodeFunction.INSTANCE;
 
     public DMNFeelExpressionEvaluator(ClassLoader classLoader) {
         this.classLoader = classLoader;
@@ -58,15 +64,10 @@ public class DMNFeelExpressionEvaluator extends AbstractExpressionEvaluator {
                                                                                feelEvent.getSourceException()));
     }
 
-    protected EvaluationContext newEvaluationContext() {
-        final FEELEventListenersManager eventsManager = new FEELEventListenersManager();
-        return new EvaluationContextImpl(classLoader, eventsManager);
-    }
-
     protected FEEL newFeelEvaluator(AtomicReference<FEELEvent> errorHolder) {
         // cleanup existing error
         errorHolder.set(null);
-        FEEL feel = FEEL.newInstance(singletonList(new ExtendedDMNProfile()));
+        FEEL feel = FEELBuilder.builder().withProfiles(singletonList(new ExtendedDMNProfile())).build();
         feel.addListener(event -> {
             FEELEvent feelEvent = errorHolder.get();
             if (!(feelEvent instanceof SyntaxErrorEvent) &&
@@ -79,8 +80,7 @@ public class DMNFeelExpressionEvaluator extends AbstractExpressionEvaluator {
 
     @Override
     protected Object internalLiteralEvaluation(String raw, String className) {
-        EvaluationContext evaluationContext = newEvaluationContext();
-        return executeAndVerifyErrors(feel -> feel.evaluate(raw, evaluationContext));
+        return executeAndVerifyErrors(feel -> feel.evaluate(raw));
     }
 
     @Override
@@ -89,16 +89,45 @@ public class DMNFeelExpressionEvaluator extends AbstractExpressionEvaluator {
             return true;
         }
 
-        Map<String, Type> variables = new HashMap<>();
-        variables.put(UNARY_PARAMETER_IDENTIFIER, BuiltInType.UNKNOWN);
-        List<UnaryTest> unaryTests = executeAndVerifyErrors(feel -> feel.evaluateUnaryTests(rawExpression, variables));
+        Either<List<FEELEvent>, Boolean> utCommandResult = executeAndVerifyErrors(new EvaluateUTCommand(rawExpression, resultValue));
+        return utCommandResult.getOrElseThrow(l ->
+                new IllegalArgumentException("Error during evaluation: " + l.stream().map(FEELEvent::getMessage).collect(Collectors.joining(", "))));
+    }
+    
+    /**
+     * Perform compilation and evaluation of FEEL Unary Tests,
+     * implementing the command pattern of {@link DMNFeelExpressionEvaluator#executeAndVerifyErrors(Function)}
+     */
+    private static class EvaluateUTCommand implements Function<FEEL, Either<List<FEELEvent>, Boolean>> {
+        
+        private final String rawExpression;
+        private final Object resultValue;
 
-        EvaluationContext evaluationContext = newEvaluationContext();
-        evaluationContext.setValue(UNARY_PARAMETER_IDENTIFIER, resultValue);
-        return unaryTests.stream()
-                .allMatch(unaryTest -> Optional
-                        .ofNullable(unaryTest.apply(evaluationContext, resultValue))
-                        .orElse(false));
+        public EvaluateUTCommand(String rawExpression, Object resultValue) {
+            this.rawExpression = rawExpression;
+            this.resultValue = resultValue;
+        }
+        
+        @Override
+        public Either<List<FEELEvent>, Boolean> apply(FEEL feel) {
+            List<UnaryTest> unaryTests = feel.evaluateUnaryTests(rawExpression,
+                                                                 Collections.singletonMap(UNARY_PARAMETER_IDENTIFIER,
+                                                                                          BuiltInType.UNKNOWN));
+            final List<FEELEvent> utEvalErrors = new ArrayList<>();
+            final FEELEventListener utErrorListener = errorEvent -> utEvalErrors.add(errorEvent);
+            EvaluationContext evaluationContext = ((FEELImpl) feel).newEvaluationContext(List.of(utErrorListener),
+                                                                                         Collections.singletonMap(UNARY_PARAMETER_IDENTIFIER,
+                                                                                                                  resultValue));
+            boolean allMatch = unaryTests.stream().allMatch(unaryTest -> Optional
+                            .ofNullable(unaryTest.apply(evaluationContext, resultValue))
+                            .orElse(false));
+            if (utEvalErrors.isEmpty()) {
+                return Either.ofRight(allMatch);
+            } else {
+                return Either.ofLeft(utEvalErrors);
+            }
+        }
+        
     }
 
     /**

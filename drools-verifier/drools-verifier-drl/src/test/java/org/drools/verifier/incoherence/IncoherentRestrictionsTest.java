@@ -1,20 +1,28 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.incoherence;
+
+import java.io.StringReader;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 
 import org.drools.core.base.RuleNameMatchesAgendaFilter;
 import org.drools.verifier.DefaultVerifierConfiguration;
@@ -29,29 +37,23 @@ import org.drools.verifier.data.VerifierReportFactory;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.VerifierMessageBase;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.kie.api.io.ResourceType;
 import org.kie.api.runtime.KieSession;
 import org.kie.internal.io.ResourceFactory;
-import org.kie.api.io.ResourceType;
 
-import java.io.StringReader;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
-
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class IncoherentRestrictionsTest extends TestBaseOld {
 
     @Test
-    public void testApprovedTrueAndNotTrue() {
+    void testApprovedTrueAndNotTrue() {
         VerifierBuilder vBuilder = VerifierBuilderFactory.newVerifierBuilder();
 
         // Check that the builder works.
-        assertFalse(vBuilder.hasErrors());
-        assertEquals(0,
-                     vBuilder.getErrors().size());
+        assertThat(vBuilder.hasErrors()).isFalse();
+        assertThat(vBuilder.getErrors().size()).isEqualTo(0);
 
         String str = "";
         str += "package mortgages\n";
@@ -66,39 +68,35 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
         DefaultVerifierConfiguration conf = new DefaultVerifierConfiguration();
         Verifier verifier = VerifierBuilderFactory.newVerifierBuilder().newVerifier(conf);
         verifier.addResourcesToVerify(ResourceFactory.newReaderResource(new StringReader(str)),
-                                      ResourceType.DRL);
+                ResourceType.DRL);
 
-        assertFalse(verifier.hasErrors());
-        assertEquals(0,
-                     verifier.getErrors().size());
+        assertThat(verifier.hasErrors()).isFalse();
+        assertThat(verifier.getErrors().size()).isEqualTo(0);
 
         boolean works = verifier.fireAnalysis(new ScopesAgendaFilter(true,
-                                                                     ScopesAgendaFilter.VERIFYING_SCOPE_KNOWLEDGE_PACKAGE));
+                ScopesAgendaFilter.VERIFYING_SCOPE_KNOWLEDGE_PACKAGE));
 
-        assertTrue(works);
+        assertThat(works).isTrue();
 
         VerifierReport result = verifier.getResult();
-        assertNotNull(result);
+        assertThat(result).isNotNull();
 
-        assertEquals(3,
-                     result.getBySeverity(Severity.ERROR).size());
-        assertEquals(1,
-                     result.getBySeverity(Severity.WARNING).size());
-        assertEquals(0,
-                     result.getBySeverity(Severity.NOTE).size());
+        assertThat(result.getBySeverity(Severity.ERROR).size()).isEqualTo(3);
+        assertThat(result.getBySeverity(Severity.WARNING).size()).isEqualTo(1);
+        assertThat(result.getBySeverity(Severity.NOTE).size()).isEqualTo(0);
 
     }
 
     @Test
-    public void testIncoherentLiteralRestrictionsInSubPattern() throws Exception {
+    void testIncoherentLiteralRestrictionsInSubPattern() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Restrictions.drl"));
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<? extends Object> testData = getTestData(getClass().getResourceAsStream("RestrictionsTest.drl"),
-                                                            result.getVerifierData());
+                result.getVerifierData());
 
         session.setGlobal("result",
-                          result);
+                result);
 
         for (Object o : testData) {
             session.insert(o);
@@ -109,15 +107,15 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
 
         Set<String> rulesThatHadErrors = new HashSet<String>();
         while (iter.hasNext()) {
-            Object o = (Object) iter.next();
+            Object o = iter.next();
             if (o instanceof VerifierMessage) {
                 Pattern pattern = (Pattern) ((VerifierMessage) o).getFaulty();
                 rulesThatHadErrors.add(pattern.getRuleName());
             }
         }
 
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 1"));
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 2"));
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 1")).isTrue();
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 2")).isTrue();
 
         if (!rulesThatHadErrors.isEmpty()) {
             for (String string : rulesThatHadErrors) {
@@ -127,15 +125,15 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
     }
 
     @Test
-    public void testIncoherentLiteralRestrictionsInSubPatternImpossibleRanges() throws Exception {
+    void testIncoherentLiteralRestrictionsInSubPatternImpossibleRanges() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Restrictions.drl"));
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<? extends Object> testData = getTestData(this.getClass().getResourceAsStream("RestrictionsTest.drl"),
-                                                            result.getVerifierData());
+                result.getVerifierData());
 
         session.setGlobal("result",
-                          result);
+                result);
 
         for (Object o : testData) {
             session.insert(o);
@@ -146,14 +144,14 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
 
         Set<String> rulesThatHadErrors = new HashSet<String>();
         while (iter.hasNext()) {
-            Object o = (Object) iter.next();
+            Object o = iter.next();
             if (o instanceof VerifierMessage) {
                 Pattern pattern = (Pattern) ((VerifierMessage) o).getFaulty();
                 rulesThatHadErrors.add(pattern.getRuleName());
             }
         }
 
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 8"));
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 8")).isTrue();
 
         if (!rulesThatHadErrors.isEmpty()) {
             for (String string : rulesThatHadErrors) {
@@ -163,15 +161,15 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
     }
 
     @Test
-    public void testIncoherentLiteralRestrictionsInSubPatternImpossibleEqualityLess() throws Exception {
+    void testIncoherentLiteralRestrictionsInSubPatternImpossibleEqualityLess() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Restrictions.drl"));
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<? extends Object> testData = getTestData(this.getClass().getResourceAsStream("RestrictionsTest.drl"),
-                                                            result.getVerifierData());
+                result.getVerifierData());
 
         session.setGlobal("result",
-                          result);
+                result);
 
         for (Object o : testData) {
             session.insert(o);
@@ -182,15 +180,15 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
 
         Set<String> rulesThatHadErrors = new HashSet<String>();
         while (iter.hasNext()) {
-            Object o = (Object) iter.next();
+            Object o = iter.next();
             if (o instanceof VerifierMessage) {
                 Pattern pattern = (Pattern) ((VerifierMessage) o).getFaulty();
                 rulesThatHadErrors.add(pattern.getRuleName());
             }
         }
 
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 9"));
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 11"));
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 9")).isTrue();
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 11")).isTrue();
 
         if (!rulesThatHadErrors.isEmpty()) {
             for (String string : rulesThatHadErrors) {
@@ -200,15 +198,15 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
     }
 
     @Test
-    public void testIncoherentLiteralRestrictionsInSubPatternImpossibleEqualityGreater() throws Exception {
+    void testIncoherentLiteralRestrictionsInSubPatternImpossibleEqualityGreater() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Restrictions.drl"));
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<? extends Object> testData = getTestData(this.getClass().getResourceAsStream("RestrictionsTest.drl"),
-                                                            result.getVerifierData());
+                result.getVerifierData());
 
         session.setGlobal("result",
-                          result);
+                result);
 
         for (Object o : testData) {
             session.insert(o);
@@ -219,14 +217,14 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
 
         Set<String> rulesThatHadErrors = new HashSet<String>();
         while (iter.hasNext()) {
-            Object o = (Object) iter.next();
+            Object o = iter.next();
             if (o instanceof VerifierMessage) {
                 Pattern pattern = (Pattern) ((VerifierMessage) o).getFaulty();
                 rulesThatHadErrors.add(pattern.getRuleName());
             }
         }
 
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 10"));
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 10")).isTrue();
 
         if (!rulesThatHadErrors.isEmpty()) {
             for (String string : rulesThatHadErrors) {
@@ -236,15 +234,15 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
     }
 
     @Test
-    public void testIncoherentLiteralRestrictionsInSubPatternImpossibleRange() throws Exception {
+    void testIncoherentLiteralRestrictionsInSubPatternImpossibleRange() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Restrictions.drl"));
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<? extends Object> testData = getTestData(this.getClass().getResourceAsStream("RestrictionsTest.drl"),
-                                                            result.getVerifierData());
+                result.getVerifierData());
 
         session.setGlobal("result",
-                          result);
+                result);
 
         for (Object o : testData) {
             session.insert(o);
@@ -255,14 +253,14 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
 
         Set<String> rulesThatHadErrors = new HashSet<String>();
         while (iter.hasNext()) {
-            Object o = (Object) iter.next();
+            Object o = iter.next();
             if (o instanceof VerifierMessage) {
                 Pattern pattern = (Pattern) ((VerifierMessage) o).getFaulty();
                 rulesThatHadErrors.add(pattern.getRuleName());
             }
         }
 
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 7"));
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 7")).isTrue();
 
         if (!rulesThatHadErrors.isEmpty()) {
             for (String string : rulesThatHadErrors) {
@@ -272,15 +270,15 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
     }
 
     @Test
-    public void testIncoherentVariableRestrictionsInSubPattern() throws Exception {
+    void testIncoherentVariableRestrictionsInSubPattern() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Restrictions.drl"));
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<? extends Object> testData = getTestData(this.getClass().getResourceAsStream("RestrictionsTest.drl"),
-                                                            result.getVerifierData());
+                result.getVerifierData());
 
         session.setGlobal("result",
-                          result);
+                result);
 
         for (Object o : testData) {
             session.insert(o);
@@ -291,16 +289,16 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
 
         Set<String> rulesThatHadErrors = new HashSet<String>();
         while (iter.hasNext()) {
-            Object o = (Object) iter.next();
+            Object o = iter.next();
             if (o instanceof VerifierMessage) {
                 Pattern pattern = (Pattern) ((VerifierMessage) o).getFaulty();
                 rulesThatHadErrors.add(pattern.getRuleName());
             }
         }
 
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 3"));
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 4"));
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 5"));
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 3")).isTrue();
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 4")).isTrue();
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 5")).isTrue();
 
         if (!rulesThatHadErrors.isEmpty()) {
             for (String string : rulesThatHadErrors) {
@@ -310,15 +308,15 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
     }
 
     @Test
-    public void testIncoherentVariableRestrictionsInSubPatternImpossibleRange() throws Exception {
+    void testIncoherentVariableRestrictionsInSubPatternImpossibleRange() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Restrictions.drl"));
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<? extends Object> testData = getTestData(this.getClass().getResourceAsStream("RestrictionsTest.drl"),
-                                                            result.getVerifierData());
+                result.getVerifierData());
 
         session.setGlobal("result",
-                          result);
+                result);
 
         for (Object o : testData) {
             session.insert(o);
@@ -329,14 +327,14 @@ public class IncoherentRestrictionsTest extends TestBaseOld {
 
         Set<String> rulesThatHadErrors = new HashSet<String>();
         while (iter.hasNext()) {
-            Object o = (Object) iter.next();
+            Object o = iter.next();
             if (o instanceof VerifierMessage) {
                 Pattern pattern = (Pattern) ((VerifierMessage) o).getFaulty();
                 rulesThatHadErrors.add(pattern.getRuleName());
             }
         }
 
-        assertTrue(rulesThatHadErrors.remove("Incoherent restrictions 6"));
+        assertThat(rulesThatHadErrors.remove("Incoherent restrictions 6")).isTrue();
 
         if (!rulesThatHadErrors.isEmpty()) {
             for (String string : rulesThatHadErrors) {

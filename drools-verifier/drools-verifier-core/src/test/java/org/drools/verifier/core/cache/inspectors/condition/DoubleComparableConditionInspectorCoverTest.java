@@ -1,60 +1,44 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.core.cache.inspectors.condition;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 
-import org.drools.verifier.core.AnalyzerConfigurationMock;
-import org.drools.verifier.core.index.keys.Values;
-import org.drools.verifier.core.index.model.Column;
 import org.drools.verifier.core.index.model.Field;
-import org.drools.verifier.core.index.model.FieldCondition;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import static java.lang.String.format;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.drools.verifier.core.cache.inspectors.condition.ConditionInspectorUtils.getComparableCondition;
 
-@RunWith(Parameterized.class)
+@ExtendWith(MockitoExtension.class)
 public class DoubleComparableConditionInspectorCoverTest {
 
-    private final Comparable conditionValue;
-    private final Comparable value;
-    private final String conditionOperator;
-    private final boolean coverExpected;
-    private final Field field;
+	@Mock
+    private Field field;
 
-    public DoubleComparableConditionInspectorCoverTest(Comparable conditionValue,
-                                                       String conditionOperator,
-                                                       Comparable value,
-                                                       boolean coverExpected) {
-        this.field = mock(Field.class);
-        this.conditionValue = conditionValue;
-        this.value = value;
-        this.conditionOperator = conditionOperator;
-        this.coverExpected = coverExpected;
-    }
-
-    @Parameters
     public static Collection<Object[]> testData() {
         return Arrays.asList(new Object[][]{
                 // condition value, condition operator, value, covers
@@ -82,35 +66,22 @@ public class DoubleComparableConditionInspectorCoverTest {
         });
     }
 
-    @Test
-    public void parametrizedTest() {
-        ComparableConditionInspector a = getCondition(conditionValue,
-                                                      conditionOperator);
+    @MethodSource("testData")
+    @ParameterizedTest(name = "it is {3} that {0} {1} {2}")
+    void parametrizedTest(Comparable conditionValue, String conditionOperator, Comparable value, boolean coverExpected) {
+        ComparableConditionInspector a = getComparableCondition(field, conditionValue, conditionOperator);
 
-        assertEquals(getAssertDescription(a,
-                                          value,
-                                          coverExpected),
-                     coverExpected,
-                     a.covers(value));
+        assertThat(a.covers(value)).as(getAssertDescription(a,
+                value,
+                coverExpected)).isEqualTo(coverExpected);
     }
 
     private String getAssertDescription(ComparableConditionInspector a,
                                         Comparable b,
                                         boolean conflictExpected) {
         return format("Expected condition '%s' %sto cover value '%s':",
-                      a.toHumanReadableString(),
-                      conflictExpected ? "" : "not ",
-                      b.toString());
-    }
-
-    private ComparableConditionInspector getCondition(Comparable value,
-                                                      String operator) {
-        AnalyzerConfigurationMock configurationMock = new AnalyzerConfigurationMock();
-        return new ComparableConditionInspector(new FieldCondition(field,
-                                                                   mock(Column.class),
-                                                                   operator,
-                                                                   new Values<>(value),
-                                                                   configurationMock),
-                                                configurationMock);
+                a.toHumanReadableString(),
+                conflictExpected ? "" : "not ",
+                b.toString());
     }
 }

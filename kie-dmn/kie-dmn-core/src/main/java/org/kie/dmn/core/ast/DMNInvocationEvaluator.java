@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.ast;
 
 import java.util.ArrayList;
@@ -30,13 +32,14 @@ import org.kie.dmn.api.core.DMNType;
 import org.kie.dmn.api.core.event.DMNRuntimeEventManager;
 import org.kie.dmn.api.feel.runtime.events.FEELEvent;
 import org.kie.dmn.core.api.DMNExpressionEvaluator;
-import org.kie.dmn.core.api.EvaluatorResult;
-import org.kie.dmn.core.api.EvaluatorResult.ResultType;
+import org.kie.dmn.api.core.EvaluatorResult;
+import org.kie.dmn.api.core.EvaluatorResult.ResultType;
 import org.kie.dmn.core.impl.DMNModelImpl;
 import org.kie.dmn.core.impl.DMNResultImpl;
 import org.kie.dmn.core.util.Msg;
 import org.kie.dmn.core.util.MsgUtil;
 import org.kie.dmn.feel.FEEL;
+import org.kie.dmn.feel.lang.FEELDialect;
 import org.kie.dmn.feel.lang.impl.EvaluationContextImpl;
 import org.kie.dmn.feel.lang.impl.FEELEventListenersManager;
 import org.kie.dmn.feel.lang.impl.FEELImpl;
@@ -92,31 +95,44 @@ public class DMNInvocationEvaluator
         DMNContext previousContext = result.getContext();
         DMNContext dmnContext = previousContext.clone();
         result.setContext( dmnContext );
-        Object invocationResult = null;
+        Object invocationResult;
 
         try {
             boolean walkedIntoScope = false;
-            QName importAlias = null;
+            StringBuilder functionNamePrefix = new StringBuilder();
             String[] fnameParts = functionName.split("\\.");
-            if (fnameParts.length > 1) {
-                importAlias = ((DMNModelImpl) ((DMNResultImpl) dmnr).getModel()).getImportAliasesForNS().get(fnameParts[0]);
-                dmnContext.pushScope(fnameParts[0], importAlias.getNamespaceURI());
-                walkedIntoScope = true;
+            boolean thereAreImports = !((DMNModelImpl) result.getModel()).getImportAliasesForNS().isEmpty();
+            if (fnameParts.length > 1 && thereAreImports) {
+
+                for(String part : fnameParts) {
+                    functionNamePrefix.append(part);
+                    QName importAlias = ((DMNModelImpl) result.getModel()).getImportAliasesForNS().get(functionNamePrefix.toString());
+                    if (importAlias != null) {
+                        dmnContext.pushScope(functionNamePrefix.toString(), importAlias.getNamespaceURI());
+                        walkedIntoScope = true;
+                        break;
+                    } else {
+                        functionNamePrefix.append(".");
+                    }
+                }
             }
-            FEELFunction function = this.functionLocator.apply(dmnContext, (fnameParts.length > 1) ? fnameParts[1] : functionName);
+            // prefix and name is separated by '.'
+            functionNamePrefix.append(".");
+            final String functionNameWithoutPrefix = functionName.replaceFirst(functionNamePrefix.toString(), "");
+            FEELFunction function = this.functionLocator.apply(dmnContext, walkedIntoScope ? functionNameWithoutPrefix : functionName);
             if( function == null ) {
                 // check if it is a configured/built-in function
-                Object r = null;
+                Object r;
                 if (feel != null) {
                     r = ((FEELImpl) feel).newEvaluationContext(Collections.emptyList(), Collections.emptyMap()).getValue(functionName);
                 } else {
                     r = RootExecutionFrame.INSTANCE.getValue( functionName );
                 }
-                if( r != null && r instanceof FEELFunction ) {
+                if(r instanceof FEELFunction) {
                     function = (FEELFunction) r;
                 }
             }
-            // this invocation will need to resolve parameters according to the importING scope, hence I need to pop scope to push it back later at actual invocation.
+            // this invocation will need to resolve parameters according to the importING scope, but thanks to closure no longer need to pop scope to push it back later at actual invocation.
             if (walkedIntoScope) {
                 dmnContext.popScope();
             }
@@ -172,17 +188,9 @@ public class DMNInvocationEvaluator
             FEELEventListenersManager listenerMgr = new FEELEventListenersManager();
             listenerMgr.addListener(events::add);
 
-            EvaluationContextImpl ctx = new EvaluationContextImpl(listenerMgr, eventManager.getRuntime());
+            EvaluationContextImpl ctx = new EvaluationContextImpl(listenerMgr, eventManager.getRuntime(), FEELDialect.FEEL);
 
-            if (walkedIntoScope) {
-                // the DMN Invocation needed to resolve parameters according to the importING scope, hence the import scope was pop-ed previously to resolve correctly the parameters.
-                // now walk back into the importED scope to actually invoke the `function`.
-                dmnContext.pushScope(fnameParts[0], importAlias.getNamespaceURI());
-            }
             invocationResult = function.invokeReflectively( ctx, namedParams );
-            if (walkedIntoScope) {
-                dmnContext.popScope();
-            }
 
             boolean hasErrors = hasErrors( events, eventManager, result );
             return new EvaluatorResultImpl( invocationResult, hasErrors ? ResultType.FAILURE : ResultType.SUCCESS );

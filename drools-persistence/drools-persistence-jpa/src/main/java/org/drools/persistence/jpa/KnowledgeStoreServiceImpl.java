@@ -1,17 +1,20 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
  package org.drools.persistence.jpa;
 
@@ -20,11 +23,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
 import org.drools.core.SessionConfiguration;
-import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
-import org.drools.core.process.instance.WorkItemManagerFactory;
+import org.drools.commands.impl.CommandBasedStatefulKnowledgeSessionImpl;
+import org.drools.core.process.WorkItemManagerFactory;
 import org.drools.persistence.PersistableRunner;
 import org.drools.persistence.jpa.processinstance.JPAWorkItemManagerFactory;
 import org.kie.api.KieBase;
+import org.kie.api.KieServices;
 import org.kie.api.persistence.jpa.KieStoreServices;
 import org.kie.api.runtime.CommandExecutor;
 import org.kie.api.runtime.Environment;
@@ -57,7 +61,7 @@ public class KnowledgeStoreServiceImpl
                                                   KieSessionConfiguration configuration,
                                                   Environment environment) {
         if ( configuration == null ) {
-            configuration = SessionConfiguration.newInstance();
+            configuration = KieServices.get().newKieSessionConfiguration();
         }
 
         if ( environment == null ) {
@@ -67,7 +71,7 @@ public class KnowledgeStoreServiceImpl
         ExecutableRunner runner = (ExecutableRunner) buildCommandService( kbase,
                                                                           mergeConfig( configuration ),
                                                                           environment );
-        return new CommandBasedStatefulKnowledgeSession( runner );
+        return new CommandBasedStatefulKnowledgeSessionImpl( runner );
     }
 
     public StatefulKnowledgeSession loadKieSession(int id,
@@ -75,18 +79,18 @@ public class KnowledgeStoreServiceImpl
                                                    KieSessionConfiguration configuration,
                                                    Environment environment) {
         if ( configuration == null ) {
-            configuration = SessionConfiguration.newInstance();
+            configuration = KieServices.get().newKieSessionConfiguration();
         }
 
         if ( environment == null ) {
             throw new IllegalArgumentException( "Environment cannot be null" );
         }
 
-        ExecutableRunner runner = (ExecutableRunner) buildCommandService( new Long( id),
+        ExecutableRunner runner = (ExecutableRunner) buildCommandService( Long.valueOf( id),
                                                                           kbase,
                                                                           mergeConfig( configuration ),
                                                                           environment );
-        return new CommandBasedStatefulKnowledgeSession( runner );
+        return new CommandBasedStatefulKnowledgeSessionImpl( runner );
     }
 
     public StatefulKnowledgeSession loadKieSession(Long id,
@@ -94,7 +98,7 @@ public class KnowledgeStoreServiceImpl
             KieSessionConfiguration configuration,
             Environment environment) {
         if ( configuration == null ) {
-            configuration = SessionConfiguration.newInstance();
+            configuration = KieServices.get().newKieSessionConfiguration();
         }
 
         if ( environment == null ) {
@@ -105,7 +109,7 @@ public class KnowledgeStoreServiceImpl
                                                                           kbase,
                                                                           mergeConfig( configuration ),
                                                                           environment );
-        return new CommandBasedStatefulKnowledgeSession( runner );
+        return new CommandBasedStatefulKnowledgeSessionImpl( runner );
     }
 
     private CommandExecutor buildCommandService(Long sessionId,
@@ -166,14 +170,14 @@ public class KnowledgeStoreServiceImpl
     }
 
     private KieSessionConfiguration mergeConfig(KieSessionConfiguration configuration) {
-        KieSessionConfiguration merged = ((SessionConfiguration) configuration).addDefaultProperties( configProps );
+        KieSessionConfiguration merged = configuration.as(SessionConfiguration.KEY).addDefaultProperties( configProps );
         merged.setOption(TimerJobFactoryOption.get("jpa"));
         return merged;
     }
 
     public long getStatefulKnowledgeSessionId(StatefulKnowledgeSession ksession) {
-        if ( ksession instanceof CommandBasedStatefulKnowledgeSession ) {
-            PersistableRunner commandService = (PersistableRunner) ((CommandBasedStatefulKnowledgeSession) ksession).getRunner();
+        if ( ksession instanceof CommandBasedStatefulKnowledgeSessionImpl) {
+            PersistableRunner commandService = (PersistableRunner) ((CommandBasedStatefulKnowledgeSessionImpl) ksession).getRunner();
             return commandService.getSessionId();
         }
         throw new IllegalArgumentException( "StatefulKnowledgeSession must be an a CommandBasedStatefulKnowledgeSession" );

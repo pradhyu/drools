@@ -1,19 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.validation.dtanalysis;
 
 import java.util.HashMap;
@@ -21,7 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.printer.PrettyPrinterConfiguration;
+import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
+import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
 import org.kie.dmn.api.core.DMNMessage;
 import org.kie.dmn.validation.AbstractValidatorTest;
 import org.kie.dmn.validation.ValidatorUtil;
@@ -32,18 +35,14 @@ import org.kie.dmn.validation.dtanalysis.utils.DTAnalysisMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class AbstractDTAnalysisTest extends AbstractValidatorTest {
 
     public static final Logger LOG = LoggerFactory.getLogger(AbstractDTAnalysisTest.class);
 
     protected static DTAnalysis getAnalysis(List<DMNMessage> dmnMessages, String id) {
-        assertThat("Expected to find DTAnalysis but messages are empty.", dmnMessages, not(empty()));
+        assertThat(dmnMessages).as("Expected to find DTAnalysis but messages are empty.").isNotEmpty();
 
         if (LOG.isDebugEnabled() ) {
             LOG.debug("List<DMNMessage> dmnMessages: \n{}", ValidatorUtil.formatMessages(dmnMessages));
@@ -54,7 +53,7 @@ public abstract class AbstractDTAnalysisTest extends AbstractValidatorTest {
             if (dmnMessage.getSourceId().equals(id) && dmnMessage instanceof DMNDTAnalysisMessage) {
                 DMNDTAnalysisMessage dmndtAnalysisMessage = (DMNDTAnalysisMessage) dmnMessage;
                 if (as.containsKey(id)) {
-                    assertThat("Inconsistency detected", as.get(id), is(dmndtAnalysisMessage.getAnalysis()));
+                    assertThat(as.get(id)).as("Inconsistency detected").isEqualTo(dmndtAnalysisMessage.getAnalysis());
                 } else {
                     as.put(id, dmndtAnalysisMessage.getAnalysis());
                 }
@@ -62,7 +61,7 @@ public abstract class AbstractDTAnalysisTest extends AbstractValidatorTest {
         }
 
         DTAnalysis analysis = as.get(id);
-        assertThat("Null analysis value for key.", analysis, notNullValue());
+        assertThat(analysis).as("Null analysis value for key.").isNotNull();
 
         debugAnalysis(analysis);
 
@@ -92,12 +91,12 @@ public abstract class AbstractDTAnalysisTest extends AbstractValidatorTest {
         }
         LOG.debug(sbGaps.toString());
 
-        PrettyPrinterConfiguration prettyPrintConfig = new PrettyPrinterConfiguration();
-        prettyPrintConfig.setColumnAlignFirstMethodChain(true);
-        prettyPrintConfig.setColumnAlignParameters(true);
+        DefaultPrinterConfiguration printConfig = new DefaultPrinterConfiguration();
+        printConfig.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.COLUMN_ALIGN_PARAMETERS, true));
+        printConfig.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.COLUMN_ALIGN_FIRST_METHOD_CHAIN, true));
 
         Expression printGaps = DTAnalysisMeta.printGaps(analysis);
-        LOG.debug("\n" + printGaps.toString(prettyPrintConfig));
+        LOG.debug("\n" + printGaps.toString(printConfig));
 
         StringBuilder sbOverlaps = new StringBuilder("\nOverlaps:\n");
         for (Overlap overlap : analysis.getOverlaps()) {
@@ -107,6 +106,6 @@ public abstract class AbstractDTAnalysisTest extends AbstractValidatorTest {
         LOG.debug(sbOverlaps.toString());
 
         Expression printOverlaps = DTAnalysisMeta.printOverlaps(analysis);
-        LOG.debug("\n" + printOverlaps.toString(prettyPrintConfig));
+        LOG.debug("\n" + printOverlaps.toString(printConfig));
     }
 }

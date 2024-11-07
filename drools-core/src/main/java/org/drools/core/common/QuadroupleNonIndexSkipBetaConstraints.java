@@ -1,46 +1,53 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.common;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.List;
+import java.util.Optional;
 
+import org.drools.base.base.ObjectType;
+import org.drools.base.base.ValueResolver;
+import org.drools.base.reteoo.BaseTuple;
+import org.drools.base.rule.ContextEntry;
+import org.drools.base.rule.MutableTypeConstraint;
+import org.drools.base.rule.Pattern;
+import org.drools.base.rule.constraint.BetaConstraint;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.reteoo.BetaMemory;
+import org.drools.core.reteoo.Tuple;
 import org.drools.core.reteoo.builder.BuildContext;
-import org.drools.core.rule.ContextEntry;
-import org.drools.core.rule.MutableTypeConstraint;
-import org.drools.core.rule.constraint.MvelConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.Tuple;
-import org.drools.core.util.bitmask.BitMask;
+import org.drools.util.bitmask.BitMask;
+import org.kie.api.runtime.rule.FactHandle;
 
 public class QuadroupleNonIndexSkipBetaConstraints
         implements
-        BetaConstraints {
+        BetaConstraints<ContextEntry[]> {
 
     private QuadroupleBetaConstraints constraints;
 
-    private BetaNodeFieldConstraint constraint0;
-    private BetaNodeFieldConstraint constraint1;
-    private BetaNodeFieldConstraint constraint2;
-    private BetaNodeFieldConstraint constraint3;
+    private BetaConstraint constraint0;
+    private BetaConstraint constraint1;
+    private BetaConstraint constraint2;
+    private BetaConstraint constraint3;
 
     public QuadroupleNonIndexSkipBetaConstraints() {
 
@@ -48,7 +55,7 @@ public class QuadroupleNonIndexSkipBetaConstraints
 
     public QuadroupleNonIndexSkipBetaConstraints(QuadroupleBetaConstraints constraints) {
         this.constraints = constraints;
-        BetaNodeFieldConstraint[] constraint = constraints.getConstraints();
+        BetaConstraint[] constraint = constraints.getConstraints();
         this.constraint0 = constraint[0];
         this.constraint1 = constraint[1];
         this.constraint2 = constraint[2];
@@ -62,12 +69,12 @@ public class QuadroupleNonIndexSkipBetaConstraints
         return this;
     }
 
-    public void init(BuildContext context, short betaNodeType) {
+    public void init(BuildContext context, int betaNodeType) {
         constraints.init(context, betaNodeType);
     }
 
-    public void initIndexes(int depth, short betaNodeType) {
-        constraints.initIndexes(depth, betaNodeType);
+    public void initIndexes(int depth, int betaNodeType, RuleBaseConfiguration config) {
+        constraints.initIndexes(depth, betaNodeType, config);
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
@@ -87,19 +94,15 @@ public class QuadroupleNonIndexSkipBetaConstraints
     }
 
     public void updateFromTuple(ContextEntry[] context,
-                                InternalWorkingMemory workingMemory,
+                                ValueResolver valueResolver,
                                 Tuple tuple) {
-        constraints.updateFromTuple(context,
-                                    workingMemory,
-                                    tuple);
+        constraints.updateFromTuple(context, valueResolver, tuple);
     }
 
     public void updateFromFactHandle(ContextEntry[] context,
-                                     InternalWorkingMemory workingMemory,
-                                     InternalFactHandle handle) {
-        constraints.updateFromFactHandle(context,
-                                         workingMemory,
-                                         handle);
+                                     ValueResolver valueResolver,
+                                     FactHandle handle) {
+        constraints.updateFromFactHandle(context, valueResolver, handle);
     }
 
     public boolean isIndexed() {
@@ -115,7 +118,7 @@ public class QuadroupleNonIndexSkipBetaConstraints
     }
 
     public BetaMemory createBetaMemory(final RuleBaseConfiguration config,
-                                       final short nodeType) {
+                                       final int nodeType) {
         return constraints.createBetaMemory(config,
                                             nodeType);
     }
@@ -124,7 +127,7 @@ public class QuadroupleNonIndexSkipBetaConstraints
         return constraints.hashCode();
     }
 
-    public BetaNodeFieldConstraint[] getConstraints() {
+    public BetaConstraint[] getConstraints() {
         return constraints.getConstraints();
     }
 
@@ -145,23 +148,23 @@ public class QuadroupleNonIndexSkipBetaConstraints
     }
 
     public boolean isAllowedCachedLeft(final ContextEntry[] context,
-                                       final InternalFactHandle handle) {
+                                       final FactHandle handle) {
         return this.constraint0.isAllowedCachedLeft(context[0], handle)
                 && this.constraint1.isAllowedCachedLeft(context[1], handle)
                 && this.constraint2.isAllowedCachedLeft(context[2], handle)
                 && this.constraint3.isAllowedCachedLeft(context[3], handle);
     }
 
-    public boolean isAllowedCachedRight(ContextEntry[] context,
-                                        Tuple tuple) {
-        return this.constraints.isAllowedCachedRight(context, tuple);
+    public boolean isAllowedCachedRight(final BaseTuple tuple,
+                                        final ContextEntry[] context) {
+        return this.constraints.isAllowedCachedRight(tuple, context);
     }
 
-    public BitMask getListenedPropertyMask(Class modifiedClass, List<String> settableProperties) {
-        return constraint0.getListenedPropertyMask(modifiedClass, settableProperties)
-                .setAll(constraint1.getListenedPropertyMask(modifiedClass, settableProperties))
-                .setAll(constraint2.getListenedPropertyMask(modifiedClass, settableProperties))
-                .setAll(constraint3.getListenedPropertyMask(modifiedClass, settableProperties));
+    public BitMask getListenedPropertyMask(Pattern pattern, ObjectType modifiedType, List<String> settableProperties) {
+        return constraint0.getListenedPropertyMask(Optional.of(pattern), modifiedType, settableProperties)
+                .setAll(constraint1.getListenedPropertyMask(Optional.of(pattern), modifiedType, settableProperties))
+                .setAll(constraint2.getListenedPropertyMask(Optional.of(pattern), modifiedType, settableProperties))
+                .setAll(constraint3.getListenedPropertyMask(Optional.of(pattern), modifiedType, settableProperties));
     }
 
     public boolean isLeftUpdateOptimizationAllowed() {
@@ -169,17 +172,9 @@ public class QuadroupleNonIndexSkipBetaConstraints
     }
 
     public void registerEvaluationContext(BuildContext buildContext) {
-        if (constraint0 instanceof MvelConstraint) {
-            ((MvelConstraint) constraint0).registerEvaluationContext(buildContext);
-        }
-        if (constraint1 instanceof MvelConstraint) {
-            ((MvelConstraint) constraint1).registerEvaluationContext(buildContext);
-        }
-        if (constraint2 instanceof MvelConstraint) {
-            ((MvelConstraint) constraint2).registerEvaluationContext(buildContext);
-        }
-        if (constraint3 instanceof MvelConstraint) {
-            ((MvelConstraint) constraint3).registerEvaluationContext(buildContext);
-        }
+        this.constraint0.registerEvaluationContext(buildContext);
+        this.constraint1.registerEvaluationContext(buildContext);
+        this.constraint2.registerEvaluationContext(buildContext);
+        this.constraint3.registerEvaluationContext(buildContext);
     }
 }

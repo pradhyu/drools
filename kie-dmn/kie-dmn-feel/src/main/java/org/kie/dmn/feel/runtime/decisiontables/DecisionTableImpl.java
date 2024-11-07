@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.feel.runtime.decisiontables;
 
 import java.util.ArrayList;
@@ -25,6 +27,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.kie.dmn.api.feel.runtime.events.FEELEvent;
 import org.kie.dmn.api.feel.runtime.events.FEELEvent.Severity;
@@ -167,7 +170,7 @@ public class DecisionTableImpl implements DecisionTable {
         if (((EvaluationContextImpl) ctx).isPerformRuntimeTypeCheck() && !dtOutputClause.getType().isAssignableValue(value)) {
             // invalid type
             msgs.put( index,
-                      "Invalid result type on rule #" + rule.getIndex() + ", output " +
+                      "Invalid result type on rule #" + (rule.getIndex()+1) + ", output " +
                       (dtOutputClause.getName() != null ? "'"+dtOutputClause.getName()+"'" : "#" + index) +
                             ". Value " + value + " is not of type " + dtOutputClause.getType().getName() + ".");
             return;
@@ -183,7 +186,7 @@ public class DecisionTableImpl implements DecisionTable {
             if( ! found ) {
                 // invalid result
                 msgs.put( index,
-                          "Invalid result value on rule #"+rule.getIndex()+", output "+
+                          "Invalid result value on rule #"+(rule.getIndex()+1)+", output "+
                           (dtOutputClause.getName() != null ? "'"+dtOutputClause.getName()+"'" : "#"+index ) +
                                 ". Value " + value + " does not match list of allowed values.");
             }
@@ -254,12 +257,20 @@ public class DecisionTableImpl implements DecisionTable {
             }
         }
         ctx.notifyEvt( () -> {
-            List<Integer> matches = matchingDecisionRules.stream().map( dr -> dr.getIndex() + 1 ).collect( Collectors.toList() );
+            List<Integer> matches = new ArrayList<>();
+            List<String> matchesId = new ArrayList<>();
+            matchingDecisionRules.forEach(dr -> {
+                matches.add( dr.getIndex() + 1 );
+                if (dr.getId() != null && !dr.getId().isEmpty()) {
+                    matchesId.add(dr.getId());
+                }
+            });
             return new DecisionTableRulesMatchedEvent(FEELEvent.Severity.INFO,
-                                                      "Rules matched for decision table '" + getName() + "': " + matches.toString(),
+                                                      "Rules matched for decision table '" + getName() + "': " + matches,
                                                       getName(),
                                                       getName(),
-                                                      matches );
+                                                      matches,
+                                                      matchesId);
             }
         );
         return matchingDecisionRules;
@@ -297,7 +308,8 @@ public class DecisionTableImpl implements DecisionTable {
     }
 
     private List<Object> evaluateResults(EvaluationContext ctx, FEEL feel, Object[] params, List<DTDecisionRule> matchingDecisionRules) {
-        List<Object> results = matchingDecisionRules.stream().map( dr -> hitToOutput( ctx, feel, dr ) ).collect( Collectors.toList());
+    	Stream<Object> s = matchingDecisionRules.stream().map( dr -> hitToOutput( ctx, feel, dr ) );
+        List<Object> results = hitPolicy == HitPolicy.FIRST ? s.limit(1).collect(Collectors.toList()) : s.collect(Collectors.toList()); // as hitToOutput might return nulls, use .limit(1) instead of .findFirst()
         return results;
     }
 

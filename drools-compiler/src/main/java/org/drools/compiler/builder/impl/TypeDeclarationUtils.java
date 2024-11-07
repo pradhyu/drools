@@ -1,31 +1,40 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.builder.impl;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.drools.base.base.ClassFieldInspector;
+import org.drools.base.base.CoreComponentsBuilder;
+import org.drools.base.factmodel.ClassDefinition;
+import org.drools.base.rule.TypeDeclaration;
+import org.drools.compiler.builder.impl.classbuilder.BuildUtils;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
-import org.drools.compiler.lang.descr.ImportDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.core.addon.TypeResolver;
-import org.drools.core.factmodel.BuildUtils;
-import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.util.StringUtils;
-import org.drools.core.util.asm.ClassFieldInspector;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.ImportDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.util.StringUtils;
+import org.drools.util.TypeResolver;
+import org.kie.api.definition.type.Modifies;
 
 public class TypeDeclarationUtils {
 
@@ -126,7 +135,7 @@ public class TypeDeclarationUtils {
             }
         }
 
-        if ((klass != null) && (!klass.contains(".")) && (packageDescr.getNamespace() != null && !packageDescr.getNamespace().isEmpty())) {
+        if (!klass.contains(".") && packageDescr.getNamespace() != null && !packageDescr.getNamespace().isEmpty()) {
             for (AbstractClassTypeDeclarationDescr td : packageDescr.getClassAndEnumDeclarationDescrs()) {
                 if (klass.equals(td.getTypeName())) {
                     if (td.getType().getFullName().contains(".")) {
@@ -177,7 +186,7 @@ public class TypeDeclarationUtils {
             if (!sup.getName().equals(typeDescr.getSupertTypeFullName())) {
                 return false;
             }
-            ClassFieldInspector cfi = new ClassFieldInspector(typeClass, false);
+            ClassFieldInspector cfi = CoreComponentsBuilder.get().createClassFieldInspector(typeClass, false);
             if (cfi.getGetterMethods().size() != typeDescr.getFields().size()) {
                 return false;
             }
@@ -290,8 +299,20 @@ public class TypeDeclarationUtils {
 
         return prefix + coreType;
     }
+
+    public static void processModifiedProps(Class<?> cls,
+                                      ClassDefinition clsDef) {
+        for (Method method : cls.getDeclaredMethods()) {
+            Modifies modifies = method.getAnnotation(Modifies.class);
+            if (modifies != null) {
+                String[] props = modifies.value();
+                List<String> properties = new ArrayList<>(props.length);
+                for (String prop : props) {
+                    properties.add(prop.trim());
+                }
+                clsDef.addModifiedPropsByMethod(method,
+                                                properties);
+            }
+        }
+    }
 }
-
-
-
-

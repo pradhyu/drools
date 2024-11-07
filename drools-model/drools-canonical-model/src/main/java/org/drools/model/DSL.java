@@ -1,20 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- *
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model;
 
 import java.lang.reflect.InvocationTargetException;
@@ -22,16 +23,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.drools.model.consequences.ConsequenceBuilder;
-import org.drools.model.datasources.DataStore;
-import org.drools.model.datasources.DataStream;
-import org.drools.model.datasources.impl.DataStreamImpl;
-import org.drools.model.datasources.impl.SetDataStore;
 import org.drools.model.functions.Block0;
 import org.drools.model.functions.Block1;
 import org.drools.model.functions.Function0;
 import org.drools.model.functions.Function1;
 import org.drools.model.functions.Function2;
 import org.drools.model.functions.Function3;
+import org.drools.model.functions.Function4;
 import org.drools.model.functions.Operator;
 import org.drools.model.functions.Predicate1;
 import org.drools.model.functions.Predicate10;
@@ -70,9 +68,8 @@ import org.drools.model.impl.From0Impl;
 import org.drools.model.impl.From1Impl;
 import org.drools.model.impl.From2Impl;
 import org.drools.model.impl.From3Impl;
+import org.drools.model.impl.From4Impl;
 import org.drools.model.impl.GlobalImpl;
-import org.drools.model.impl.PrototypeImpl;
-import org.drools.model.impl.PrototypeVariableImpl;
 import org.drools.model.impl.TypeMetaDataImpl;
 import org.drools.model.impl.UnitDataImpl;
 import org.drools.model.impl.ValueImpl;
@@ -89,8 +86,11 @@ import org.drools.model.view.Expr1ViewItem;
 import org.drools.model.view.Expr1ViewItemImpl;
 import org.drools.model.view.Expr2ViewItem;
 import org.drools.model.view.Expr2ViewItemImpl;
+import org.drools.model.view.Expr3ViewItem;
 import org.drools.model.view.Expr3ViewItemImpl;
+import org.drools.model.view.Expr4ViewItem;
 import org.drools.model.view.Expr4ViewItemImpl;
+import org.drools.model.view.Expr5ViewItem;
 import org.drools.model.view.Expr5ViewItemImpl;
 import org.drools.model.view.Expr6ViewItemImpl;
 import org.drools.model.view.Expr7ViewItemImpl;
@@ -98,24 +98,13 @@ import org.drools.model.view.Expr8ViewItemImpl;
 import org.drools.model.view.Expr9ViewItemImpl;
 import org.drools.model.view.ExprViewItem;
 import org.drools.model.view.FixedValueItem;
+import org.drools.model.view.GroupByExprViewItem;
 import org.drools.model.view.ViewItem;
 import org.drools.model.view.ViewItemBuilder;
 
+import static org.drools.model.functions.FunctionUtils.toFunctionN;
+
 public class DSL {
-
-    // -- DataSource --
-
-    public static <T> DataStore<T> storeOf( T... items ) {
-        return SetDataStore.storeOf( items );
-    }
-
-    public static DataStore newDataStore() {
-        return storeOf();
-    }
-
-    public static DataStream newDataStream() {
-        return new DataStreamImpl();
-    }
 
     // -- TypeMetaData --
 
@@ -127,20 +116,6 @@ public class DSL {
         return new AnnotationValueImpl( key, value );
     }
 
-    // -- Prototype --
-
-    public static Prototype prototype(String pkg, String name, Prototype.Field... fields) {
-        return new PrototypeImpl( pkg, name, fields );
-    }
-
-    public static Prototype.Field field(String name, Class<?> type) {
-        return new PrototypeImpl.FieldImpl( name, type );
-    }
-
-    public static PrototypeVariable declarationOf( Prototype prototype ) {
-        return new PrototypeVariableImpl( prototype );
-    }
-
     // -- Variable --
 
     public static <T> Variable<T> any(Class<T> type) {
@@ -148,19 +123,19 @@ public class DSL {
     }
 
     public static <T> Exchange<T> exchangeOf( Class<T> type ) {
-        return new Exchange<T>( type );
+        return new Exchange<>( type );
     }
 
     public static <T> Exchange<T> exchangeOf( Class<T> type, String name ) {
-        return new Exchange<T>( type, name );
+        return new Exchange<>( type, name );
     }
 
     public static <T> Declaration<T> declarationOf( Class<T> type ) {
-        return new DeclarationImpl<T>( type );
+        return new DeclarationImpl<>( type );
     }
 
     public static <T> Declaration<T> declarationOf( Class<T> type, String name ) {
-        return new DeclarationImpl<T>( type, name );
+        return new DeclarationImpl<>( type, name );
     }
 
     public static <T> Declaration<T> declarationOf( Class<T> type, DeclarationSource source ) {
@@ -220,11 +195,15 @@ public class DSL {
     }
 
     public static <T> Global<T> globalOf( Class<T> type, String pkg ) {
-        return new GlobalImpl<T>( type, pkg );
+        return new GlobalImpl<>( type, pkg );
     }
 
     public static <T> Global<T> globalOf( Class<T> type, String pkg, String name ) {
-        return new GlobalImpl<T>( type, pkg, name );
+        return new GlobalImpl<>( type, pkg, name );
+    }
+
+    public static <T> Global<T> globalOf( TypeReference<T> type, String pkg, String name ) {
+        return new GlobalImpl<>( type.getType(), pkg, name );
     }
 
     public static EntryPoint entryPoint( String name ) {
@@ -258,7 +237,7 @@ public class DSL {
     private static <T> Predicate1<T>[] getPredicateForWindow( Predicate1<T>[] predicates ) {
         Predicate1<T>[] ps = new Predicate1[predicates.length];
         for (int i = 0; i < predicates.length; i++) {
-            ps[i] = new Predicate1.Impl<T>( predicates[i] );
+            ps[i] = new Predicate1.Impl<>( predicates[i] );
         }
         return ps;
     }
@@ -280,7 +259,7 @@ public class DSL {
     }
 
     public static <T> From<T> from( Function0<T> provider ) {
-        return new From0Impl<T>( provider );
+        return new From0Impl<>( provider );
     }
 
     public static <T> From<T> from( Variable<T> variable, Function1<T, ?> provider ) {
@@ -293,6 +272,10 @@ public class DSL {
 
     public static <A,B,C> From<A> from( Variable<A> var1, Variable<B> var2, Variable<C> var3, Function3<A, B, C, ?> provider ) {
         return new From3Impl<>( var1, var2, var3, new Function3.Impl<>(provider) );
+    }
+
+    public static <A,B,C,D> From<A> from( Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Function4<A, B, C, D, ?> provider ) {
+        return new From4Impl<>(var1, var2, var3, var4, new Function4.Impl<>(provider) );
     }
 
     public static <T> From<T> reactiveFrom( Variable<T> variable, Function1<T, ?> provider ) {
@@ -348,23 +331,23 @@ public class DSL {
         return new Expr2ViewItemImpl<>( exprId, var1, var2, new Predicate2.Impl<>(predicate));
     }
 
-    public static <T, U, X> ExprViewItem<T> expr(String exprId, Variable<T> var1, Variable<U> var2, Variable<X> var3, Predicate3<T, U, X> predicate) {
+    public static <T, U, X> Expr3ViewItem<T, U, X> expr( String exprId, Variable<T> var1, Variable<U> var2, Variable<X> var3, Predicate3<T, U, X> predicate) {
         return new Expr3ViewItemImpl<>(exprId, var1, var2, var3, new Predicate3.Impl<>(predicate));
     }
 
-    public static <A, B, C, D> ExprViewItem<A> expr(Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Predicate4<A, B, C, D> predicate) {
+    public static <A, B, C, D> Expr4ViewItem<A, B, C, D> expr( Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Predicate4<A, B, C, D> predicate) {
         return new Expr4ViewItemImpl<>(var1, var2, var3, var4, new Predicate4.Impl<>(predicate));
     }
 
-    public static <A, B, C, D> ExprViewItem<A> expr(String exprId, Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Predicate4<A, B, C, D> predicate) {
+    public static <A, B, C, D> Expr4ViewItem<A, B, C, D> expr(String exprId, Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Predicate4<A, B, C, D> predicate) {
         return new Expr4ViewItemImpl<>(exprId, var1, var2, var3, var4, new Predicate4.Impl<>(predicate));
     }
 
-    public static <A, B, C, D, E> ExprViewItem<A> expr(Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Variable<E> var5, Predicate5<A, B, C, D, E> predicate) {
+    public static <A, B, C, D, E> Expr5ViewItem<A, B, C, D, E> expr( Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Variable<E> var5, Predicate5<A, B, C, D, E> predicate) {
         return new Expr5ViewItemImpl<>(var1, var2, var3, var4, var5, new Predicate5.Impl<>(predicate));
     }
 
-    public static <A, B, C, D, E> ExprViewItem<A> expr(String exprId, Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Variable<E> var5, Predicate5<A, B, C, D, E> predicate) {
+    public static <A, B, C, D, E> Expr5ViewItem<A, B, C, D, E> expr(String exprId, Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Variable<E> var5, Predicate5<A, B, C, D, E> predicate) {
         return new Expr5ViewItemImpl<>(exprId, var1, var2, var3, var4, var5, new Predicate5.Impl<>(predicate));
     }
 
@@ -481,10 +464,14 @@ public class DSL {
     // -- Accumulate Functions --
 
     public static <T> ExprViewItem<T> accumulate(ViewItem<?> viewItem, AccumulateFunction firstFunction, AccumulateFunction... otherFunctions) {
+        return new AccumulateExprViewItem(viewItem, accumulateFunctionsOf( firstFunction, otherFunctions ));
+    }
+
+    private static AccumulateFunction[] accumulateFunctionsOf( AccumulateFunction firstFunction, AccumulateFunction[] otherFunctions ) {
         AccumulateFunction[] functions = new AccumulateFunction[otherFunctions.length+1];
         functions[0] = firstFunction;
         System.arraycopy( otherFunctions, 0, functions, 1, otherFunctions.length );
-        return new AccumulateExprViewItem(viewItem, functions);
+        return functions;
     }
 
     // Legay case - source is defined in the generated Invoker class
@@ -512,6 +499,32 @@ public class DSL {
                 throw new RuntimeException( e );
             }
         };
+    }
+
+    // -- GroupBy --
+
+    public static <T, A, K> ExprViewItem<T> groupBy(ViewItem<T> viewItem,
+                                                    Variable<A> var1, Variable<K> varKey, Function1<A, K> groupingFunction,
+                                                    AccumulateFunction... accFunctions) {
+        return new GroupByExprViewItem<>( viewItem, new Variable[] { var1 }, varKey, toFunctionN( groupingFunction ), accFunctions );
+    }
+
+    public static <T, A, B, K> ExprViewItem<T> groupBy(ViewItem<T> viewItem,
+                                                       Variable<A> var1, Variable<B> var2, Variable<K> varKey, Function2<A, B, K> groupingFunction,
+                                                       AccumulateFunction... accFunctions) {
+        return new GroupByExprViewItem<>( viewItem, new Variable[] { var1, var2 }, varKey, toFunctionN( groupingFunction ), accFunctions );
+    }
+
+    public static <T, A, B, C, K> ExprViewItem<T> groupBy(ViewItem<T> viewItem,
+                                                          Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<K> varKey, Function3<A, B, C, K> groupingFunction,
+                                                          AccumulateFunction... accFunctions) {
+        return new GroupByExprViewItem<>( viewItem, new Variable[] { var1, var2, var3 }, varKey, toFunctionN( groupingFunction ), accFunctions );
+    }
+
+    public static <T, A, B, C, D, K> ExprViewItem<T> groupBy(ViewItem<T> viewItem,
+                                                             Variable<A> var1, Variable<B> var2, Variable<C> var3, Variable<D> var4, Variable<K> varKey, Function4<A, B, C, D, K> groupingFunction,
+                                                             AccumulateFunction... accFunctions) {
+        return new GroupByExprViewItem<>( viewItem, new Variable[] { var1, var2, var3, var4 }, varKey, toFunctionN( groupingFunction ), accFunctions );
     }
 
     // -- Temporal Constraints --
@@ -789,6 +802,14 @@ public class DSL {
         } catch (Exception e) {
             throw new RuntimeException( e );
         }
+    }
+
+    public static <R> DynamicValueSupplier<R> supply( R value ) {
+        return new DynamicValueSupplier._0( () -> value );
+    }
+
+    public static <R> DynamicValueSupplier<R> supply( Function0<R> f ) {
+        return new DynamicValueSupplier._0( f );
     }
 
     public static <A, R> DynamicValueSupplier<R> supply( Variable<A> var1, Function1<A, R> f ) {

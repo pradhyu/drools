@@ -1,6 +1,24 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.kie.dmn.core.impl;
 
-import org.drools.compiler.compiler.DroolsError;
+import org.drools.drl.parser.DroolsError;
 import org.kie.api.io.Resource;
 import org.kie.dmn.api.core.DMNMessage;
 import org.kie.internal.builder.InternalMessage;
@@ -10,16 +28,14 @@ import org.kie.internal.builder.ResultSeverity;
 public class DMNKnowledgeBuilderError extends DroolsError {
 
     private int[] lines = new int[0];
-    private String message;
     private String namespace;
     private ResultSeverity severity;
     private DMNMessage dmnMessage;
     
     public DMNKnowledgeBuilderError(ResultSeverity severity, Resource resource, String namespace, String message) {
-        super(resource);
+        super(resource, message);
         this.severity = severity;
         this.namespace = namespace;
-        this.message = message;
     }
     
     public DMNKnowledgeBuilderError(ResultSeverity severity, Resource resource, String message) {
@@ -38,11 +54,8 @@ public class DMNKnowledgeBuilderError extends DroolsError {
      * @return
      */
     public static DMNKnowledgeBuilderError from(Resource resource, String namespace, DMNMessage m) {
-        ResultSeverity rs = ResultSeverity.ERROR;
+        ResultSeverity rs;
         switch (m.getLevel()) {
-            case ERROR:
-                rs = ResultSeverity.ERROR;
-                break;
             case INFO:
                 rs = ResultSeverity.INFO;
                 break;
@@ -64,11 +77,6 @@ public class DMNKnowledgeBuilderError extends DroolsError {
     }
 
     @Override
-    public String getMessage() {
-        return this.message;
-    }
-
-    @Override
     public int[] getLines() {
         return lines;
     }
@@ -86,7 +94,7 @@ public class DMNKnowledgeBuilderError extends DroolsError {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("DMNKnowledgeBuilderError [message=");
-        sb.append(message);
+        sb.append(getMessage());
         sb.append(", namespace=");
         sb.append(namespace);
         sb.append(", dmnMessage=");

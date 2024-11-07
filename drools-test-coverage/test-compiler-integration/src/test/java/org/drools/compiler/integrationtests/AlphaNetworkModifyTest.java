@@ -1,25 +1,28 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.integrationtests;
 
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
-import org.drools.core.base.ClassObjectType;
-import org.drools.core.impl.KnowledgeBaseImpl;
+import org.drools.base.base.ClassObjectType;
+import org.drools.core.impl.InternalRuleBase;
 import org.drools.core.reteoo.LeftInputAdapterNode;
 import org.drools.core.reteoo.LeftTupleSink;
 import org.drools.core.reteoo.ObjectTypeNode;
@@ -28,32 +31,22 @@ import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.model.Pet;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.runtime.KieSession;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class AlphaNetworkModifyTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public AlphaNetworkModifyTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
-    }
-
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
     private ObjectTypeNode getObjectTypeNode(final KieBase kbase, final String nodeName) {
-        final List<ObjectTypeNode> nodes = ((KnowledgeBaseImpl)kbase).getRete().getObjectTypeNodes();
+        final List<ObjectTypeNode> nodes = ((InternalRuleBase)kbase).getRete().getObjectTypeNodes();
         for ( final ObjectTypeNode n : nodes ) {
             if ( ((ClassObjectType)n.getObjectType()).getClassType().getSimpleName().equals( nodeName ) ) {
                 return n;
@@ -62,8 +55,9 @@ public class AlphaNetworkModifyTest {
         return null;
     }
     
-    @Test
-    public void testModifyWithLiaToEval() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testModifyWithLiaToEval(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
             "package org.simple \n" +
             "import " + Person.class.getCanonicalName() + "\n" +
@@ -103,28 +97,29 @@ public class AlphaNetworkModifyTest {
             final ObjectTypeNode otnCheese = getObjectTypeNode(kbase, "Cheese" );
             final ObjectTypeNode otnPet = getObjectTypeNode(kbase, "Pet" );
 
-            assertNotNull(otnPerson);
-            assertNotNull(otnCheese);
-            assertNotNull(otnPet);
+            assertThat(otnPerson).isNotNull();
+            assertThat(otnCheese).isNotNull();
+            assertThat(otnPet).isNotNull();
 
-            assertEquals( 0, otnPerson.getOtnIdCounter() );
-            assertEquals( 0, otnCheese.getOtnIdCounter() );
-            assertEquals( 0, otnPet.getOtnIdCounter() );
+            assertThat(otnPerson.getOtnIdCounter()).isEqualTo(0);
+            assertThat(otnCheese.getOtnIdCounter()).isEqualTo(0);
+            assertThat(otnPet.getOtnIdCounter()).isEqualTo(0);
             wm.insert( new Person() );
             wm.insert( new Pet("yyy") );
             wm.insert( new Cheese() );
             wm.fireAllRules();
 
-            assertEquals( 2, otnPerson.getOtnIdCounter() );
-            assertEquals( 4, otnCheese.getOtnIdCounter() );
-            assertEquals( 2, otnPet.getOtnIdCounter() );
+            assertThat(otnPerson.getOtnIdCounter()).isEqualTo(2);
+            assertThat(otnCheese.getOtnIdCounter()).isEqualTo(4);
+            assertThat(otnPet.getOtnIdCounter()).isEqualTo(2);
         } finally {
             wm.dispose();
         }
     }    
     
-    @Test
-    public void testModifyWithLiaToFrom() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testModifyWithLiaToFrom(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // technically you can't have a modify with InitialFactImpl
         // But added test for completeness
         
@@ -161,21 +156,22 @@ public class AlphaNetworkModifyTest {
             wm.fireAllRules();
 
             final ObjectTypeNode otnInit = getObjectTypeNode(kbase, "InitialFactImpl" );
-            assertNotNull(otnInit);
+            assertThat(otnInit).isNotNull();
             final LeftInputAdapterNode liaNode = ( LeftInputAdapterNode ) otnInit.getObjectSinkPropagator().getSinks()[0];
 
             final LeftTupleSink[] sinks = liaNode.getSinkPropagator().getSinks();
 
-            assertEquals(2, sinks.length );
-            assertEquals(0, sinks[0].getLeftInputOtnId().getId() );
-            assertEquals(1, sinks[1].getLeftInputOtnId().getId() );
+            assertThat(sinks.length).isEqualTo(2);
+            assertThat(sinks[0].getLeftInputOtnId().getId()).isEqualTo(0);
+            assertThat(sinks[1].getLeftInputOtnId().getId()).isEqualTo(1);
         } finally {
             wm.dispose();
         }
     }
     
-    @Test
-    public void testModifyWithLiaToAcc() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testModifyWithLiaToAcc(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // technically you can't have a modify with InitialFactImpl
         // But added test for completeness
         
@@ -217,27 +213,27 @@ public class AlphaNetworkModifyTest {
 
 
             final ObjectTypeNode otnInit = getObjectTypeNode(kbase, "InitialFactImpl" );
-            assertNotNull(otnInit);
+            assertThat(otnInit).isNotNull();
             final LeftInputAdapterNode liaNode = ( LeftInputAdapterNode ) otnInit.getObjectSinkPropagator().getSinks()[0];
 
             final LeftTupleSink[] sinks = liaNode.getSinkPropagator().getSinks();
 
-            assertEquals(0, sinks[0].getLeftInputOtnId().getId() );
-            assertEquals(1, sinks[1].getLeftInputOtnId().getId() );
-            assertEquals(2, sinks[2].getLeftInputOtnId().getId() );
+            assertThat(sinks[0].getLeftInputOtnId().getId()).isEqualTo(0);
+            assertThat(sinks[1].getLeftInputOtnId().getId()).isEqualTo(1);
+            assertThat(sinks[2].getLeftInputOtnId().getId()).isEqualTo(2);
 
             final ObjectTypeNode otnPerson = getObjectTypeNode(kbase, "Person" );
             final ObjectTypeNode otnCheese = getObjectTypeNode(kbase, "Cheese" );
-            assertNotNull(otnPerson);
-            assertNotNull(otnCheese);
-            assertEquals( 0, otnPerson.getOtnIdCounter() );
-            assertEquals( 0, otnCheese.getOtnIdCounter() );
+            assertThat(otnPerson).isNotNull();
+            assertThat(otnCheese).isNotNull();
+            assertThat(otnPerson.getOtnIdCounter()).isEqualTo(0);
+            assertThat(otnCheese.getOtnIdCounter()).isEqualTo(0);
             wm.insert( new Person() );
             wm.insert( new Cheese() );
             wm.fireAllRules();
 
-            assertEquals( 3, otnPerson.getOtnIdCounter() );
-            assertEquals( 2, otnCheese.getOtnIdCounter() );
+            assertThat(otnPerson.getOtnIdCounter()).isEqualTo(3);
+            assertThat(otnCheese.getOtnIdCounter()).isEqualTo(2);
         } finally {
             wm.dispose();
         }

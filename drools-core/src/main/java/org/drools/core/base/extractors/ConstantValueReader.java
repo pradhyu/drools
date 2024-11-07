@@ -1,31 +1,32 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.base.extractors;
 
 import java.lang.reflect.Method;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 
-import org.drools.core.base.ValueType;
-import org.drools.core.common.InternalWorkingMemory;
-import org.drools.core.spi.InternalReadAccessor;
+import org.drools.base.base.ValueResolver;
+import org.drools.base.base.ValueType;
+import org.drools.base.rule.accessor.ReadAccessor;
 
-import static org.drools.core.base.evaluators.PointInTimeEvaluator.getTimestampFromDate;
+import static org.drools.base.util.TimeIntervalParser.getTimestampFromDate;
 
-public class ConstantValueReader implements InternalReadAccessor {
+public class ConstantValueReader implements ReadAccessor {
 
     private final Object value;
 
@@ -33,55 +34,47 @@ public class ConstantValueReader implements InternalReadAccessor {
         this.value = value;
     }
 
-    public Object getValue(InternalWorkingMemory workingMemory, Object object) {
+    public Object getValue(ValueResolver valueResolver, Object object) {
         return value;
     }
 
-    public BigDecimal getBigDecimalValue(InternalWorkingMemory workingMemory, Object object) {
-        return (BigDecimal)value;
-    }
-
-    public BigInteger getBigIntegerValue(InternalWorkingMemory workingMemory, Object object) {
-        return (BigInteger)value;
-    }
-
-    public char getCharValue(InternalWorkingMemory workingMemory, Object object) {
+    public char getCharValue(ValueResolver valueResolver, Object object) {
         return (Character)value;
     }
 
-    public int getIntValue(InternalWorkingMemory workingMemory, Object object) {
+    public int getIntValue(ValueResolver valueResolver, Object object) {
         return (Integer)value;
     }
 
-    public byte getByteValue(InternalWorkingMemory workingMemory, Object object) {
+    public byte getByteValue(ValueResolver valueResolver, Object object) {
         return (Byte)value;
     }
 
-    public short getShortValue(InternalWorkingMemory workingMemory, Object object) {
+    public short getShortValue(ValueResolver valueResolver, Object object) {
         return (Short)value;
     }
 
-    public long getLongValue(InternalWorkingMemory workingMemory, Object object) {
+    public long getLongValue(ValueResolver valueResolver, Object object) {
         return value instanceof Long ? (Long)value : getTimestampFromDate( value );
     }
 
-    public float getFloatValue(InternalWorkingMemory workingMemory, Object object) {
+    public float getFloatValue(ValueResolver valueResolver, Object object) {
         return (Float)value;
     }
 
-    public double getDoubleValue(InternalWorkingMemory workingMemory, Object object) {
+    public double getDoubleValue(ValueResolver valueResolver, Object object) {
         return (Double)value;
     }
 
-    public boolean getBooleanValue(InternalWorkingMemory workingMemory, Object object) {
+    public boolean getBooleanValue(ValueResolver valueResolver, Object object) {
         return (Boolean)value;
     }
 
-    public boolean isNullValue(InternalWorkingMemory workingMemory, Object object) {
+    public boolean isNullValue(ValueResolver valueResolver, Object object) {
         return value == null;
     }
 
-    public int getHashCode(InternalWorkingMemory workingMemory, Object object) {
+    public int getHashCode(ValueResolver valueResolver, Object object) {
         return value.hashCode();
     }
 
@@ -95,46 +88,6 @@ public class ConstantValueReader implements InternalReadAccessor {
 
     public Object getValue(Object object) {
         return value;
-    }
-
-    public BigDecimal getBigDecimalValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getBigDecimalValue -> TODO");
-    }
-
-    public BigInteger getBigIntegerValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getBigIntegerValue -> TODO");
-    }
-
-    public char getCharValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getCharValue -> TODO");
-    }
-
-    public int getIntValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getIntValue -> TODO");
-    }
-
-    public byte getByteValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getByteValue -> TODO");
-    }
-
-    public short getShortValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getShortValue -> TODO");
-    }
-
-    public long getLongValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getLongValue -> TODO");
-    }
-
-    public float getFloatValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getFloatValue -> TODO");
-    }
-
-    public double getDoubleValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getDoubleValue -> TODO");
-    }
-
-    public boolean getBooleanValue(Object object) {
-        throw new UnsupportedOperationException("org.drools.core.base.extractors.ConstantValueReader.getBooleanValue -> TODO");
     }
 
     public boolean isNullValue(Object object) {

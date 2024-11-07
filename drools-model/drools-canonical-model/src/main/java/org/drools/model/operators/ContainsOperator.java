@@ -1,19 +1,21 @@
-/*
- * Copyright 2005 JBoss Inc
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model.operators;
 
 import java.util.Collection;
@@ -25,12 +27,20 @@ public enum ContainsOperator implements Operator.SingleValue<Object, Object> {
     INSTANCE;
 
     @Override
-    public boolean eval( Object a, Object b ) {
-        if ( a instanceof Collection ) {
-            return (( Collection ) a).contains( b );
+    public boolean isCompatibleWithType(Class<?> type) {
+        return Collection.class.isAssignableFrom( type ) || type.isArray() || type == String.class;
+    }
+
+    @Override
+    public boolean eval( Object container, Object value ) {
+        if ( container instanceof Collection ) {
+            return (( Collection ) container).contains( value );
         }
-        if ( a.getClass().isArray() && evalArray( a, b ) ) {
+        if ( container != null && container.getClass().isArray() && evalArray( container, value ) ) {
             return true;
+        }
+        if ( container instanceof String && value instanceof String ) {
+            return (( String ) container).contains( ( String ) value );
         }
         return false;
     }

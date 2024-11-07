@@ -1,27 +1,30 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.util;
+
+import java.util.Random;
 
 import org.drools.core.util.TupleRBTree.Node;
 import org.junit.Test;
 
-import java.util.Random;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class LeftTupleRBTreeTest {
 
@@ -36,9 +39,9 @@ public class LeftTupleRBTreeTest {
         }
 
         int i = 0;
-        FastIterator fastIterator = tree.fastIterator();
+        Iterator<Node<Integer>> fastIterator = tree.iterator();
         int lastKey = Integer.MIN_VALUE;
-        for (Node<Integer> node = (Node<Integer>)fastIterator.next(null); node != null; node = (Node<Integer>)fastIterator.next(node)) {
+        for (Node<Integer> node = fastIterator.next(); node != null; node = fastIterator.next()) {
             int currentKey = node.key;
             if (currentKey < lastKey) {
                 fail(currentKey + " should be greater than " + lastKey);
@@ -47,6 +50,50 @@ public class LeftTupleRBTreeTest {
             i++;
         }
 
-        assertEquals(ITEMS, i);
+        assertThat(i).isEqualTo(ITEMS);
+    }
+
+    @Test
+    public void testRange() {
+        // TupleRBTree.range() is not actually used by TupleIndexRBTree but fixing it to avoid future trouble
+        TupleRBTree<Integer> tree = new TupleRBTree<Integer>();
+        tree.insert(10);
+        tree.insert(20);
+        tree.insert(25);
+        tree.insert(15);
+        tree.insert(5);
+        
+        Iterator<Node<Integer>> fastIterator = tree.range(2, true, 15, false);
+        Node<Integer> node = fastIterator.next();
+        assertThat((int) node.key).isEqualTo(5);
+        node = fastIterator.next();
+        assertThat((int) node.key).isEqualTo(10);
+        node = fastIterator.next();
+        assertThat(node).isNull();
+
+        fastIterator = tree.range(2, true, 5, false);
+        node = fastIterator.next();
+        assertThat(node).isNull();
+
+        fastIterator = tree.range(25, false, 35, true);
+        node = fastIterator.next();
+        assertThat(node).isNull();
+
+        fastIterator = tree.range(6, false, 9, false);
+        node = fastIterator.next();
+        assertThat(node).isNull();
+
+        fastIterator = tree.range(5, false, 35, false);
+        node = fastIterator.next();
+        assertThat((int) node.key).isEqualTo(10);
+        node = fastIterator.next();
+        assertThat((int) node.key).isEqualTo(15);
+        node = fastIterator.next();
+        assertThat((int) node.key).isEqualTo(20);
+        node = fastIterator.next();
+        assertThat((int) node.key).isEqualTo(25);
+        node = fastIterator.next();
+        assertThat(node).isNull();
+
     }
 }

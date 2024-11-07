@@ -1,31 +1,29 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.feel.parser.feel11;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
@@ -51,61 +49,35 @@ import org.kie.dmn.feel.lang.ast.NameRefNode;
 import org.kie.dmn.feel.lang.ast.QualifiedNameNode;
 import org.kie.dmn.feel.lang.ast.QuantifiedExpressionNode;
 import org.kie.dmn.feel.lang.ast.RangeNode;
+import org.kie.dmn.feel.lang.ast.RangeTypeNode;
 import org.kie.dmn.feel.lang.ast.StringNode;
 import org.kie.dmn.feel.lang.ast.TypeNode;
 import org.kie.dmn.feel.lang.ast.UnaryTestListNode;
 import org.kie.dmn.feel.lang.ast.UnaryTestNode;
 import org.kie.dmn.feel.lang.ast.UnaryTestNode.UnaryOperator;
+import org.kie.dmn.feel.lang.ast.visitor.ASTTemporalConstantVisitor;
 import org.kie.dmn.feel.lang.types.BuiltInType;
 import org.kie.dmn.feel.lang.types.DefaultBuiltinFEELTypeRegistry;
 import org.kie.dmn.feel.lang.types.FEELTypeRegistry;
 import org.kie.dmn.feel.parser.feel11.FEEL_1_1Parser.RelExpressionValueContext;
 import org.kie.dmn.feel.parser.feel11.FEEL_1_1Parser.TypeContext;
-import org.kie.dmn.feel.util.EvalHelper;
+import org.kie.dmn.feel.util.StringEvalHelper;
 
 public class ASTBuilderVisitor
         extends FEEL_1_1BaseVisitor<BaseNode> {
     
-    private ScopeHelper scopeHelper;
+    private ScopeHelper<Type> scopeHelper;
     private FEELTypeRegistry typeRegistry;
-
-    private static class ScopeHelper {
-        Deque<Map<String, Type>> stack;
-        
-        public ScopeHelper() {
-            this.stack = new ArrayDeque<>();
-            this.stack.push(new HashMap<>());
-        }
-        
-        public void addTypes(Map<String, Type> inputTypes) {
-            stack.peek().putAll(inputTypes);
-        }
-        
-        public void addType(String name, Type type) {
-            stack.peek().put(name, type);
-        }
-        
-        public void pushScope() {
-            stack.push(new HashMap<>());
-        }
-        
-        public void popScope() {
-            stack.pop();
-        }
-        
-        public Optional<Type> resolveType(String name) {
-            return stack.stream()
-                .map( scope -> Optional.ofNullable( scope.get( name )) )
-                .flatMap( o -> o.isPresent() ? Stream.of( o.get() ) : Stream.empty() )
-                .findFirst()
-                ;
-        }
-    }
+    private boolean visitedTemporalCandidate = false;
 
     public ASTBuilderVisitor(Map<String, Type> inputTypes, FEELTypeRegistry typeRegistry) {
-        this.scopeHelper = new ScopeHelper();
-        this.scopeHelper.addTypes(inputTypes);
+        this.scopeHelper = new ScopeHelper<>();
+        this.scopeHelper.addInScope(inputTypes);
         this.typeRegistry = typeRegistry != null ? typeRegistry : DefaultBuiltinFEELTypeRegistry.INSTANCE;
+    }
+
+    public boolean isVisitedTemporalCandidate() {
+        return visitedTemporalCandidate;
     }
 
     @Override
@@ -139,6 +111,11 @@ public class ASTBuilderVisitor
     @Override
     public BaseNode visitNullLiteral(FEEL_1_1Parser.NullLiteralContext ctx) {
         return ASTBuilderFactory.newNullNode( ctx );
+    }
+
+    @Override
+    public BaseNode visitUndefined(FEEL_1_1Parser.UndefinedContext ctx) {
+        return ASTBuilderFactory.newUndefinedValueNode();
     }
 
     @Override
@@ -216,13 +193,13 @@ public class ASTBuilderVisitor
         String op = ctx.op.getText();
         switch (UnaryOperator.determineOperator(op)) {
             case GT:
-                return ASTBuilderFactory.newIntervalNode(ctx, RangeNode.IntervalBoundary.OPEN, value, ASTBuilderFactory.newNullNode(ctx), RangeNode.IntervalBoundary.OPEN);
+                return ASTBuilderFactory.newIntervalNode(ctx, RangeNode.IntervalBoundary.OPEN, value, ASTBuilderFactory.newUndefinedValueNode(), RangeNode.IntervalBoundary.OPEN);
             case GTE:
-                return ASTBuilderFactory.newIntervalNode(ctx, RangeNode.IntervalBoundary.CLOSED, value, ASTBuilderFactory.newNullNode(ctx), RangeNode.IntervalBoundary.OPEN);
+                return ASTBuilderFactory.newIntervalNode(ctx, RangeNode.IntervalBoundary.CLOSED, value, ASTBuilderFactory.newUndefinedValueNode(), RangeNode.IntervalBoundary.OPEN);
             case LT:
-                return ASTBuilderFactory.newIntervalNode(ctx, RangeNode.IntervalBoundary.OPEN, ASTBuilderFactory.newNullNode(ctx), value, RangeNode.IntervalBoundary.OPEN);
+                return ASTBuilderFactory.newIntervalNode(ctx, RangeNode.IntervalBoundary.OPEN, ASTBuilderFactory.newUndefinedValueNode(), value, RangeNode.IntervalBoundary.OPEN);
             case LTE:
-                return ASTBuilderFactory.newIntervalNode(ctx, RangeNode.IntervalBoundary.OPEN, ASTBuilderFactory.newNullNode(ctx), value, RangeNode.IntervalBoundary.CLOSED);
+                return ASTBuilderFactory.newIntervalNode(ctx, RangeNode.IntervalBoundary.OPEN, ASTBuilderFactory.newUndefinedValueNode(), value, RangeNode.IntervalBoundary.CLOSED);
             default:
                 throw new UnsupportedOperationException("by the parser rule FEEL grammar rule 7.a for range syntax should not have determined the operator " + op);
         }
@@ -350,7 +327,7 @@ public class ASTBuilderVisitor
             ContextEntryNode visited = (ContextEntryNode) visit( c ); // forced cast similarly to visitFunctionDefinition() method
             if (visited != null) {
                 nodes.add( visited );
-                scopeHelper.addType( visited.getName().getText() , visited.getResultType() );
+                scopeHelper.addInScope(visited.getName().getText(), visited.getResultType());
             }
         }
         scopeHelper.popScope();
@@ -425,7 +402,7 @@ public class ASTBuilderVisitor
         for ( FEEL_1_1Parser.NameRefContext t : ctx.nameRef() ) {
             String originalText = ParserHelper.getOriginalText(t);
             if ( typeCursor == null ) {
-                typeCursor = scopeHelper.resolveType( originalText ).orElse( BuiltInType.UNKNOWN );
+                typeCursor = scopeHelper.resolve(originalText).orElse(BuiltInType.UNKNOWN);
             } else if ( typeCursor instanceof CompositeType ) {
                 typeCursor = ((CompositeType) typeCursor).getFields().get(originalText);
             } else {
@@ -506,14 +483,18 @@ public class ASTBuilderVisitor
     }
 
     @Override
-    public BaseNode visitPrimaryName(FEEL_1_1Parser.PrimaryNameContext ctx) {
-        BaseNode name = visit( ctx.qualifiedName() );
-        if( ctx.parameters() != null ) {
-            ListNode params = (ListNode) visit( ctx.parameters() );
-            return buildFunctionCall( ctx, name, params );
-        } else {
-            return name;
+    public BaseNode visitFnInvocation(FEEL_1_1Parser.FnInvocationContext ctx) {
+        BaseNode name = visit(ctx.unaryExpression());
+        ListNode params = (ListNode) visit(ctx.parameters());
+        if (ASTTemporalConstantVisitor.TEMPORAL_FNS_NAMES.contains(name.getText())) {
+            visitedTemporalCandidate = true;
         }
+        return buildFunctionCall(ctx, name, params);
+    }
+
+    @Override
+    public BaseNode visitPrimaryName(FEEL_1_1Parser.PrimaryNameContext ctx) {
+        return visit(ctx.qualifiedName());
     }
 
     private String getFunctionName(BaseNode name) {
@@ -596,7 +577,7 @@ public class ASTBuilderVisitor
     public TypeNode visitQnType(FEEL_1_1Parser.QnTypeContext ctx) {
         List<String> qns = new ArrayList<>();
         if (ctx.qualifiedName() != null) {
-            ctx.qualifiedName().nameRef().forEach(nr -> qns.add(EvalHelper.normalizeVariableName(ParserHelper.getOriginalText(nr))));
+            ctx.qualifiedName().nameRef().forEach(nr -> qns.add(StringEvalHelper.normalizeVariableName(ParserHelper.getOriginalText(nr))));
         } else if (ctx.FUNCTION() != null) {
             qns.add("function");
         } else {
@@ -609,6 +590,12 @@ public class ASTBuilderVisitor
     public BaseNode visitListType(FEEL_1_1Parser.ListTypeContext ctx) {
         TypeNode type = (TypeNode) visit(ctx.type());
         return new ListTypeNode(ctx, type);
+    }
+
+    @Override
+    public BaseNode visitRangeType(FEEL_1_1Parser.RangeTypeContext ctx) {
+        TypeNode type = (TypeNode) visit(ctx.type());
+        return new RangeTypeNode(ctx, type);
     }
 
     @Override

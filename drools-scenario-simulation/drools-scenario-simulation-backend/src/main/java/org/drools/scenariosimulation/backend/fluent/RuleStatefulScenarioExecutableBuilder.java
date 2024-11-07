@@ -1,19 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.scenariosimulation.backend.fluent;
 
 import java.util.ArrayList;
@@ -26,8 +28,8 @@ import java.util.function.Function;
 
 import org.drools.scenariosimulation.api.model.FactIdentifier;
 import org.drools.scenariosimulation.backend.runner.ScenarioException;
-import org.drools.scenariosimulation.backend.runner.model.ResultWrapper;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioResult;
+import org.drools.scenariosimulation.backend.runner.model.ValueWrapper;
 import org.kie.api.runtime.ExecutableRunner;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
@@ -45,14 +47,14 @@ public class RuleStatefulScenarioExecutableBuilder implements RuleScenarioExecut
     private final Map<FactIdentifier, List<FactCheckerHandle>> internalConditions = new HashMap<>();
     private String agendaGroupName = null;
 
-    private final static String DEFAULT_APPLICATION = "defaultApplication";
+    private static final String DEFAULT_APPLICATION = "defaultApplication";
 
     protected static final BiFunction<String, KieContainer, KieSessionConfiguration> forcePseudoClock = (sn, kc) -> {
         KieSessionConfiguration kieSessionConfiguration = kc.getKieSessionConfiguration(sn);
         if (kieSessionConfiguration == null) {
             throw new ScenarioException("Impossible to find a KieSession with name " + sn);
         }
-        kieSessionConfiguration.setOption(ClockTypeOption.get("pseudo"));
+        kieSessionConfiguration.setOption(ClockTypeOption.PSEUDO);
         return kieSessionConfiguration;
     };
 
@@ -71,7 +73,7 @@ public class RuleStatefulScenarioExecutableBuilder implements RuleScenarioExecut
 
     @Override
     public void addInternalCondition(Class<?> clazz,
-                                     Function<Object, ResultWrapper> checkFunction,
+                                     Function<Object, ValueWrapper> checkFunction,
                                      ScenarioResult scenarioResult) {
         internalConditions.computeIfAbsent(scenarioResult.getFactIdentifier(), key -> new ArrayList<>())
                 .add(new FactCheckerHandle(clazz, checkFunction, scenarioResult));

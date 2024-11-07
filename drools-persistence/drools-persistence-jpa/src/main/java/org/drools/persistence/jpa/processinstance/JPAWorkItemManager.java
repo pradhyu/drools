@@ -1,26 +1,29 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.persistence.jpa.processinstance;
 
 import org.drools.core.WorkItemHandlerNotFoundException;
 import org.drools.core.common.InternalKnowledgeRuntime;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.process.instance.WorkItem;
-import org.drools.core.process.instance.WorkItemManager;
-import org.drools.core.process.instance.impl.WorkItemImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.core.process.WorkItem;
+import org.drools.core.process.WorkItemManager;
+import org.drools.core.process.impl.WorkItemImpl;
 import org.drools.persistence.api.PersistenceContext;
 import org.drools.persistence.api.PersistenceContextManager;
 import org.drools.persistence.info.WorkItemInfo;
@@ -38,7 +41,7 @@ import java.util.Set;
 public class JPAWorkItemManager implements WorkItemManager {
 
     private InternalKnowledgeRuntime kruntime;
-    private Map<String, WorkItemHandler> workItemHandlers = new HashMap<String, WorkItemHandler>();
+    private Map<String, WorkItemHandler> workItemHandlers = new HashMap<>();
     private transient Map<Long, WorkItemInfo> workItems;
     private transient volatile boolean pessimisticLocking;
 
@@ -60,11 +63,11 @@ public class JPAWorkItemManager implements WorkItemManager {
         ((WorkItemImpl) workItem).setId( workItemInfo.getId() );
 
         if ( this.workItems == null ) {
-            this.workItems = new HashMap<Long, WorkItemInfo>();
+            this.workItems = new HashMap<>();
         }
         workItems.put( workItem.getId(), workItemInfo );
 
-        WorkItemHandler handler = (WorkItemHandler) this.workItemHandlers.get( workItem.getName() );
+        WorkItemHandler handler = this.workItemHandlers.get(workItem.getName());
         if ( handler != null ) {
             handler.executeWorkItem( workItem, this );
         } else {
@@ -100,7 +103,7 @@ public class JPAWorkItemManager implements WorkItemManager {
 
     private void retryWorkItem( WorkItem workItem ) {
         if ( workItem != null ) {
-            WorkItemHandler handler = (WorkItemHandler) this.workItemHandlers.get( workItem.getName() );
+            WorkItemHandler handler = this.workItemHandlers.get(workItem.getName());
             if ( handler != null ) {
                 handler.executeWorkItem( workItem, this );
             } else {
@@ -116,7 +119,7 @@ public class JPAWorkItemManager implements WorkItemManager {
         // work item may have been aborted
         if ( workItemInfo != null ) {
             WorkItemImpl workItem = (WorkItemImpl) internalGetWorkItem( workItemInfo );
-            WorkItemHandler handler = (WorkItemHandler) this.workItemHandlers.get( workItem.getName() );
+            WorkItemHandler handler = this.workItemHandlers.get(workItem.getName());
             if ( handler != null ) {
                 handler.abortWorkItem( workItem, this );
             } else {
@@ -128,7 +131,11 @@ public class JPAWorkItemManager implements WorkItemManager {
             if ( workItems != null ) {
                 workItems.remove( id );
             }
-            context.remove( workItemInfo );
+            // work item may have been aborted while calling handler.abortWorkItem above
+            workItemInfo = (WorkItemInfo) context.findWorkItem( id );
+            if ( workItemInfo != null ) {
+                context.remove( workItemInfo );
+            }
         }
     }
 
@@ -190,7 +197,7 @@ public class JPAWorkItemManager implements WorkItemManager {
 
         // work item may have been aborted
         if ( workItemInfo != null ) {
-            WorkItem workItem = (WorkItemImpl) internalGetWorkItem( workItemInfo );
+            WorkItem workItem = internalGetWorkItem(workItemInfo);
             ProcessInstance processInstance = kruntime.getProcessInstance( workItem.getProcessInstanceId() );
             workItem.setState( WorkItem.ABORTED );
             // process instance may have finished already
@@ -228,12 +235,12 @@ public class JPAWorkItemManager implements WorkItemManager {
 
     private WorkItem internalGetWorkItem( WorkItemInfo workItemInfo ) {
         Environment env = kruntime.getEnvironment();
-        WorkItem workItem = workItemInfo.getWorkItem( env, (InternalKnowledgeBase) kruntime.getKieBase() );
+        WorkItem workItem = workItemInfo.getWorkItem( env, (InternalKnowledgeBase) kruntime.getKieBase());
         return workItem;
     }
 
     public Set<WorkItem> getWorkItems() {
-        return new HashSet<WorkItem>();
+        return new HashSet<>();
     }
 
     public void registerWorkItemHandler( String workItemName, WorkItemHandler handler ) {
@@ -254,7 +261,7 @@ public class JPAWorkItemManager implements WorkItemManager {
         this.kruntime.signalEvent( type, event );
     }
 
-    public void signalEvent( String type, Object event, long processInstanceId ) {
+    public void signalEvent( String type, Object event, String processInstanceId ) {
         this.kruntime.signalEvent( type, event, processInstanceId );
     }
 

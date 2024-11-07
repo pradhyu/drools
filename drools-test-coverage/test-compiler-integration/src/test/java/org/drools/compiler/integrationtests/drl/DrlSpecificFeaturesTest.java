@@ -1,60 +1,55 @@
-/*
- * Copyright 2005 JBoss Inc
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.drl;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
 import org.drools.testcoverage.common.model.Address;
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.Message;
 import org.kie.api.runtime.KieSession;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@RunWith(Parameterized.class)
 public class DrlSpecificFeaturesTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public DrlSpecificFeaturesTest( final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
-    }
-
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(false);
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        // This class is meant to test features only supported by non-exec-model.
+        return TestParametersUtil2.getKieBaseCloudConfigurations(false).stream();
     }
 
     // following test depends on MVEL: http://jira.codehaus.org/browse/MVEL-212
-    @Test
-    public void testMVELConsequenceUsingFactConstructors() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMVELConsequenceUsingFactConstructors(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
                 "package org.drools.compiler.integrationtests.drl;\n" +
                         "import " + Person.class.getCanonicalName() + ";\n" +
@@ -71,11 +66,12 @@ public class DrlSpecificFeaturesTest {
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration,
                 false,
                 drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
-    @Test
-    public void testTypeUnsafe() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testTypeUnsafe(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         final String drl = "import " + DrlSpecificFeaturesTest.class.getName() + ".*\n" +
                 "declare\n" +
                 "   Parent @typesafe(false)\n" +
@@ -94,14 +90,15 @@ public class DrlSpecificFeaturesTest {
                 ksession.insert(new ChildB(i % 10));
             }
 
-            assertEquals(4, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(4);
 
             // give time to async jitting to complete
+            // actually, the constraint is not jitted because MVELConstraint.isDynamic == true
             Thread.sleep(100);
 
             ksession.insert(new ChildA(1));
             ksession.insert(new ChildB(1));
-            assertEquals(2, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
@@ -134,8 +131,9 @@ public class DrlSpecificFeaturesTest {
         }
     }
 
-    @Test
-    public void testNoneTypeSafeDeclarations() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNoneTypeSafeDeclarations(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // same namespace
         String str = "package " + Person.class.getPackage().getName() + ";\n" +
                 "global java.util.List list\n" +
@@ -148,7 +146,7 @@ public class DrlSpecificFeaturesTest {
                 "   list.add( $p );\n" +
                 "end\n";
 
-        executeTypeSafeDeclarations( str,
+        executeTypeSafeDeclarations( kieBaseTestConfiguration, str,
                 true );
 
         // different namespace with import
@@ -163,7 +161,7 @@ public class DrlSpecificFeaturesTest {
                 "then\n" +
                 "   list.add( $p );\n" +
                 "end\n";
-        executeTypeSafeDeclarations( str,
+        executeTypeSafeDeclarations( kieBaseTestConfiguration, str,
                 true );
 
         // different namespace without import using qualified name
@@ -177,7 +175,7 @@ public class DrlSpecificFeaturesTest {
                 "then\n" +
                 "   list.add( $p );\n" +
                 "end\n";
-        executeTypeSafeDeclarations( str,
+        executeTypeSafeDeclarations( kieBaseTestConfiguration, str,
                 true );
 
         // this should fail as it's not declared non typesafe
@@ -191,43 +189,38 @@ public class DrlSpecificFeaturesTest {
                 "then\n" +
                 "   list.add( $p );\n" +
                 "end\n";
-        executeTypeSafeDeclarations( str,
+        executeTypeSafeDeclarations( kieBaseTestConfiguration, str,
                 false );
     }
 
-    private void executeTypeSafeDeclarations(final String drl, final boolean mustSucceed) {
-        final KieBase kbase;
-        try {
-            kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("declare-test", kieBaseTestConfiguration, drl);
-            if (!mustSucceed) {
-                fail("Compilation Should fail");
-            }
-        } catch (final Throwable e) {
-            if (mustSucceed) {
-                fail("Compilation Should succeed");
-            }
-            return;
-        }
+    private void executeTypeSafeDeclarations(KieBaseTestConfiguration kieBaseTestConfiguration, final String drl, final boolean mustSucceed) {
+        if (!mustSucceed) {
+            assertThatThrownBy(()-> KieBaseUtil.getKieBaseFromKieModuleFromDrl("declare-test", kieBaseTestConfiguration, drl)).isInstanceOf(Throwable.class);
+        } else {
+            assertThatCode(() -> {
+                final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("declare-test", kieBaseTestConfiguration, drl);
+                final KieSession ksession = kbase.newKieSession();
+                try {
+                    final List list = new ArrayList();
+                    ksession.setGlobal("list", list);
 
-        final KieSession ksession = kbase.newKieSession();
-        try {
-            final List list = new ArrayList();
-            ksession.setGlobal("list", list);
+                    final Address a = new Address("s1", 10, "city");
+                    final Person p = new Person("yoda");
+                    p.setObject(a);
 
-            final Address a = new Address("s1", 10, "city");
-            final Person p = new Person("yoda");
-            p.setObject(a);
-
-            ksession.insert(p);
-            ksession.fireAllRules();
-            assertEquals(p, list.get(0));
-        } finally {
-            ksession.dispose();
+                    ksession.insert(p);
+                    ksession.fireAllRules();
+                    assertThat(list.get(0)).isEqualTo(p);
+                } finally {
+                    ksession.dispose();
+                }
+            }).doesNotThrowAnyException();
         }
     }
 
-    @Test
-    public void testRHSClone() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testRHSClone(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3539
         final String drl = "import java.util.Map;\n" +
                 "dialect \"mvel\"\n" +
@@ -239,7 +232,7 @@ public class DrlSpecificFeaturesTest {
                 "end\n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
     }
 }

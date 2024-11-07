@@ -1,46 +1,35 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.verifier.core.index.model;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import static org.junit.Assert.assertEquals;
-
-@RunWith(Parameterized.class)
 public class ActivationTimeTest {
 
-    private final ActivationTime start;
-    private final ActivationTime end;
-    private final boolean expected;
 
-    public ActivationTimeTest(final ActivationTime start,
-                              final ActivationTime end,
-                              final boolean expected) {
-        this.start = start;
-        this.end = end;
-        this.expected = expected;
-    }
-
-    @Parameterized.Parameters
     public static Collection<Object[]> testData() {
         return Arrays.asList(new Object[][]{
                 {new ActivationTime(new Date(0), new Date(10)), new ActivationTime(new Date(0), new Date(10)), true},
@@ -68,8 +57,9 @@ public class ActivationTimeTest {
         });
     }
 
-    @Test
-    public void testOverlaps() {
-        assertEquals(expected, start.overlaps(end));
+    @MethodSource("testData")
+    @ParameterizedTest
+    void testOverlaps(final ActivationTime start, final ActivationTime end, final boolean expected) {
+        assertThat(start.overlaps(end)).isEqualTo(expected);
     }
 }

@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.alwaysTrue;
 
 import org.drools.core.base.RuleNameMatchesAgendaFilter;
@@ -29,38 +31,39 @@ import org.drools.verifier.report.components.AlwaysTrue;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.VerifierMessage;
 import org.drools.verifier.report.components.VerifierMessageBase;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.kie.api.runtime.KieSession;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class AlwaysTrueRuleTest extends TestBaseOld {
 
     @Test
-    public void testPatternPossibilities() throws Exception {
+    void testPatternPossibilities() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Rules.drl"));
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<Object> data = new ArrayList<Object>();
 
         session.setGlobal("result",
-                          result);
+                result);
 
         // This rule is always true.
         VerifierRule rule1 = VerifierComponentMockFactory.createRule1();
         Pattern pattern1 = VerifierComponentMockFactory.createPattern1();
 
         SubRule rp1 = new SubRule(rule1,
-                                  0);
+                0);
         SubPattern pp1 = new SubPattern(pattern1,
-                                        0);
+                0);
         AlwaysTrue alwaysTrue1 = new AlwaysTrue(pp1);
         SubPattern pp2 = new SubPattern(pattern1,
-                                        1);
+                1);
         AlwaysTrue alwaysTrue2 = new AlwaysTrue(pp2);
 
         rp1.add(pp1);
@@ -71,11 +74,11 @@ public class AlwaysTrueRuleTest extends TestBaseOld {
         Pattern pattern2 = VerifierComponentMockFactory.createPattern2();
 
         SubRule rp2 = new SubRule(rule2,
-                                  0);
+                0);
         SubPattern pp3 = new SubPattern(pattern2,
-                                        0);
+                0);
         SubPattern pp4 = new SubPattern(pattern2,
-                                        1);
+                1);
         AlwaysTrue alwaysTrue4 = new AlwaysTrue(pp4);
 
         rp2.add(pp3);
@@ -121,41 +124,41 @@ public class AlwaysTrueRuleTest extends TestBaseOld {
             }
         }
 
-        assertTrue(rp1true);
-        assertTrue(rp2true);
-        assertFalse(rp3true);
-        assertTrue(rp4true);
+        assertThat(rp1true).isTrue();
+        assertThat(rp2true).isTrue();
+        assertThat(rp3true).isFalse();
+        assertThat(rp4true).isTrue();
     }
 
     @Test
-    public void testPatterns() throws Exception {
+    void testPatterns() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Rules.drl"));
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         Collection<Object> data = new ArrayList<Object>();
 
         session.setGlobal("result",
-                          result);
+                result);
 
         // This rule is always true.
         VerifierRule rule1 = VerifierComponentMockFactory.createRule1();
 
         SubRule rp1 = new SubRule(rule1,
-                                  0);
+                0);
         AlwaysTrue alwaysTrue1 = new AlwaysTrue(rp1);
 
         SubRule rp2 = new SubRule(rule1,
-                                  1);
+                1);
         AlwaysTrue alwaysTrue2 = new AlwaysTrue(rp2);
 
         // This rule is okay.
         VerifierRule rule2 = VerifierComponentMockFactory.createRule2();
 
         SubRule rp3 = new SubRule(rule2,
-                                  0);
+                0);
 
         SubRule rp4 = new SubRule(rule2,
-                                  1);
+                1);
         AlwaysTrue alwaysTrue4 = new AlwaysTrue(rp4);
 
         data.add(rule1);
@@ -178,7 +181,7 @@ public class AlwaysTrueRuleTest extends TestBaseOld {
 
         boolean works = false;
         while (iter.hasNext()) {
-            Object o = (Object) iter.next();
+            Object o = iter.next();
             if (o instanceof VerifierMessage) {
                 VerifierMessage message = (VerifierMessage) o;
                 if (message.getFaulty().equals(rule1)) {
@@ -189,12 +192,9 @@ public class AlwaysTrueRuleTest extends TestBaseOld {
             }
         }
 
-        assertEquals(0,
-                     result.getBySeverity(Severity.ERROR).size());
-        assertEquals(1,
-                     result.getBySeverity(Severity.WARNING).size());
-        assertEquals(0,
-                     result.getBySeverity(Severity.NOTE).size());
-        assertTrue(works);
+        assertThat(result.getBySeverity(Severity.ERROR).size()).isEqualTo(0);
+        assertThat(result.getBySeverity(Severity.WARNING).size()).isEqualTo(1);
+        assertThat(result.getBySeverity(Severity.NOTE).size()).isEqualTo(0);
+        assertThat(works).isTrue();
     }
 }

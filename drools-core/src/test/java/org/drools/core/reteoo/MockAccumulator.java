@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
 import java.io.IOException;
@@ -24,11 +26,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.drools.core.WorkingMemory;
-import org.drools.core.common.InternalFactHandle;
-import org.drools.core.rule.Declaration;
-import org.drools.core.spi.Accumulator;
-import org.drools.core.spi.Tuple;
+import org.drools.base.base.ValueResolver;
+import org.drools.base.reteoo.BaseTuple;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.accessor.Accumulator;
+import org.kie.api.runtime.rule.FactHandle;
 
 /**
  * A Mock accumulate object.
@@ -39,22 +41,22 @@ public class MockAccumulator
 
     private static final long serialVersionUID = 510l;
 
-    private Tuple             leftTuple        = null;
+    private BaseTuple leftTuple        = null;
     private List              matchingObjects  = Collections.EMPTY_LIST;
-    private WorkingMemory     workingMemory    = null;
+    private ValueResolver     valueResolver    = null;
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         leftTuple   = (Tuple)in.readObject();
         matchingObjects = (List)in.readObject();
-        workingMemory = (WorkingMemory)in.readObject();
+        valueResolver = (ValueResolver)in.readObject();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeObject(leftTuple);
         out.writeObject(matchingObjects);
-        out.writeObject(workingMemory);
+        out.writeObject(valueResolver);
     }
-    public Tuple getLeftTuple() {
+    public BaseTuple getLeftTuple() {
         return this.leftTuple;
     }
 
@@ -62,50 +64,53 @@ public class MockAccumulator
         return this.matchingObjects;
     }
 
-    public WorkingMemory getWorkingMemory() {
-        return this.workingMemory;
+    public ValueResolver getReteEvaluator() {
+        return this.valueResolver;
     }
 
-    public Serializable createContext() {
+    public Object createContext() {
         return this;
     }
 
-    public void init(Object workingMemoryContext,
-                     Object context,
-                     Tuple leftTuple,
-                     Declaration[] declarations,
-                     WorkingMemory workingMemory) throws Exception {
+    public Object init(Object workingMemoryContext,
+                       Object context,
+                       BaseTuple leftTuple,
+                       Declaration[] declarations,
+                       ValueResolver valueResolver) {
         this.leftTuple = leftTuple;
         this.matchingObjects = new ArrayList();
-        this.workingMemory = workingMemory;
+        this.valueResolver = valueResolver;
+        return context;
     }
 
-    public void accumulate(Object workingMemoryContext,
+    public Object accumulate(Object workingMemoryContext,
                            Object context,
-                           Tuple leftTuple,
-                           InternalFactHandle handle,
+                           BaseTuple leftTuple,
+                           FactHandle handle,
                            Declaration[] declarations,
                            Declaration[] innerDeclarations,
-                           WorkingMemory workingMemory) throws Exception {
+                           ValueResolver valueResolver) {
         this.matchingObjects.add( handle.getObject() );
+        return handle.getObject();
     }
 
     public Object getResult(Object workingMemoryContext,
                             Object context,
-                            Tuple leftTuple,
+                            BaseTuple leftTuple,
                             Declaration[] declarations,
-                            WorkingMemory workingMemory) throws Exception {
+                            ValueResolver valueResolver) {
         return this.matchingObjects;
     }
 
-    public void reverse(Object workingMemoryContext,
-                        Object context,
-                        Tuple leftTuple,
-                        InternalFactHandle handle,
-                        Declaration[] declarations,
-                        Declaration[] innerDeclarations,
-                        WorkingMemory workingMemory) throws Exception {
-        // nothing to do yet
+    public boolean tryReverse(Object workingMemoryContext,
+                              Object context,
+                              BaseTuple leftTuple,
+                              FactHandle handle,
+                              Object value,
+                              Declaration[] declarations,
+                              Declaration[] innerDeclarations,
+                              ValueResolver valueResolver) {
+        return false;
     }
 
     public boolean supportsReverse() {

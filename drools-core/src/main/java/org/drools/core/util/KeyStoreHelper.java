@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.util;
 
 import java.io.IOException;
@@ -32,6 +35,8 @@ import java.security.cert.CertificateException;
 import javax.crypto.SecretKey;
 
 import org.drools.core.RuleBaseConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.drools.core.util.KeyStoreConstants.KEY_CERTIFICATE_TYPE;
 import static org.drools.core.util.KeyStoreConstants.KEY_PASSWORD_TYPE;
@@ -60,7 +65,13 @@ import static org.drools.core.util.KeyStoreConstants.PROP_PWD_KS_URL;
  */
 public class KeyStoreHelper {
 
+    private final Logger logger = LoggerFactory.getLogger(KeyStoreHelper.class);
+
+    private static final String SHA512WITH_RSA = "SHA512withRSA";
+    private static final String MD5WITH_RSA = "MD5withRSA";
+
     private boolean signed;
+    private boolean allowVerifyOldSignAlgo;
 
     private URL pvtKeyStoreURL;
     private char[] pvtKeyStorePwd;
@@ -81,10 +92,11 @@ public class KeyStoreHelper {
      * Creates a KeyStoreHelper and initialises the KeyStore, by loading its entries.
      * @throws RuntimeException in case any error happens when initialising and loading the keystore.
      */
-    public KeyStoreHelper() {
+    KeyStoreHelper() {
         try {
             this.signed = Boolean.valueOf(System.getProperty(KeyStoreConstants.PROP_SIGN,
                                                              RuleBaseConfiguration.DEFAULT_SIGN_ON_SERIALIZATION)).booleanValue();
+            this.allowVerifyOldSignAlgo = Boolean.parseBoolean(System.getProperty(KeyStoreConstants.PROP_VERIFY_OLD_SIGN, "false"));
 
             loadPrivateKeyStoreProperties();
             loadPublicKeyStoreProperties();
@@ -94,6 +106,19 @@ public class KeyStoreHelper {
         } catch (Exception e) {
             throw new RuntimeException("Error initialising KeyStore: " + e.getMessage(), e);
         }
+    }
+
+    private static class KeyStoreHelperHolder {
+        private static KeyStoreHelper INSTANCE = new KeyStoreHelper();
+    }
+
+    public static KeyStoreHelper get() {
+        return KeyStoreHelperHolder.INSTANCE;
+    }
+
+    // only for testing purposes
+    public static void reInit() {
+        KeyStoreHelperHolder.INSTANCE = new KeyStoreHelper();
     }
 
     private void loadPrivateKeyStoreProperties() throws MalformedURLException {
@@ -165,9 +190,22 @@ public class KeyStoreHelper {
         }
         PrivateKey pvtkey = (PrivateKey) pvtKeyStore.getKey( pvtKeyAlias,
                                                              pvtKeyPassword );
-        Signature sig = Signature.getInstance( "MD5withRSA" );
+        Signature sig = Signature.getInstance( SHA512WITH_RSA );
         sig.initSign( pvtkey );
         sig.update( data );
+        return sig.sign();
+    }
+
+    // test purpose
+    byte[] signDataWithPrivateKeyWithAlgorithm(byte[] data, String algorithm) throws UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        if (pvtKeyStore == null) {
+            throw new RuntimeException("Key store with private key not configured. Please configure it properly before using signed serialization.");
+        }
+        PrivateKey pvtkey = (PrivateKey) pvtKeyStore.getKey(pvtKeyAlias,
+                                                            pvtKeyPassword);
+        Signature sig = Signature.getInstance(algorithm);
+        sig.initSign(pvtkey);
+        sig.update(data);
         return sig.sign();
     }
 
@@ -199,10 +237,30 @@ public class KeyStoreHelper {
         if( cert == null ) {
             throw new RuntimeException( "Public certificate for key '"+publicKeyAlias+"' not found in the configured key store. Impossible to deserialize the object." );
         }
-        Signature sig = Signature.getInstance( "MD5withRSA" );
+        Signature sig = Signature.getInstance( SHA512WITH_RSA );
         sig.initVerify( cert.getPublicKey() );
         sig.update( data );
-        return sig.verify( signature );
+        boolean result = false;
+        try {
+            result = sig.verify(signature); // IBM JDK 1.8 returns false without SignatureException
+        } catch (SignatureException e) {
+            logger.warn("Exception while verifying signature", e);
+        }
+        return result || verifyWithFallbackAlgorithmIfAllowed(cert, data, signature);
+    }
+
+    private boolean verifyWithFallbackAlgorithmIfAllowed(Certificate cert, byte[] data, byte[] signature) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        if (allowVerifyOldSignAlgo) {
+            // Fallback for old sign algorithm
+            Signature sig = Signature.getInstance(MD5WITH_RSA);
+            sig.initVerify(cert.getPublicKey());
+            sig.update(data);
+            return sig.verify(signature);
+        } else {
+            logger.warn("Failed to verify signature. If you call this method for data signed by old Drools version," +
+                                " set system property \"" + KeyStoreConstants.PROP_VERIFY_OLD_SIGN + "\" to true");
+            return false;
+        }
     }
 
     public String getPasswordKey(String pwdKeyAlias, char[] pwdKeyPassword) {

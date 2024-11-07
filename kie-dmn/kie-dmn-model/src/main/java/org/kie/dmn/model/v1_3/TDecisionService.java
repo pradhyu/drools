@@ -1,19 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.model.v1_3;
 
 import java.util.ArrayList;
@@ -32,7 +34,7 @@ public class TDecisionService extends TInvocable implements DecisionService {
     @Override
     public List<DMNElementReference> getOutputDecision() {
         if (outputDecision == null) {
-            outputDecision = new ArrayList<DMNElementReference>();
+            outputDecision = new ArrayList<>();
         }
         return this.outputDecision;
     }
@@ -40,7 +42,7 @@ public class TDecisionService extends TInvocable implements DecisionService {
     @Override
     public List<DMNElementReference> getEncapsulatedDecision() {
         if (encapsulatedDecision == null) {
-            encapsulatedDecision = new ArrayList<DMNElementReference>();
+            encapsulatedDecision = new ArrayList<>();
         }
         return this.encapsulatedDecision;
     }
@@ -48,7 +50,7 @@ public class TDecisionService extends TInvocable implements DecisionService {
     @Override
     public List<DMNElementReference> getInputDecision() {
         if (inputDecision == null) {
-            inputDecision = new ArrayList<DMNElementReference>();
+            inputDecision = new ArrayList<>();
         }
         return this.inputDecision;
     }
@@ -56,7 +58,7 @@ public class TDecisionService extends TInvocable implements DecisionService {
     @Override
     public List<DMNElementReference> getInputData() {
         if (inputData == null) {
-            inputData = new ArrayList<DMNElementReference>();
+            inputData = new ArrayList<>();
         }
         return this.inputData;
     }

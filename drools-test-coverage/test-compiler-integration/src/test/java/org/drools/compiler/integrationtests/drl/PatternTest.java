@@ -1,31 +1,32 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.drl;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.impl.KnowledgeBaseImpl;
-import org.drools.core.reteoo.InitialFactImpl;
+import org.drools.core.impl.InternalRuleBase;
+import org.drools.base.reteoo.InitialFactImpl;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.ClassA;
 import org.drools.testcoverage.common.model.ClassB;
@@ -41,10 +42,9 @@ import org.drools.testcoverage.common.model.Sensor;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.KieBaseConfiguration;
 import org.kie.api.KieServices;
@@ -56,26 +56,17 @@ import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class PatternTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public PatternTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test
-    public void testDeclaringAndUsingBindsInSamePattern() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testDeclaringAndUsingBindsInSamePattern(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Sensor.class.getCanonicalName() + ";\n" +
@@ -121,19 +112,20 @@ public class PatternTest {
             final Sensor sensor1 = new Sensor(100, 150);
             ksession.insert(sensor1);
             ksession.fireAllRules();
-            assertEquals(0, sensors.size());
+            assertThat(sensors.size()).isEqualTo(0);
 
             final Sensor sensor2 = new Sensor(200, 150);
             ksession.insert(sensor2);
             ksession.fireAllRules();
-            assertEquals(3, sensors.size());
+            assertThat(sensors.size()).isEqualTo(3);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testEmptyPattern() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEmptyPattern(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 " \n" +
@@ -158,14 +150,15 @@ public class PatternTest {
             session.insert(stilton);
             session.fireAllRules();
 
-            assertEquals(5, ((List) session.getGlobal("list")).get(0));
+            assertThat(((List) session.getGlobal("list")).get(0)).isEqualTo(5);
         } finally {
             session.dispose();
         }
     }
 
-    @Test
-    public void testPatternMatchingOnThis() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testPatternMatchingOnThis(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "rule R1 when\n" +
                 "    $i1: Integer()\n" +
@@ -181,14 +174,15 @@ public class PatternTest {
             ksession.insert(2);
 
             final int rules = ksession.fireAllRules();
-            assertEquals(1, rules);
+            assertThat(rules).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testPatternOffset() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testPatternOffset(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         // JBRULES-3427
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "declare A\n" +
@@ -233,8 +227,9 @@ public class PatternTest {
         }
     }
 
-    @Test
-    public void testPatternOnClass() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testPatternOnClass(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "import " + InitialFactImpl.class.getCanonicalName() + "\n" +
                 "import " + FactB.class.getCanonicalName() + "\n" +
                 "rule \"Clear\" when\n" +
@@ -258,15 +253,16 @@ public class PatternTest {
 
             for (final FactHandle fact : ksession.getFactHandles()) {
                 final InternalFactHandle internalFact = (InternalFactHandle) fact;
-                assertTrue(internalFact.getObject() instanceof FactB);
+                assertThat(internalFact.getObject() instanceof FactB).isTrue();
             }
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testPredicateAsFirstPattern() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testPredicateAsFirstPattern(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package oreg.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -288,15 +284,16 @@ public class PatternTest {
 
             ksession.fireAllRules();
 
-            assertEquals("The rule is being incorrectly fired", 35, mussarela.getPrice());
-            assertEquals("Rule is incorrectly being fired", 20, provolone.getPrice());
+            assertThat(mussarela.getPrice()).as("The rule is being incorrectly fired").isEqualTo(35);
+            assertThat(provolone.getPrice()).as("Rule is incorrectly being fired").isEqualTo(20);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testConstantLeft() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testConstantLeft(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3627
         final String drl = "import " + Person.class.getCanonicalName() + ";\n" +
                 "rule R1 when\n" +
@@ -310,14 +307,15 @@ public class PatternTest {
             ksession.insert(new Person(null));
             ksession.insert(new Person("Mark"));
 
-            assertEquals(1, ksession.fireAllRules());
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testUppercaseField() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testUppercaseField(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
             "global java.util.List list\n" +
             "declare Address\n" +
@@ -342,15 +340,16 @@ public class PatternTest {
             ksession.fireAllRules();
 
             final List list = (List) ksession.getGlobal("list");
-            assertEquals(1, list.size());
-            assertEquals("5th Avenue", list.get(0));
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo("5th Avenue");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testUppercaseField2() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testUppercaseField2(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "declare SomeFact\n" +
                 "    Field : String\n" +
@@ -372,14 +371,15 @@ public class PatternTest {
             ksession.insert(fact);
 
             final int rules = ksession.fireAllRules();
-            assertEquals(1, rules);
+            assertThat(rules).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testHelloWorld() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testHelloWorld(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 " \n" +
@@ -424,15 +424,16 @@ public class PatternTest {
             ksession.insert(message);
             ksession.insert("boo");
             ksession.fireAllRules();
-            assertTrue(message.isFired());
-            assertEquals(message, ((List) ksession.getGlobal("list")).get(0));
+            assertThat(message.isFired()).isTrue();
+            assertThat(((List) ksession.getGlobal("list")).get(0)).isEqualTo(message);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testBigDecimal() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testBigDecimal(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "\n" +
@@ -468,14 +469,15 @@ public class PatternTest {
             session.insert(ben);
             session.fireAllRules();
 
-            assertEquals(1, ((List) session.getGlobal("list")).size());
+            assertThat(((List) session.getGlobal("list")).size()).isEqualTo(1);
         } finally {
             session.dispose();
         }
     }
 
-    @Test
-    public void testSelfReference() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSelfReference(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Order.class.getCanonicalName() + ";\n" +
@@ -509,16 +511,17 @@ public class PatternTest {
 
             ksession.fireAllRules();
 
-            assertEquals(2, results.size());
-            assertTrue(results.contains(item1));
-            assertTrue(results.contains(item2));
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(results.contains(item1)).isTrue();
+            assertThat(results.contains(item2)).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSelfReference2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSelfReference2(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -540,14 +543,15 @@ public class PatternTest {
             ksession.insert(new Cheese());
             ksession.fireAllRules();
 
-            assertEquals(0, results.size());
+            assertThat(results.size()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testImplicitDeclarations() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testImplicitDeclarations(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -576,14 +580,15 @@ public class PatternTest {
             ksession.insert(cheese);
 
             ksession.fireAllRules();
-            assertEquals(1, results.size());
+            assertThat(results.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testMethodCalls() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMethodCalls(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
                 "rule \"method calls\"\n" +
@@ -597,18 +602,19 @@ public class PatternTest {
         try {
             ksession.insert(new Person("mark", 50));
             int rules = ksession.fireAllRules();
-            assertEquals(0, rules);
+            assertThat(rules).isEqualTo(0);
 
             ksession.insert(new Person("bob", 18));
             rules = ksession.fireAllRules();
-            assertEquals(1, rules);
+            assertThat(rules).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSelfJoinWithIndex() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSelfJoinWithIndex(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
             "package org.drools.compiler.integrationtests.drl;\n" +
             "import " + Person.class.getCanonicalName() + ";\n" +
@@ -637,14 +643,15 @@ public class PatternTest {
             ksession.update(fh1, p1); // creates activation
             ksession.fireAllRules();
 
-            assertEquals(0, list.size());
+            assertThat(list.size()).isEqualTo(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testSelfJoinAndNotWithIndex() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testSelfJoinAndNotWithIndex(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
             "package org.drools.compiler.integrationtests.drl;\n" +
             "import " + Person.class.getCanonicalName() + ";\n" +
@@ -686,37 +693,38 @@ public class PatternTest {
             ksession.fireAllRules();
 
             // selects p1 and p3
-            if ((( KnowledgeBaseImpl ) kbase).getConfiguration().getAssertBehaviour().equals( RuleBaseConfiguration.AssertBehaviour.IDENTITY )) {
-                assertEquals(2, list.size());
-                assertSame(p1, list.get(0));
-                assertSame(p3, list.get(1));
+            if (((InternalRuleBase) kbase).getRuleBaseConfiguration().getAssertBehaviour().equals(RuleBaseConfiguration.AssertBehaviour.IDENTITY)) {
+                assertThat(list.size()).isEqualTo(2);
+                assertThat(list.get(0)).isSameAs(p1);
+                assertThat(list.get(1)).isSameAs(p3);
 
                 p1.setName("yoda");
                 ksession.update(fh1, p1); // creates activation
 
                 ksession.fireAllRules();
                 // now selects p2 and p3
-                assertEquals(4, list.size());
-                assertSame(p2, list.get(2));
-                assertSame(p3, list.get(3));
+                assertThat(list.size()).isEqualTo(4);
+                assertThat(list.get(2)).isSameAs(p2);
+                assertThat(list.get(3)).isSameAs(p3);
             } else {
                 // Person has equals method based on the Person's name.
                 // There are 3 Darths, so 2 of them are not inserted with EQUALITY.
-                assertEquals(0, list.size());
+                assertThat(list.size()).isEqualTo(0);
 
                 p1.setName("yoda");
                 ksession.update(fh1, p1);
 
                 ksession.fireAllRules();
-                assertEquals(0, list.size());
+                assertThat(list.size()).isEqualTo(0);
             }
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testQualifiedFieldReference() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testQualifiedFieldReference(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -745,16 +753,17 @@ public class PatternTest {
 
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
 
-            assertEquals(bob, list.get(0));
+            assertThat(list.get(0)).isEqualTo(bob);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testAutovivificationOfVariableRestrictions() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testAutovivificationOfVariableRestrictions(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -779,14 +788,15 @@ public class PatternTest {
             ksession.insert(stilton);
 
             ksession.fireAllRules();
-            assertEquals(1, results.size());
+            assertThat(results.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testParentheses() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testParentheses(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -813,21 +823,22 @@ public class PatternTest {
             session.insert(bob);
             session.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertEquals(bob, results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isEqualTo(bob);
 
             session.insert(foo);
             session.fireAllRules();
 
-            assertEquals(2, results.size());
-            assertEquals(foo, results.get(1));
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(results.get(1)).isEqualTo(foo);
         } finally {
             session.dispose();
         }
     }
 
-    @Test
-    public void testCovariance() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCovariance(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3392
         final String drl =
                         "import " + ClassA.class.getCanonicalName() + ";\n" +
@@ -848,14 +859,15 @@ public class PatternTest {
 
             ksession.insert( a );
             ksession.insert( b );
-            assertEquals( 1, ksession.fireAllRules() );
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testCheckDuplicateVariables() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCheckDuplicateVariables(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3035
         String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -865,8 +877,8 @@ public class PatternTest {
                 "end";
 
         KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(org.kie.api.builder.Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(org.kie.api.builder.Message::getText).doesNotContain("");
 
         drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "rule R1 when\n" +
@@ -875,8 +887,8 @@ public class PatternTest {
                 "end";
 
         kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(org.kie.api.builder.Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(org.kie.api.builder.Message::getText).doesNotContain("");
 
         drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "rule R1 when\n" +
@@ -885,12 +897,13 @@ public class PatternTest {
                 "end";
 
         kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(org.kie.api.builder.Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(org.kie.api.builder.Message::getText).doesNotContain("");
     }
 
-    @Test
-    public void testCompilationFailureOnTernaryComparison() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testCompilationFailureOnTernaryComparison(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-3642
         final String drl =
                 "declare Cont\n" +
@@ -909,7 +922,7 @@ public class PatternTest {
                         "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(org.kie.api.builder.Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(org.kie.api.builder.Message::getText).doesNotContain("");
     }
 }

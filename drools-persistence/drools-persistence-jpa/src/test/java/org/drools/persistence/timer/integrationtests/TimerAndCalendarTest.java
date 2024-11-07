@@ -1,26 +1,36 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.persistence.timer.integrationtests;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import org.drools.core.ClockType;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.kie.api.time.SessionPseudoClock;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBaseFactory;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -39,7 +49,7 @@ import org.kie.api.runtime.EnvironmentName;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.ClockTypeOption;
-import org.kie.api.time.SessionClock;
+import org.kie.api.time.SessionPseudoClock;
 import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderError;
 import org.kie.internal.builder.KnowledgeBuilderErrors;
@@ -48,15 +58,14 @@ import org.kie.internal.io.ResourceFactory;
 import org.kie.internal.persistence.jpa.JPAKnowledgeService;
 import org.kie.internal.runtime.StatefulKnowledgeSession;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import static org.drools.persistence.util.DroolsPersistenceUtil.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
+import static org.drools.persistence.util.DroolsPersistenceUtil.OPTIMISTIC_LOCKING;
+import static org.drools.persistence.util.DroolsPersistenceUtil.PESSIMISTIC_LOCKING;
+import static org.drools.persistence.util.DroolsPersistenceUtil.cleanUp;
+import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
+import static org.drools.persistence.util.DroolsPersistenceUtil.setupWithPoolingDataSource;
 
 @RunWith(Parameterized.class)
 public class TimerAndCalendarTest {
@@ -93,21 +102,21 @@ public class TimerAndCalendarTest {
         KieSession ksession = createSession( kbase );
 
         // must advance time or it won't save.
-        SessionPseudoClock clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        SessionPseudoClock clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 300,
                            TimeUnit.MILLISECONDS );
 
         // if we do not call 'ksession.fireAllRules()', this test will run successfully.
         ksession.fireAllRules();
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 300,
                            TimeUnit.MILLISECONDS );
 
         ksession = disposeAndReloadSession( ksession,
                                             kbase );
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 300,
                            TimeUnit.MILLISECONDS );
 
@@ -124,46 +133,43 @@ public class TimerAndCalendarTest {
                                                                         ResourceType.DRL );
         kbase.addPackages( kpackages );
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 10,
                            TimeUnit.MILLISECONDS );
         ksession.fireAllRules();
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 10,
                            TimeUnit.MILLISECONDS );
 
         ksession = disposeAndReloadSession( ksession,
                                             kbase );
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 10,
                            TimeUnit.MILLISECONDS );
 
         List<Integer> list = Collections.synchronizedList( new ArrayList<Integer>() );
         ksession.setGlobal( "list",
                             list );
-        Assert.assertEquals( 0,
-                             list.size() );
+        assertThat(list.size()).isEqualTo(0);
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 1700,
                            TimeUnit.MILLISECONDS );
-        Assert.assertEquals( 2,
-                             list.size() );
+        assertThat(list.size()).isEqualTo(2);
 
         ksession = disposeAndReloadSession( ksession,
                                             kbase );
         ksession.setGlobal( "list",
                             list );
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 1000,
                            TimeUnit.MILLISECONDS );
 
         // if the rule is fired, the list size will greater than one.
-        Assert.assertEquals( 4,
-                             list.size() );
+        assertThat(list.size()).isEqualTo(4);
     }
 
     @Test @Ignore("beta4 phreak")
@@ -172,21 +178,21 @@ public class TimerAndCalendarTest {
         KieSession ksession = createSession( kbase );
 
         // must advance time or it won't save.
-        SessionPseudoClock clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        SessionPseudoClock clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 300,
                            TimeUnit.MILLISECONDS );
 
         // if we do not call 'ksession.fireAllRules()', this test will run successfully.
         ksession.fireAllRules();
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 300,
                            TimeUnit.MILLISECONDS );
 
         ksession = disposeAndReloadSession( ksession,
                                             kbase );
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 300,
                            TimeUnit.MILLISECONDS );
 
@@ -213,7 +219,7 @@ public class TimerAndCalendarTest {
                            TimeUnit.MILLISECONDS );
         ksession.fireAllRules();
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 10,
                            TimeUnit.MILLISECONDS );
 
@@ -222,31 +228,28 @@ public class TimerAndCalendarTest {
         ksession.setGlobal( "list",
                             list );
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 10,
                            TimeUnit.MILLISECONDS );
 
-        Assert.assertEquals( 1,
-                             list.size() );
+        assertThat(list.size()).isEqualTo(1);
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 3,
                            TimeUnit.SECONDS );
-        Assert.assertEquals( 4,
-                             list.size() );
+        assertThat(list.size()).isEqualTo(4);
 
         ksession = disposeAndReloadSession( ksession,
                                             kbase );
         ksession.setGlobal( "list",
                             list );
 
-        clock = (SessionPseudoClock) ksession.<SessionClock>getSessionClock();
+        clock = (SessionPseudoClock) ksession.getSessionClock();
         clock.advanceTime( 2,
                            TimeUnit.SECONDS );
 
         // if the rule is fired, the list size will greater than one.
-        Assert.assertEquals( 6,
-                             list.size() );
+        assertThat(list.size()).isEqualTo(6);
     }
 
     @Test
@@ -262,9 +265,9 @@ public class TimerAndCalendarTest {
                            "        TestEvent( ) from entry-point \"Test\"\n" +
                            "    then \n" +
                            "end";
-        KieBaseConfiguration kbconf = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
+        KieBaseConfiguration kbconf = RuleBaseFactory.newKnowledgeBaseConfiguration();
         kbconf.setOption( EventProcessingOption.STREAM );
-        InternalKnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase( kbconf );
+        InternalKnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase();
         Resource resource = ResourceFactory.newByteArrayResource( timerRule.getBytes() );
         Collection<KiePackage> kpackages = buildKnowledgePackage( resource,
                                                                         ResourceType.DRL );
@@ -273,8 +276,7 @@ public class TimerAndCalendarTest {
 
         FactType type = kbase.getFactType( "org.drools.test",
                                            "TestEvent" );
-        Assert.assertNotNull( "could not get type",
-                              type );
+        assertThat(type).as("could not get type").isNotNull();
 
         ksession = disposeAndReloadSession( ksession,
                                             kbase );
@@ -291,7 +293,7 @@ public class TimerAndCalendarTest {
     public void testTimerWithRemovingRule() throws Exception {
         // DROOLS-576
         // Only reproducible with RETEOO
-        InternalKnowledgeBase kbase1  = KnowledgeBaseFactory.newKnowledgeBase();
+        InternalKnowledgeBase kbase1 = KnowledgeBaseFactory.newKnowledgeBase();
 
         String str1 = "package org.test; " +
                 "import java.util.*; " +
@@ -323,7 +325,7 @@ public class TimerAndCalendarTest {
 
         ksession1.dispose(); // dispose before firing
 
-        Assert.assertEquals(0, list.size());
+        assertThat(list.size()).isEqualTo(0);
 
         Thread.sleep(5000);
 
@@ -356,11 +358,11 @@ public class TimerAndCalendarTest {
 
         ksession2.dispose();
 
-        Assert.assertEquals(0, list.size());
+        assertThat(list.size()).isEqualTo(0);
     }
 
     private KieSession createSession(KieBase kbase) {
-        final KieSessionConfiguration conf = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        final KieSessionConfiguration conf = RuleBaseFactory.newKnowledgeSessionConfiguration();
         conf.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
         Environment env = createEnvironment(context);
         if( locking ) { 
@@ -376,7 +378,7 @@ public class TimerAndCalendarTest {
         long ksessionId = ksession.getIdentifier();
         ksession.dispose();
 
-        final KieSessionConfiguration conf = KnowledgeBaseFactory.newKnowledgeSessionConfiguration();
+        final KieSessionConfiguration conf = RuleBaseFactory.newKnowledgeSessionConfiguration();
         conf.setOption( ClockTypeOption.get( ClockType.PSEUDO_CLOCK.getId() ) );
 
         StatefulKnowledgeSession newksession = JPAKnowledgeService.loadStatefulKnowledgeSession( ksessionId,
@@ -396,7 +398,7 @@ public class TimerAndCalendarTest {
             for ( KnowledgeBuilderError error : errors ) {
                 System.err.println( "Error: " + error.getMessage() );
             }
-            Assert.fail( "KnowledgeBase did not build" );
+            fail( "KnowledgeBase did not build" );
         }
         Collection<KiePackage> packages = kbuilder.getKnowledgePackages();
         return packages;

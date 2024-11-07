@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.common;
 
 import java.io.ByteArrayInputStream;
@@ -30,14 +32,16 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-import static org.junit.Assert.*;
-
-import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.impl.KnowledgePackageImpl;
-import org.drools.core.definitions.rule.impl.RuleImpl;
+import org.drools.base.common.DroolsObjectInputStream;
+import org.drools.base.common.DroolsObjectOutputStream;
+import org.drools.base.definitions.InternalKnowledgePackage;
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.base.rule.GroupElement;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.util.DroolsStreamUtils;
-import org.drools.core.rule.GroupElement;
 import org.junit.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DroolsObjectIOTest {
 
@@ -65,7 +69,7 @@ public class DroolsObjectIOTest {
         InputStream fis = new FileInputStream(testFile);
         GroupElement streamedGroupElement = (GroupElement) DroolsStreamUtils.streamIn(new FileInputStream(testFile));
 
-        assertEquals(streamedGroupElement, testGroupElement);
+        assertThat(testGroupElement).isEqualTo(streamedGroupElement);
     }
 
     public static class SerializableObject implements Serializable {
@@ -111,11 +115,11 @@ public class DroolsObjectIOTest {
         SerializableObject    obj = new ExternalizableObject();
 
         byte[]  buf = serialize(obj);
-        assertEquals(deserialize(buf), obj);
+        assertThat(obj).isEqualTo(deserialize(buf));
 
         obj = new SerializableObject();
         buf = serialize(obj);
-        assertEquals(deserialize(buf), obj);
+        assertThat(obj).isEqualTo(deserialize(buf));
     }
 
     private static Object deserialize(byte[] buf) throws Exception {
@@ -150,13 +154,13 @@ public class DroolsObjectIOTest {
 
     @Test
     public void testStreaming() throws Exception {
-        InternalKnowledgePackage pkg = new KnowledgePackageImpl("test");
+        InternalKnowledgePackage pkg = CoreComponentFactory.get().createKnowledgePackage("test");
 
         byte[]  buf = marshal(pkg);
-        assertEquals(unmarshal(buf), pkg);
+        assertThat(pkg).isEqualTo(unmarshal(buf));
 
         buf = serialize(pkg);
-        assertEquals(deserialize(buf), pkg);
+        assertThat(pkg).isEqualTo(deserialize(buf));
     }
 
     @Test
@@ -168,10 +172,10 @@ public class DroolsObjectIOTest {
         rule.setCalendars(new String[] {"mycalendar"});
         byte[] buf = marshal(rule);
         RuleImpl retrievedRule = (RuleImpl)unmarshal(buf);
-        assertNotNull(retrievedRule);
-        assertNotNull(retrievedRule.getCalendars());
-        assertEquals(1, retrievedRule.getCalendars().length);
-        assertEquals("mycalendar", retrievedRule.getCalendars()[0]);
+        assertThat(retrievedRule).isNotNull();
+        assertThat(retrievedRule.getCalendars()).isNotNull();
+        assertThat(retrievedRule.getCalendars()).hasSize(1);
+        assertThat(retrievedRule.getCalendars()[0]).isEqualTo("mycalendar");
 
     }
 }

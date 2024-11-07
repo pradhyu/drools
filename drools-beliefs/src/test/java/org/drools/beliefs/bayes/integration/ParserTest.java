@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.beliefs.bayes.integration;
 
 import org.drools.beliefs.bayes.BayesNetwork;
@@ -23,113 +26,102 @@ import org.drools.beliefs.bayes.model.Network;
 import org.drools.beliefs.bayes.model.Variable;
 import org.drools.beliefs.bayes.model.XmlBifParser;
 import org.drools.beliefs.graph.GraphNode;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotNull;
-import static junit.framework.Assert.assertTrue;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class ParserTest {
 
     @Test
     public void testSprinklerLoadBif() {
 
-        Bif bif = (Bif) XmlBifParser.loadBif(ParserTest.class.getResource("Garden.xmlbif"));
+        Bif bif = XmlBifParser.loadBif(ParserTest.class.getResource("Garden.xmlbif"));
         Network network = bif.getNetwork();
-        assertEquals( "Garden", network.getName() );
-        assertEquals( "package = org.drools.beliefs.bayes.integration", network.getProperties().get(0) );
+        assertThat(network.getName()).isEqualTo("Garden");
+        assertThat(network.getProperties().get(0)).isEqualTo("package = org.drools.beliefs.bayes.integration");
 
         Map<String, Variable> varMap = varToMap( network.getVariables() );
-        assertEquals(4, varMap.size());
+        assertThat(varMap).hasSize(4);
 
         Variable var = varMap.get("WetGrass");
-        assertEquals("WetGrass", var.getName());
-        assertEquals(2, var.getOutComes().size());
-        assertEquals(var.getOutComes(), Arrays.asList(new String[]{"false", "true"}));
-        assertEquals("position = (0,10)", var.getProperties().get(0));
+        assertThat(var.getName()).isEqualTo("WetGrass");
+        assertThat(var.getOutComes()).hasSize(2).containsExactly("false", "true");
+        assertThat(var.getProperties().get(0)).isEqualTo("position = (0,10)");
 
         var = varMap.get("Cloudy");
-        assertEquals( "Cloudy", var.getName());
-        assertEquals(2, var.getOutComes().size());
-        assertEquals(var.getOutComes(), Arrays.asList(new String[]{"false", "true"}));
-        assertEquals( "position = (0,-10)", var.getProperties().get(0) );
+        assertThat(var.getName()).isEqualTo("Cloudy");
+        assertThat(var.getOutComes()).hasSize(2).containsExactly("false", "true");
+        assertThat(var.getProperties().get(0)).isEqualTo("position = (0,-10)");
 
         var = varMap.get("Sprinkler");
-        assertEquals( "Sprinkler", var.getName());
-        assertEquals( 2, var.getOutComes().size() );
-        assertEquals(var.getOutComes(), Arrays.asList(new String[]{"false", "true"}));
-        assertEquals("position = (13,0)", var.getProperties().get(0) );
+        assertThat(var.getName()).isEqualTo("Sprinkler");
+        assertThat(var.getOutComes()).hasSize(2).containsExactly("false", "true");
+        assertThat(var.getProperties().get(0)).isEqualTo("position = (13,0)");
 
         var = varMap.get("Rain");
-        assertEquals( "Rain", var.getName());
-        assertEquals( 2, var.getOutComes().size() );
-        assertEquals(var.getOutComes(), Arrays.asList(new String[]{"false", "true"}));
-        assertEquals("position = (-12,0)", var.getProperties().get(0) );
+        assertThat(var.getName()).isEqualTo("Rain");
+        assertThat(var.getOutComes()).hasSize(2).containsExactly("false", "true");
+        assertThat(var.getProperties().get(0)).isEqualTo("position = (-12,0)");
 
         Map<String, Definition> defMap = defToMap( network.getDefinitions() );
-        assertEquals( 4, defMap.size() );
+        assertThat(defMap).hasSize(4);
 
         Definition def = defMap.get( "WetGrass");
-        assertEquals( "WetGrass", def.getName());
-        assertEquals( 2, def.getGiven().size());
-        assertEquals(def.getGiven(), Arrays.asList(new String[]{"Sprinkler", "Rain"}));
-        assertEquals("1.0 0.0 0.1 0.9 0.1 0.9 0.01 0.99", def.getProbabilities());
+        assertThat(def.getName()).isEqualTo("WetGrass");
+        assertThat(def.getGiven()).hasSize(2).containsExactly("Sprinkler", "Rain");
+        assertThat(def.getProbabilities()).isEqualTo("1.0 0.0 0.1 0.9 0.1 0.9 0.01 0.99");
 
         def = defMap.get( "Cloudy");
-        assertEquals( "Cloudy", def.getName());
-        assertNull(def.getGiven());
-        assertEquals("0.5 0.5", def.getProbabilities().trim());
+        assertThat(def.getName()).isEqualTo("Cloudy");
+        assertThat(def.getGiven()).isNull();
+        assertThat(def.getProbabilities().trim()).isEqualTo("0.5 0.5");
 
         def = defMap.get( "Sprinkler");
-        assertEquals( "Sprinkler", def.getName());
-        assertEquals( 1, def.getGiven().size());
-        assertEquals("Cloudy", def.getGiven().get(0));
-        assertEquals("0.5 0.5 0.9 0.1", def.getProbabilities().trim());
+        assertThat(def.getName()).isEqualTo("Sprinkler");
+        assertThat(def.getGiven()).hasSize(1).containsExactly("Cloudy");
+        assertThat(def.getProbabilities().trim()).isEqualTo("0.5 0.5 0.9 0.1");
 
         def = defMap.get( "Rain");
-        assertEquals( "Rain", def.getName() );
-        assertNull( def.getGiven());
-        assertEquals("0.5 0.5", def.getProbabilities().trim());
+        assertThat(def.getName()).isEqualTo("Rain");
+        assertThat(def.getGiven()).isNull();
+        assertThat(def.getProbabilities().trim()).isEqualTo("0.5 0.5");
     }
 
     @Test
     public void testSprinklerBuildBayesNework() {
-        Bif bif = (Bif) XmlBifParser.loadBif(ParserTest.class.getResource("Garden.xmlbif"));
+        Bif bif = XmlBifParser.loadBif(ParserTest.class.getResource("Garden.xmlbif"));
 
         BayesNetwork network = XmlBifParser.buildBayesNetwork( bif );
         Map<String, GraphNode<BayesVariable>> map = nodeToMap(network);
 
         GraphNode<BayesVariable> node = map.get( "WetGrass" );
         BayesVariable wetGrass = node.getContent();
-        assertEquals(Arrays.asList(new String[]{"false", "true"}), Arrays.asList(wetGrass.getOutcomes()));
-        assertEquals( 2, wetGrass.getGiven().length );
-        assertEquals( Arrays.asList( wetGrass.getGiven() ), Arrays.asList( new String[] { "Sprinkler", "Rain" }) );
-        assertTrue( Arrays.deepEquals( new double[][] { { 1.0, 0.0 }, { 0.1, 0.9 }, { 0.1, 0.9 }, { 0.01, 0.99 } }, wetGrass.getProbabilityTable() ) );
+        assertThat(wetGrass.getOutcomes()).containsExactly("false", "true");
+        assertThat(wetGrass.getGiven()).hasSize(2).containsExactly("Sprinkler", "Rain");
+        assertThat(wetGrass.getProbabilityTable()).isDeepEqualTo(new double[][]{{1.0, 0.0}, {0.1, 0.9}, {0.1, 0.9}, {0.01, 0.99}});
 
         node = map.get( "Sprinkler" );
         BayesVariable sprinkler = node.getContent();
-        assertEquals(Arrays.asList(new String[]{"false", "true"}), Arrays.asList(sprinkler.getOutcomes()));
-        assertEquals( 1, sprinkler.getGiven().length );
-        assertEquals( "Cloudy", sprinkler.getGiven()[0]);
-        assertTrue( Arrays.deepEquals( new double[][] { {0.5, 0.5}, { 0.9, 0.1} }, sprinkler.getProbabilityTable() ) );
+        assertThat(wetGrass.getOutcomes()).containsExactly("false", "true");
+        assertThat(sprinkler.getGiven()).hasSize(1);
+        assertThat(sprinkler.getGiven()[0]).isEqualTo("Cloudy");
+        assertThat(sprinkler.getProbabilityTable()).isDeepEqualTo(new double[][]{{0.5, 0.5}, {0.9, 0.1}});
 
         node = map.get( "Cloudy" );
         BayesVariable cloudy = node.getContent();
-        assertEquals(Arrays.asList(new String[]{"false", "true"}), Arrays.asList(cloudy.getOutcomes()));
-        assertEquals(0, cloudy.getGiven().length);
-        assertTrue( Arrays.deepEquals( new double[][] { {0.5, 0.5} }, cloudy.getProbabilityTable() ) );
+        assertThat(wetGrass.getOutcomes()).containsExactly("false", "true");
+        assertThat(cloudy.getGiven()).isEmpty();
+        assertThat(cloudy.getProbabilityTable()).isDeepEqualTo(new double[][]{{0.5, 0.5}});
 
         node = map.get( "Rain" );
         BayesVariable rain = node.getContent();
-        assertEquals(Arrays.asList(new String[]{"false", "true"}), Arrays.asList(rain.getOutcomes()));
-        assertEquals( 0, rain.getGiven().length );
-        assertTrue( Arrays.deepEquals( new double[][] { {0.5, 0.5} }, rain.getProbabilityTable() ) );
+        assertThat(rain.getOutcomes()).containsExactly("false", "true");
+        assertThat(rain.getGiven()).isEmpty();
+        assertThat(rain.getProbabilityTable()).isDeepEqualTo(new double[][]{{0.5, 0.5}});
     }
 
     Map<String, GraphNode<BayesVariable>> nodeToMap(BayesNetwork network) {

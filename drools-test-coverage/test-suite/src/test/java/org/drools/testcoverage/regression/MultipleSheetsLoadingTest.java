@@ -1,27 +1,28 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.testcoverage.regression;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.assertj.core.api.Assertions;
-import org.drools.core.builder.conf.impl.DecisionTableConfigurationImpl;
+import org.drools.compiler.builder.conf.DecisionTableConfigurationImpl;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
@@ -42,6 +43,8 @@ import org.kie.internal.builder.DecisionTableInputType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Tests loading decision tables from several worksheets in a XLS file.
  */
@@ -61,7 +64,7 @@ public class MultipleSheetsLoadingTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MultipleSheetsLoadingTest.class);
 
-    private static final String XLS_EXTENSION = "xls";
+    private static final String XLS_EXTENSION = "drl.xls";
     private static final String XLS_FILE_NAME_NO_EXTENSION = "multiple-sheets";
     private static final String XLS_FILE_NAME = XLS_FILE_NAME_NO_EXTENSION + "." + XLS_EXTENSION;
 
@@ -76,7 +79,7 @@ public class MultipleSheetsLoadingTest {
         if (results.size() > 0) {
             LOGGER.error(results.toString());
         }
-        Assertions.assertThat(results).as("Some errors/warnings found").isEmpty();
+        assertThat(results).as("Some errors/warnings found").isEmpty();
 
         final KieBase kbase = KieBaseUtil.getDefaultKieBaseFromKieBuilder(kbuilder);
         final StatelessKieSession ksession = kbase.newStatelessKieSession();
@@ -84,9 +87,9 @@ public class MultipleSheetsLoadingTest {
         final Set<String> resultSet = new HashSet<String>();
         ksession.execute((Object) resultSet);
 
-        Assertions.assertThat(resultSet.size()).as("Wrong number of rules was fired").isEqualTo(2);
+        assertThat(resultSet.size()).as("Wrong number of rules was fired").isEqualTo(2);
         for (String ruleName : new String[] { "rule1", "rule2" }) {
-            Assertions.assertThat(resultSet.contains(ruleName)).as("Rule " + ruleName + " was not fired!").isTrue();
+            assertThat(resultSet.contains(ruleName)).as("Rule " + ruleName + " was not fired!").isTrue();
         }
     }
 

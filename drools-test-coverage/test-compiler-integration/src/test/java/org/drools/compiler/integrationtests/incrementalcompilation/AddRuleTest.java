@@ -1,19 +1,21 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.incrementalcompilation;
 
 import java.util.ArrayList;
@@ -21,7 +23,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieUtil;
@@ -35,8 +37,7 @@ import org.kie.api.definition.KiePackage;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(Parameterized.class)
 public class AddRuleTest {
@@ -116,7 +117,7 @@ public class AddRuleTest {
         names.add("Mark");
         ksession.setGlobal("names", names);
 
-        final List<String> list = new ArrayList<>();
+        final List<Person> list = new ArrayList<>();
         ksession.setGlobal("list", list);
 
         final Person p = new Person("Mark");
@@ -128,8 +129,8 @@ public class AddRuleTest {
 
         ksession.fireAllRules();
 
-        assertEquals(1, list.size());
-        assertSame(p, list.get(0));
+        assertThat(list.size()).isEqualTo(1);
+        assertThat(list.get(0)).isSameAs(p);
         ksession.dispose();
     }
 
@@ -157,7 +158,7 @@ public class AddRuleTest {
         session.insert(5);
         session.fireAllRules();
 
-        assertEquals(5, list.get(0));
+        assertThat(list.get(0)).isEqualTo(5);
 
         rule = "package org.drools.compiler.test\n" +
                 "global java.util.List list\n" +
@@ -170,7 +171,7 @@ public class AddRuleTest {
 
         session.fireAllRules();
 
-        assertEquals("x", list.get(1));
+        assertThat(list.get(1)).isEqualTo("x");
     }
 
     public static class RuleTime {

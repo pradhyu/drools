@@ -1,25 +1,27 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- *
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model.constraints;
 
 import org.drools.model.Variable;
 import org.drools.model.functions.LambdaPrinter;
 import org.drools.model.functions.Predicate1;
+import org.drools.model.functions.PredicateInformation;
 import org.drools.model.functions.PredicateN;
 import org.drools.model.impl.ModelComponent;
 import org.drools.model.view.Expr1ViewItemImpl;
@@ -30,15 +32,27 @@ public class SingleConstraint1<A> extends AbstractSingleConstraint {
     private final Predicate1<A> predicate;
 
     public SingleConstraint1(Variable<A> variable, Predicate1<A> predicate) {
-        super( LambdaPrinter.print(predicate) );
+        super( LambdaPrinter.print(predicate), predicate.predicateInformation());
         this.variable = variable;
         this.predicate = predicate;
     }
 
     public SingleConstraint1(String exprId, Variable<A> variable, Predicate1<A> predicate) {
-        super(exprId);
+        super(exprId, predicate.predicateInformation());
         this.variable = variable;
         this.predicate = predicate;
+    }
+
+    /**
+     * This constructor generates a constraint that cannot be evaluated as it lacks the actual predicate
+     * The AlphaNode referring this can be shared, as the exprId is provided
+     * Currently it's used only with the Alpha Network Compiler, since the code instantiating
+     * the actual constraint will be inlined inside the compiled Alpha Network itself.
+     */
+    public SingleConstraint1(String exprId, PredicateInformation predicateInformation) {
+        super(exprId, predicateInformation);
+        this.variable = null;
+        this.predicate = null;
     }
 
     public SingleConstraint1(Expr1ViewItemImpl<A> expr) {

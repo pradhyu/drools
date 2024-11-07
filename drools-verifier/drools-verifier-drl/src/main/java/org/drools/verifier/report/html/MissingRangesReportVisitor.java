@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.report.html;
 
 import java.util.ArrayList;
@@ -22,27 +24,29 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.drools.core.base.evaluators.Operator;
+import org.drools.drl.parser.impl.Operator;
 import org.drools.verifier.components.Field;
 import org.drools.verifier.components.NumberRestriction;
 import org.drools.verifier.components.Restriction;
 import org.drools.verifier.components.VerifierComponentType;
 import org.drools.verifier.data.VerifierData;
+import org.drools.verifier.misc.Multimap;
 import org.drools.verifier.report.components.MissingRange;
 import org.drools.verifier.report.components.VerifierRangeCheckMessage;
 import org.mvel2.templates.TemplateRuntime;
-
-import com.google.common.collect.Multimap;
-import com.google.common.collect.TreeMultimap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class MissingRangesReportVisitor extends ReportVisitor {
+
+    private static final Logger LOG = LoggerFactory.getLogger(MissingRangesReportVisitor.class);
 
     public static Collection<String> visitRestrictionsCollection(String sourceFolder,
                                                                  Collection<Restriction> restrictions,
                                                                  Collection<MissingRange> causes) {
 
-        Multimap<String, DataRow> dt =  TreeMultimap.create();
-        Collection<String> stringRows = new ArrayList<String>();
+        Multimap<String, DataRow> dt =  new Multimap<>();
+        Collection<String> stringRows = new ArrayList<>();
 
         for ( MissingRange cause : causes ) {
             dt.put( cause.getValueAsString(),
@@ -63,7 +67,7 @@ class MissingRangesReportVisitor extends ReportVisitor {
                                          restriction.getOperator(),
                                          restriction.getValueAsString() ) );
                 } catch ( Exception e ) {
-                    e.printStackTrace();
+                    LOG.error("Exception", e);
                 }
             }
         }
@@ -74,8 +78,8 @@ class MissingRangesReportVisitor extends ReportVisitor {
 
             if ( previous != null ) {
                 // Check if previous and current are from the same rule.
-                if ( previous.ruleId == null && current.ruleId == null && !previous.operator.equals( Operator.EQUAL ) && !previous.operator.equals( Operator.NOT_EQUAL ) && !current.operator.equals( Operator.EQUAL )
-                     && !current.operator.equals( Operator.NOT_EQUAL ) ) {
+                if ( previous.ruleId == null && current.ruleId == null && !previous.operator.equals( Operator.BuiltInOperator.EQUAL.getOperator() ) && !previous.operator.equals( Operator.BuiltInOperator.NOT_EQUAL.getOperator() ) && !current.operator.equals( Operator.BuiltInOperator.EQUAL.getOperator() )
+                     && !current.operator.equals( Operator.BuiltInOperator.NOT_EQUAL.getOperator() ) ) {
                     // Combine these two.
                     stringRows.add( "Missing : " + previous + " .. " + current );
 
@@ -120,7 +124,7 @@ class MissingRangesReportVisitor extends ReportVisitor {
     public static String visitRanges(String sourceFolder,
                                      Collection<Restriction> restrictions,
                                      Collection<MissingRange> collection) {
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
 
         map.put( "lines",
                  visitRestrictionsCollection( sourceFolder,
@@ -154,7 +158,7 @@ class MissingRangesReportVisitor extends ReportVisitor {
         Field field = (Field) message.getFaulty();
         Collection<Restriction> restrictions = data.getRestrictionsByFieldPath( field.getPath() );
 
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         map.put( "header",
                  processHeader( sourceFolder ) );
         map.put( "sourceFolder",

@@ -1,21 +1,24 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.util;
 
+import org.drools.core.reteoo.TupleImpl;
 import org.drools.core.util.index.TupleList;
 
 public class TupleRBTree<K extends Comparable< ? super K>> {
@@ -38,7 +41,9 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
 
     private static void verifyProperty1(Node< ? > n) {
         assert nodeColor( n ) == Color.RED || nodeColor( n ) == Color.BLACK;
-        if ( n == null ) return;
+        if ( n == null ) {
+            return;
+        }
         verifyProperty1( n.left );
         verifyProperty1( n.right );
     }
@@ -57,7 +62,9 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
             assert nodeColor( n.right ) == Color.BLACK;
             assert nodeColor( n.parent ) == Color.BLACK;
         }
-        if ( n == null ) return;
+        if ( n == null ) {
+            return;
+        }
         verifyProperty4( n.left );
         verifyProperty4( n.right );
     }
@@ -107,24 +114,20 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
         LOWER, UPPER
     };
 
-    public static class RangeFastIterator<K extends Comparable< ? super K>> implements FastIterator {
+    public static class RangeFastIterator<K extends Comparable< ? super K>> implements Iterator<Node<K>> {
         private Node<K> upperBound;
         private Node<K> next;
 
         public RangeFastIterator(Node<K> lowerNearest,
-                                  Node<K> upperNearest) {
+                                 Node<K> upperNearest) {
             this.next = lowerNearest;
             this.upperBound = upperNearest;
         }
 
-        public Entry next(Entry object) {
-            Entry temp = next;
+        public Node<K> next() {
+            Node<K> temp = next;
             next = checkUpperBound( recurse( next ) );
             return temp;
-        }
-
-        public boolean isFullIterator() {
-            return false;
         }
 
         private Node<K> recurse(Node<K> current) {
@@ -183,16 +186,16 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
         return n;
     }
 
-    public FastIterator fastIterator() {
-        return root == null ? FastIterator.EMPTY : new RangeFastIterator( first(), null );
+    public Iterator<Node<K>> iterator() {
+        return root == null ? EMPTY : new RangeFastIterator( first(), null );
     }
 
     @Override
     public String toString() {
-        FastIterator iterator = fastIterator();
+        Iterator<Node<K>> iterator = iterator();
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
-        for (Entry entry = iterator.next(null); entry != null; entry = iterator.next(null)) {
+        for (Node<K> entry = iterator.next(); entry != null; entry = iterator.next()) {
             if (first) {
                 first = false;
             } else {
@@ -204,7 +207,7 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
         return sb.toString();
     }
 
-    public FastIterator range(K lowerBound,
+    public Iterator<Node<K>> range(K lowerBound,
                               boolean testLowerEqual,
                               K upperBound,
                               boolean testUpperEqual) {
@@ -212,11 +215,11 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
         Node<K> upperNearest = findNearestNode( upperBound, testUpperEqual, Boundary.UPPER );
 
         if ( lowerNearest == null || upperNearest == null ) {
-            return FastIterator.EMPTY;
+            return EMPTY;
         }
 
         if ( lowerNearest.key.compareTo( upperNearest.key  ) > 0 ) {
-            upperNearest = lowerNearest;
+            return EMPTY;
         }
 
         return new RangeFastIterator( lowerNearest, upperNearest );
@@ -292,8 +295,12 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
         if ( oldn.parent == null ) {
             root = newn;
         } else {
-            if ( oldn == oldn.parent.left ) oldn.parent.left = newn;
-            else oldn.parent.right = newn;
+            if ( oldn == oldn.parent.left ) {
+                oldn.parent.left = newn;
+            }
+            else {
+                oldn.parent.right = newn;
+            }
         }
         if ( newn != null ) {
             newn.parent = oldn.parent;
@@ -303,13 +310,13 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
     public Node<K> insert(K key) {
         if (key == null) {
             if (nullNode == null) {
-                nullNode = new Node<K>( key );
+                nullNode = new Node<>( key );
             }
             return nullNode;
         }
         Node<K> insertedNode;
         if ( root == null ) {
-            insertedNode = new Node<K>( key );
+            insertedNode = new Node<>( key );
             root = insertedNode;
         } else {
             Node<K> n = root;
@@ -319,7 +326,7 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
                     return n;
                 } else if ( compResult < 0 ) {
                     if ( n.left == null ) {
-                        insertedNode = new Node<K>( key );
+                        insertedNode = new Node<>( key );
                         n.left = insertedNode;
                         break;
                     } else {
@@ -327,7 +334,7 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
                     }
                 } else {
                     if ( n.right == null ) {
-                        insertedNode = new Node<K>( key );
+                        insertedNode = new Node<>( key );
                         n.right = insertedNode;
                         break;
                     } else {
@@ -343,13 +350,21 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
     }
 
     private void insertCase1(Node<K> n) {
-        if ( n.parent == null ) n.color = Color.BLACK;
-        else insertCase2( n );
+        if ( n.parent == null ) {
+            n.color = Color.BLACK;
+        }
+        else {
+            insertCase2( n );
+        }
     }
 
     private void insertCase2(Node<K> n) {
-        if ( nodeColor( n.parent ) == Color.BLACK ) return; // Tree is still valid
-        else insertCase3( n );
+        if ( nodeColor( n.parent ) == Color.BLACK ) {
+            return; // Tree is still valid
+        }
+        else {
+            insertCase3( n );
+        }
     }
 
     void insertCase3(Node<K> n) {
@@ -386,7 +401,9 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
 
     public void delete(K key) {
         Node<K> n = lookup(key);
-        if ( n == null ) return; // Key not found, do nothing
+        if ( n == null ) {
+            return; // Key not found, do nothing
+        }
         if ( n.left != null && n.right != null ) {
             // Copy key/value from predecessor and then delete it instead
             Node<K> pred = maximumNode( n.left );
@@ -420,16 +437,24 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
     }
 
     private void deleteCase1(Node<K> n) {
-        if ( n.parent == null ) return;
-        else deleteCase2( n );
+        if ( n.parent == null ) {
+            return;
+        }
+        else {
+            deleteCase2( n );
+        }
     }
 
     private void deleteCase2(Node<K> n) {
         if ( nodeColor( n.sibling() ) == Color.RED ) {
             n.parent.color = Color.RED;
             n.sibling().color = Color.BLACK;
-            if ( n == n.parent.left ) rotateLeft( n.parent );
-            else rotateRight( n.parent );
+            if ( n == n.parent.left ) {
+                rotateLeft( n.parent );
+            }
+            else {
+                rotateRight( n.parent );
+            }
         }
         deleteCase3( n );
     }
@@ -438,32 +463,33 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
         if ( nodeColor( n.parent ) == Color.BLACK &&
                 nodeColor( n.sibling() ) == Color.BLACK &&
                 nodeColor( n.sibling().left ) == Color.BLACK &&
-                nodeColor( n.sibling().right ) == Color.BLACK )
-        {
+                nodeColor( n.sibling().right ) == Color.BLACK ) {
             n.sibling().color = Color.RED;
             deleteCase1( n.parent );
         }
-        else deleteCase4( n );
+        else {
+            deleteCase4( n );
+        }
     }
 
     private void deleteCase4(Node<K> n) {
         if ( nodeColor( n.parent ) == Color.RED &&
                 nodeColor( n.sibling() ) == Color.BLACK &&
                 nodeColor( n.sibling().left ) == Color.BLACK &&
-                nodeColor( n.sibling().right ) == Color.BLACK )
-        {
+                nodeColor( n.sibling().right ) == Color.BLACK ) {
             n.sibling().color = Color.RED;
             n.parent.color = Color.BLACK;
         }
-        else deleteCase5( n );
+        else {
+            deleteCase5( n );
+        }
     }
 
     private void deleteCase5(Node<K> n) {
         if ( n == n.parent.left &&
                 nodeColor( n.sibling() ) == Color.BLACK &&
                 nodeColor( n.sibling().left ) == Color.RED &&
-                nodeColor( n.sibling().right ) == Color.BLACK )
-        {
+                nodeColor( n.sibling().right ) == Color.BLACK ) {
             n.sibling().color = Color.RED;
             n.sibling().left.color = Color.BLACK;
             rotateRight( n.sibling() );
@@ -471,8 +497,7 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
         else if ( n == n.parent.right &&
                 nodeColor( n.sibling() ) == Color.BLACK &&
                 nodeColor( n.sibling().right ) == Color.RED &&
-                nodeColor( n.sibling().left ) == Color.BLACK )
-        {
+                nodeColor( n.sibling().left ) == Color.BLACK ) {
             n.sibling().color = Color.RED;
             n.sibling().right.color = Color.BLACK;
             rotateLeft( n.sibling() );
@@ -487,8 +512,7 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
             n.sibling().right.color = Color.BLACK;
             rotateLeft( n.parent );
         }
-        else
-        {
+        else {
             n.sibling().left.color = Color.BLACK;
             rotateRight( n.parent );
         }
@@ -528,7 +552,7 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
         RED, BLACK
     }
 
-    public static class Node<K extends Comparable< ? super K>> extends TupleList implements Entry<TupleList>, Comparable<Node<K>> {
+    public static class Node<K extends Comparable< ? super K>> extends TupleList {
         public  K       key;
         private Node<K> left;
         private Node<K> right;
@@ -574,4 +598,10 @@ public class TupleRBTree<K extends Comparable< ? super K>> {
             other.key = key;
         }
     }
+
+    public Iterator<Node<K>> EMPTY = new Iterator<>() {
+        public Node<K> next() {
+            return null;
+        }
+    };
 }

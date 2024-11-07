@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.kie.scanner;
 
 import java.io.File;
@@ -28,9 +31,9 @@ import org.drools.compiler.kie.builder.impl.InternalKieModule;
 import org.drools.compiler.kie.builder.impl.KieContainerImpl;
 import org.drools.compiler.kie.builder.impl.KieRepositoryImpl;
 import org.drools.compiler.kie.builder.impl.KieServicesImpl;
-import org.drools.core.factmodel.ClassBuilderFactory;
-import org.drools.core.factmodel.ClassDefinition;
-import org.drools.core.factmodel.FieldDefinition;
+import org.drools.base.factmodel.ClassDefinition;
+import org.drools.base.factmodel.FieldDefinition;
+import org.drools.mvel.asm.DefaultBeanClassBuilder;
 import org.junit.Test;
 import org.kie.api.KieBase;
 import org.kie.api.KieServices;
@@ -45,13 +48,13 @@ import org.kie.api.definition.rule.Rule;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.internal.utils.KieTypeResolver;
-import org.appformer.maven.integration.MavenRepository;
-import org.appformer.maven.support.DependencyFilter;
+import org.kie.maven.integration.MavenRepository;
+import org.kie.util.maven.support.DependencyFilter;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.drools.core.util.DroolsAssert.assertEnumerationSize;
 import static org.drools.core.util.DroolsAssert.assertUrlEnumerationContainsMatch;
-import static org.junit.Assert.*;
-import static org.appformer.maven.integration.MavenRepository.getMavenRepository;
+import static org.kie.maven.integration.MavenRepository.getMavenRepository;
 
 public class KieModuleMavenTest extends AbstractKieCiTest {
 
@@ -81,9 +84,9 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kieContainer = ks.newKieContainer(releaseId);
         KieBaseModel kbaseModel = ((KieContainerImpl) kieContainer).getKieProject().getDefaultKieBaseModel();
-        assertNotNull("Default kbase was not found", kbaseModel);
+        assertThat(kbaseModel).as("Default kbase was not found").isNotNull();
         String kbaseName = kbaseModel.getName();
-        assertEquals("KBase1", kbaseName);
+        assertThat(kbaseName).isEqualTo("KBase1");
 
         // Check classloader
         assertUrlEnumerationContainsMatch(".*org/kie/maven\\-test/1.0\\-SNAPSHOT.*", kieContainer.getClassLoader().getResources(""));
@@ -101,10 +104,9 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
             }
         };
 
-        ReleaseId dependency = ks.newReleaseId("org.drools", "drools-core", "5.5.0.Final");
         ReleaseId releaseId = ks.newReleaseId("org.kie", "maven-test", "1.0-SNAPSHOT");
         InternalKieModule kJar1 = createKieJar(ks, releaseId, true, "rule1", "rule2");
-        String pomText = getPom(releaseId, dependency);
+        String pomText = getPom(releaseId, getTestDependencyJarReleaseId());
         File pomFile = new File(System.getProperty("java.io.tmpdir"), MavenRepository.toFileName(releaseId, null) + ".pom");
         try {
             FileOutputStream fos = new FileOutputStream(pomFile);
@@ -118,9 +120,9 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kieContainer = ks.newKieContainer(releaseId);
         KieBaseModel kbaseModel = ((KieContainerImpl) kieContainer).getKieProject().getDefaultKieBaseModel();
-        assertNotNull("Default kbase was not found", kbaseModel);
+        assertThat(kbaseModel).as("Default kbase was not found").isNotNull();
         String kbaseName = kbaseModel.getName();
-        assertEquals("KBase1", kbaseName);
+        assertThat(kbaseName).isEqualTo("KBase1");
     }
 
     @Test
@@ -133,7 +135,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
             }
         };
 
-        ReleaseId dependency = ks.newReleaseId("org.drools", "drools-core", "5.5.0.Final");
+        ReleaseId dependency = getTestDependencyJarReleaseId();
         ReleaseId releaseId = ks.newReleaseId("org.kie", "maven-test", "1.0-SNAPSHOT");
 
         String pomText = getPom(releaseId, dependency);
@@ -154,24 +156,19 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         KieContainer kieContainer = ks.newKieContainer(releaseId);
 
         Collection<ReleaseId> expectedDependencies = new HashSet<ReleaseId>();
-        expectedDependencies.add(ks.newReleaseId("org.drools", "knowledge-api", "5.5.0.Final"));
-        expectedDependencies.add(ks.newReleaseId("org.drools", "knowledge-internal-api", "5.5.0.Final"));
-        expectedDependencies.add(ks.newReleaseId("org.drools", "drools-core", "5.5.0.Final"));
-        expectedDependencies.add(ks.newReleaseId("org.mvel", "mvel2", "2.1.3.Final"));
-        expectedDependencies.add(ks.newReleaseId("org.slf4j", "slf4j-api", "1.6.4"));
-
+        expectedDependencies.add(dependency);
+        expectedDependencies.add(ks.newReleaseId(dependency.getGroupId(), "kie-ci-test-jar", dependency.getVersion()));
         Collection<ReleaseId> dependencies = ((InternalKieModule)((KieContainerImpl) kieContainer)
                 .getKieModuleForKBase( "KBase1" ))
                 .getJarDependencies( DependencyFilter.TAKE_ALL_FILTER );
-        assertNotNull(dependencies);
-        assertEquals(5, dependencies.size());
+        assertThat(dependencies).isNotNull();
         
         ClassLoader kieContainerCL = kieContainer.getClassLoader();
-        assertTrue("Kie Container class loader must be of KieTypeResolver type", kieContainerCL instanceof KieTypeResolver);
-        assertTrue("Kie Container parent class loader must be of KieTypeResolver type", kieContainerCL.getParent() instanceof KieTypeResolver);
+        assertThat(kieContainerCL instanceof KieTypeResolver).as("Kie Container class loader must be of KieTypeResolver type").isTrue();
+        assertThat(kieContainerCL.getParent() instanceof KieTypeResolver).as("Kie Container parent class loader must be of KieTypeResolver type").isTrue();
 
         boolean matchedAll = dependencies.containsAll(expectedDependencies);
-        assertTrue(matchedAll);
+        assertThat(matchedAll).isTrue();
     }
 
     @Test
@@ -185,14 +182,14 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         ClassDefinition def = new ClassDefinition(pojoNS + "." + className);
         def.addField(new FieldDefinition("text", String.class.getName()));
-        byte[] messageClazz = ClassBuilderFactory.getDefaultBeanClassBuilder().buildClass(def,null);
+        byte[] messageClazz = new DefaultBeanClassBuilder(true).buildClass(def,null);
         MemoryFileSystem mfs = new MemoryFileSystem();
         mfs.write(pojoNS.replace('.', '/') + "/" + className+".class", messageClazz);
         byte[] pomContent = generatePomXml(pojoID).getBytes();
         mfs.write("META-INF/maven/" + pojoID.getGroupId() + "/" + pojoID.getArtifactId() + "/pom.xml", pomContent);
         mfs.write("META-INF/maven/" + pojoID.getGroupId() + "/" + pojoID.getArtifactId() + "/pom.properties", generatePomProperties(pojoID).getBytes());
         byte[] pojojar = mfs.writeAsBytes();
-        MavenRepository.getMavenRepository().installArtifact(pojoID, pojojar, pomContent);
+        getMavenRepository().installArtifact(pojoID, pojojar, pomContent);
 
         // Create and deploy a kjar that depends on the previous pojo jar
         String kjarNS = "org.kie.test1";
@@ -202,7 +199,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         byte[] rkjar = createKJar(ks, kjarID, pom, rule);
 
         KieModule kmodule = deployJar(ks, rkjar);
-        assertNotNull(kmodule);
+        assertThat(kmodule).isNotNull();
 
         KieContainer kContainer = ks.newKieContainer(kjarID);
 
@@ -211,7 +208,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         kSession.setGlobal("list", list);
         kSession.fireAllRules();
 
-        assertEquals(1, list.size());
+        assertThat(list.size()).isEqualTo(1);
     }
 
     @Test
@@ -234,12 +231,12 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kContainer = ks.newKieContainer(releaseId);
         KieBase kbase = kContainer.getKieBase();
-        assertNotNull(kbase);
+        assertThat(kbase).isNotNull();
         Collection<KiePackage> packages = kbase.getKiePackages();
-        assertNotNull(packages);
-        assertEquals(1, packages.size());
+        assertThat(packages).isNotNull();
+        assertThat(packages.size()).isEqualTo(1);
         Collection<Rule> rules = packages.iterator().next().getRules();
-        assertEquals(2, rules.size());
+        assertThat(rules.size()).isEqualTo(2);
 
         ks.getRepository().removeKieModule(releaseId);
 
@@ -251,12 +248,12 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kContainer2 = ks.newKieContainer(releaseId);
         KieBase kbase2 = kContainer2.getKieBase();
-        assertNotNull(kbase2);
+        assertThat(kbase2).isNotNull();
         Collection<KiePackage> packages2 = kbase2.getKiePackages();
-        assertNotNull(packages2);
-        assertEquals(1, packages2.size());
+        assertThat(packages2).isNotNull();
+        assertThat(packages2.size()).isEqualTo(1);
         Collection<Rule> rules2 = packages2.iterator().next().getRules();
-        assertEquals(4, rules2.size());
+        assertThat(rules2.size()).isEqualTo(4);
 
         ks.getRepository().removeKieModule(releaseId);
     }
@@ -271,10 +268,11 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
             }
         };
 
-        ReleaseId dependency = ks.newReleaseId("org.drools", "drools-core", "${version.org.drools}");
+        final ReleaseId dependencyReleaseIdTemplate = getTestDependencyJarReleaseId();
+        ReleaseId dependency = ks.newReleaseId(dependencyReleaseIdTemplate.getGroupId(), dependencyReleaseIdTemplate.getArtifactId(), "${version.org.drools.test}");
         ReleaseId releaseId = ks.newReleaseId("org.kie.test", "maven-test", "1.0-SNAPSHOT");
-        InternalKieModule kJar1 = createKieJarWithProperties(ks, releaseId, true, "5.5.0.Final", new ReleaseId[]{dependency}, "rule1", "rule2");
-        String pomText = generatePomXmlWithProperties(releaseId, "5.5.0.Final", dependency);
+        InternalKieModule kJar1 = createKieJarWithProperties(ks, releaseId, true, dependencyReleaseIdTemplate.getVersion(), new ReleaseId[]{dependency}, "rule1", "rule2");
+        String pomText = generatePomXmlWithProperties(releaseId, "${project.version}", dependency);
         File pomFile = new File(System.getProperty("java.io.tmpdir"), MavenRepository.toFileName(releaseId, null) + ".pom");
         try {
             FileOutputStream fos = new FileOutputStream(pomFile);
@@ -288,9 +286,9 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kieContainer = ks.newKieContainer(releaseId);
         KieBaseModel kbaseModel = ((KieContainerImpl) kieContainer).getKieProject().getDefaultKieBaseModel();
-        assertNotNull("Default kbase was not found", kbaseModel);
+        assertThat(kbaseModel).as("Default kbase was not found").isNotNull();
         String kbaseName = kbaseModel.getName();
-        assertEquals("KBase1", kbaseName);
+        assertThat(kbaseName).isEqualTo("KBase1");
     }
 
     @Test
@@ -319,9 +317,9 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
 
         KieContainer kieContainer = ks.newKieContainer(releaseId);
         KieBase kieBase = kieContainer.getKieBase("KBase1");
-        assertNotNull(kieBase);
+        assertThat(kieBase).isNotNull();
 
-        assertEquals("There must be one package built", 1, kieBase.getKiePackages().size());
+        assertThat(kieBase.getKiePackages().size()).as("There must be one package built").isEqualTo(1);
 
         ClassLoader classLoader = kieContainer.getClassLoader();
 
@@ -357,7 +355,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         return sBuilder.toString();
     }
 
-    public static String generatePomXmlWithProperties(ReleaseId releaseId, String droolsVersion, ReleaseId... dependencies) {
+    public static String generatePomXmlWithProperties(ReleaseId releaseId, String dependencyVersion, ReleaseId... dependencies) {
         StringBuilder sBuilder = new StringBuilder();
         sBuilder.append("<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \n");
         sBuilder.append(" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\"> \n");
@@ -369,7 +367,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         sBuilder.append(" <packaging>jar</packaging> \n");
         sBuilder.append(" <name>Default</name> \n");
         sBuilder.append(" <properties> \n");
-        sBuilder.append(" <version.org.drools>"+droolsVersion+"</version.org.drools> \n");
+        sBuilder.append(" <version.org.drools.test>"+dependencyVersion+"</version.org.drools.test> \n");
         sBuilder.append(" </properties> \n");
 
         if (dependencies.length > 0) {
@@ -399,7 +397,7 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         }
 
         KieBuilder kieBuilder = ks.newKieBuilder(kfs);
-        assertTrue(kieBuilder.buildAll().getResults().getMessages().isEmpty());
+        assertThat(kieBuilder.buildAll().getResults().getMessages().isEmpty()).isTrue();
         return (InternalKieModule) kieBuilder.getKieModule();
     }
 

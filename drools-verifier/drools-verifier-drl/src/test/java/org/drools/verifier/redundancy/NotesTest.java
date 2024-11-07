@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.redundancy;
 
 import org.drools.core.base.RuleNameMatchesAgendaFilter;
@@ -26,35 +28,35 @@ import org.drools.verifier.report.components.Cause;
 import org.drools.verifier.report.components.Redundancy;
 import org.drools.verifier.report.components.Severity;
 import org.drools.verifier.report.components.VerifierMessageBase;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.kie.api.runtime.KieSession;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class NotesTest extends TestBaseOld {
 
     @Test
-    public void testRedundantRestrictionsInPatternPossibilities() throws Exception {
+    void testRedundantRestrictionsInPatternPossibilities() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Notes.drl"));
 
         Pattern pattern = VerifierComponentMockFactory.createPattern1();
 
         Collection<Object> objects = new ArrayList<Object>();
         LiteralRestriction left = LiteralRestriction.createRestriction(pattern,
-                                                                       "");
+                "");
 
         LiteralRestriction right = LiteralRestriction.createRestriction(pattern,
-                                                                        "");
+                "");
 
         Redundancy redundancy = new Redundancy(left,
-                                               right);
+                right);
 
         SubPattern possibility = new SubPattern(pattern,
-                                                0);
+                0);
         possibility.add(left);
         possibility.add(right);
 
@@ -65,7 +67,7 @@ public class NotesTest extends TestBaseOld {
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         session.setGlobal("result",
-                          result);
+                result);
 
         for (Object o : objects) {
             session.insert(o);
@@ -75,20 +77,17 @@ public class NotesTest extends TestBaseOld {
         Collection<VerifierMessageBase> notes = result.getBySeverity(Severity.NOTE);
 
         // Has at least one item.
-        assertEquals(1,
-                     notes.size());
+        assertThat(notes.size()).isEqualTo(1);
 
         VerifierMessageBase note = notes.iterator().next();
         Iterator<Cause> causes = note.getCauses().iterator();
 
-        assertEquals(left,
-                     causes.next());
-        assertEquals(right,
-                     causes.next());
+        assertThat(causes.next()).isEqualTo(left);
+        assertThat(causes.next()).isEqualTo(right);
     }
 
     @Test
-    public void testRedundantPatternPossibilitiesInRulePossibilities() throws Exception {
+    void testRedundantPatternPossibilitiesInRulePossibilities() throws Exception {
         KieSession session = getStatelessKieSession(this.getClass().getResourceAsStream("Notes.drl"));
 
 
@@ -97,16 +96,16 @@ public class NotesTest extends TestBaseOld {
 
         Collection<Object> objects = new ArrayList<Object>();
         SubPattern left = new SubPattern(pattern,
-                                         0);
+                0);
 
         SubPattern right = new SubPattern(pattern,
-                                          1);
+                1);
 
         Redundancy redundancy = new Redundancy(left,
-                                               right);
+                right);
 
         SubRule possibility = new SubRule(rule,
-                                          0);
+                0);
         possibility.add(left);
         possibility.add(right);
 
@@ -117,7 +116,7 @@ public class NotesTest extends TestBaseOld {
 
         VerifierReport result = VerifierReportFactory.newVerifierReport();
         session.setGlobal("result",
-                          result);
+                result);
 
         for (Object o : objects) {
             session.insert(o);
@@ -127,15 +126,12 @@ public class NotesTest extends TestBaseOld {
         Collection<VerifierMessageBase> notes = result.getBySeverity(Severity.NOTE);
 
         // Has at least one item.
-        assertEquals(1,
-                     notes.size());
+        assertThat(notes.size()).isEqualTo(1);
 
         VerifierMessageBase note = notes.iterator().next();
         Iterator<Cause> causes = note.getCauses().iterator();
 
-        assertEquals(left,
-                     causes.next());
-        assertEquals(right,
-                     causes.next());
+        assertThat(causes.next()).isEqualTo(left);
+        assertThat(causes.next()).isEqualTo(right);
     }
 }

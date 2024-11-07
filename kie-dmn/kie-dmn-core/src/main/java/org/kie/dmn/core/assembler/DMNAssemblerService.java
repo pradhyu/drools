@@ -1,23 +1,24 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.assembler;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,9 +29,9 @@ import javax.xml.namespace.QName;
 
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.compiler.PackageRegistry;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.ResourceTypePackageRegistry;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.base.definitions.InternalKnowledgePackage;
+import org.drools.base.definitions.ResourceTypePackageRegistry;
 import org.kie.api.internal.assembler.KieAssemblerService;
 import org.kie.api.internal.io.ResourceTypePackage;
 import org.kie.api.io.Resource;
@@ -42,9 +43,9 @@ import org.kie.dmn.api.core.DMNMessage;
 import org.kie.dmn.api.core.DMNModel;
 import org.kie.dmn.api.marshalling.DMNMarshaller;
 import org.kie.dmn.core.api.DMNFactory;
-import org.kie.dmn.core.compiler.CoerceDecisionServiceSingletonOutputOption;
 import org.kie.dmn.core.compiler.DMNCompilerConfigurationImpl;
 import org.kie.dmn.core.compiler.DMNCompilerImpl;
+import org.kie.dmn.core.compiler.DMNDecisionLogicCompilerFactory;
 import org.kie.dmn.core.compiler.DMNProfile;
 import org.kie.dmn.core.compiler.ImportDMNResolverUtil;
 import org.kie.dmn.core.compiler.ImportDMNResolverUtil.ImportType;
@@ -68,6 +69,7 @@ public class DMNAssemblerService implements KieAssemblerService {
     public static final String ORG_KIE_DMN_PREFIX = "org.kie.dmn";
     public static final String DMN_PROFILE_PREFIX = ORG_KIE_DMN_PREFIX + ".profiles.";
     public static final String DMN_RUNTIME_LISTENER_PREFIX = ORG_KIE_DMN_PREFIX + ".runtime.listeners.";
+    public static final String DMN_DECISION_LOGIC_COMPILER = ORG_KIE_DMN_PREFIX + ".decisionlogiccompilerfactory";
     public static final String DMN_COMPILER_CACHE_KEY = "DMN_COMPILER_CACHE_KEY";
     public static final String DMN_PROFILES_CACHE_KEY = "DMN_PROFILES_CACHE_KEY";
 
@@ -86,7 +88,7 @@ public class DMNAssemblerService implements KieAssemblerService {
     }
 
     @Override
-    public void addResources(Object kbuilder, Collection<ResourceWithConfiguration> resources, ResourceType type) throws Exception {
+    public void addResourcesAfterRules(Object kbuilder, Collection<ResourceWithConfiguration> resources, ResourceType type) throws Exception {
         EvalHelper.clearGenericAccessorCache();
         KnowledgeBuilderImpl kbuilderImpl = (KnowledgeBuilderImpl) kbuilder;
         DMNCompilerImpl dmnCompiler = (DMNCompilerImpl) kbuilderImpl.getCachedOrCreate(DMN_COMPILER_CACHE_KEY, () -> getCompiler(kbuilderImpl));
@@ -153,8 +155,8 @@ public class DMNAssemblerService implements KieAssemblerService {
     }
 
     @Override
-    public void addResource(Object kbuilder, Resource resource, ResourceType type, ResourceConfiguration configuration) throws Exception {
-        logger.warn("invoked legacy addResource (no control on the order of the assembler compilation): " + resource.getSourcePath());
+    public void addResourceAfterRules(Object kbuilder, Resource resource, ResourceType type, ResourceConfiguration configuration) throws Exception {
+        logger.warn("invoked legacy addResourceAfterRules (no control on the order of the assembler compilation): {}", resource.getSourcePath());
         KnowledgeBuilderImpl kbuilderImpl = (KnowledgeBuilderImpl) kbuilder;
         DMNCompiler dmnCompiler = kbuilderImpl.getCachedOrCreate( DMN_COMPILER_CACHE_KEY, () -> getCompiler( kbuilderImpl ) );
 
@@ -195,7 +197,7 @@ public class DMNAssemblerService implements KieAssemblerService {
             dmnpkg.addProfiles(kbuilderImpl.getCachedOrCreate(DMN_PROFILES_CACHE_KEY, () -> getDMNProfiles(kbuilderImpl)));
         } else {
             kbuilderImpl.addBuilderResult(new DMNKnowledgeBuilderError(ResultSeverity.ERROR, resource, "Unable to compile DMN model for the resource"));
-            logger.error( "Unable to compile DMN model for resource {}", resource.getSourcePath() );
+            logger.error("Unable to compile DMN model for the resource {}", resource.getSourcePath());
         }
         return model;
     }
@@ -228,7 +230,7 @@ public class DMNAssemblerService implements KieAssemblerService {
 
     public static List<DMNProfile> getDefaultDMNProfiles(ChainedProperties properties) {
         if (!isStrictMode(properties)) {
-            return Arrays.asList(new ExtendedDMNProfile());
+            return List.of(new ExtendedDMNProfile());
         } else {
             return Collections.emptyList();
         }
@@ -252,10 +254,27 @@ public class DMNAssemblerService implements KieAssemblerService {
 
         if (isStrictMode(kbuilderImpl.getBuilderConfiguration().getChainedProperties())) {
             compilerConfiguration.setProperty(RuntimeTypeCheckOption.PROPERTY_NAME, "true");
-            compilerConfiguration.setProperty(CoerceDecisionServiceSingletonOutputOption.PROPERTY_NAME, "false");
+        }
+
+        try {
+            applyDecisionLogicCompilerFactory(kbuilderImpl.getRootClassLoader(), compilerConfiguration);
+        } catch (Exception e) {
+            kbuilderImpl.addBuilderResult(new DMNKnowledgeBuilderError(ResultSeverity.WARNING, "Trying to load a non-existing DMNDecisionLogicCompilerFactory " + e.getLocalizedMessage()));
+            logger.error("Trying to load a non-existing DMNDecisionLogicCompilerFactory {}", e.getLocalizedMessage(), e);
+            kbuilderImpl.addBuilderResult(new DMNKnowledgeBuilderError(ResultSeverity.WARNING, "DMN Compiler configuration contained errors, will fall-back to defaults."));
+            logger.warn("DMN Compiler configuration contained errors, will fall-back to defaults.");
         }
 
         return DMNFactory.newCompiler(compilerConfiguration);
+    }
+
+    public static DMNCompilerConfigurationImpl applyDecisionLogicCompilerFactory(ClassLoader classLoader, DMNCompilerConfigurationImpl config) throws Exception {
+        String definedDLCompiler = config.getProperties().get(DMN_DECISION_LOGIC_COMPILER);
+        if (definedDLCompiler != null) {
+            DMNDecisionLogicCompilerFactory factory = (DMNDecisionLogicCompilerFactory) classLoader.loadClass(definedDLCompiler).newInstance();
+            config.setDecisionLogicCompilerFactory(factory);
+        }
+        return config;
     }
 
     /**

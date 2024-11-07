@@ -1,20 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- *
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model.constraints;
 
 import org.drools.model.Variable;
@@ -31,14 +32,14 @@ public class SingleConstraint2<A, B> extends AbstractSingleConstraint {
     private final Predicate2<A, B> predicate;
 
     public SingleConstraint2(Variable<A> var1, Variable<B> var2, Predicate2<A, B> predicate) {
-        super( LambdaPrinter.print(predicate) );
+        super( LambdaPrinter.print(predicate), predicate.predicateInformation());
         this.var1 = var1;
         this.var2 = var2;
         this.predicate = predicate;
     }
 
     public SingleConstraint2(String exprId, Variable<A> var1, Variable<B> var2, Predicate2<A, B> predicate) {
-        super(exprId);
+        super(exprId, predicate.predicateInformation());
         this.var1 = var1;
         this.var2 = var2;
         this.predicate = predicate;
@@ -48,6 +49,11 @@ public class SingleConstraint2<A, B> extends AbstractSingleConstraint {
         this( expr.getExprId(), expr.getFirstVariable(), expr.getVar2(), expr.getPredicate() );
         setIndex( expr.getIndex() );
         setReactivitySpecs( expr.getReactivitySpecs() );
+    }
+
+    @Override
+    public Predicate2 getPredicate2() {
+        return predicate;
     }
 
     @Override

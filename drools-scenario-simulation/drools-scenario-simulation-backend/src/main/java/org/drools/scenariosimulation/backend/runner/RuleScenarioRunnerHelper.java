@@ -1,26 +1,27 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.scenariosimulation.backend.runner;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -33,16 +34,17 @@ import org.drools.scenariosimulation.api.model.FactMappingValue;
 import org.drools.scenariosimulation.api.model.ScenarioWithIndex;
 import org.drools.scenariosimulation.api.model.ScesimModelDescriptor;
 import org.drools.scenariosimulation.api.model.Settings;
+import org.drools.scenariosimulation.api.utils.ConstantsHolder;
 import org.drools.scenariosimulation.backend.expression.ExpressionEvaluator;
 import org.drools.scenariosimulation.backend.expression.ExpressionEvaluatorFactory;
 import org.drools.scenariosimulation.backend.fluent.CoverageAgendaListener;
 import org.drools.scenariosimulation.backend.fluent.RuleScenarioExecutableBuilder;
-import org.drools.scenariosimulation.backend.runner.model.ResultWrapper;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioExpect;
 import org.drools.scenariosimulation.backend.runner.model.InstanceGiven;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioResult;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioResultMetadata;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioRunnerData;
+import org.drools.scenariosimulation.backend.runner.model.ValueWrapper;
 import org.drools.scenariosimulation.backend.util.ScenarioBeanUtil;
 import org.drools.scenariosimulation.backend.util.ScenarioBeanWrapper;
 import org.kie.api.runtime.KieContainer;
@@ -100,8 +102,8 @@ public class RuleScenarioRunnerHelper extends AbstractRunnerHelper {
         scenarioResultMetadata.addAllAvailable(availableRules);
         scenarioResultMetadata.addAllExecuted(ruleExecuted);
         final AtomicInteger counter = new AtomicInteger(0);
-        coverageAgendaListener
-                .getAuditsMessages().forEach(auditMessage -> scenarioResultMetadata.addAuditMessage(counter.addAndGet(1), auditMessage, "INFO"));
+        coverageAgendaListener.getAuditsMessages().forEach(auditMessage ->
+                scenarioResultMetadata.addAuditMessage(counter.addAndGet(1), auditMessage, ConstantsHolder.EXECUTED));
         return scenarioResultMetadata;
     }
 
@@ -152,9 +154,9 @@ public class RuleScenarioRunnerHelper extends AbstractRunnerHelper {
         return scenarioResults;
     }
 
-    protected Function<Object, ResultWrapper> createExtractorFunction(ExpressionEvaluator expressionEvaluator,
-                                                                      FactMappingValue expectedResult,
-                                                                      ScesimModelDescriptor scesimModelDescriptor) {
+    protected Function<Object, ValueWrapper> createExtractorFunction(ExpressionEvaluator expressionEvaluator,
+                                                                     FactMappingValue expectedResult,
+                                                                     ScesimModelDescriptor scesimModelDescriptor) {
         return objectToCheck -> {
 
             ExpressionIdentifier expressionIdentifier = expectedResult.getExpressionIdentifier();
@@ -183,7 +185,7 @@ public class RuleScenarioRunnerHelper extends AbstractRunnerHelper {
     }
 
     @Override
-    protected Object createObject(Optional<Object> initialInstance, String className, Map<List<String>, Object> params, ClassLoader classLoader) {
+    protected Object createObject(ValueWrapper<Object> initialInstance, String className, Map<List<String>, Object> params, ClassLoader classLoader) {
         return fillBean(initialInstance, className, params, classLoader);
     }
 

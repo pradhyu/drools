@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.builder.impl;
 
 import java.io.IOException;
@@ -24,35 +27,37 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.drools.base.base.ClassFieldInspector;
+import org.drools.base.base.CoreComponentsBuilder;
+import org.drools.base.definitions.InternalKnowledgePackage;
+import org.drools.base.factmodel.ClassDefinition;
+import org.drools.base.factmodel.FieldDefinition;
+import org.drools.base.factmodel.traits.Alias;
+import org.drools.base.rule.TypeDeclaration;
 import org.drools.compiler.compiler.PackageRegistry;
 import org.drools.compiler.compiler.TypeDeclarationError;
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
-import org.drools.compiler.lang.descr.AnnotationDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.compiler.lang.descr.QualifiedName;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeFieldDescr;
-import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.factmodel.ClassDefinition;
-import org.drools.core.factmodel.FieldDefinition;
-import org.drools.core.factmodel.traits.Alias;
-import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.util.HierarchySorter;
-import org.drools.core.util.asm.ClassFieldInspector;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.AnnotationDescr;
+import org.drools.drl.ast.descr.PatternDescr;
+import org.drools.drl.ast.descr.QualifiedName;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
+import org.drools.drl.ast.descr.TypeFieldDescr;
+import org.drools.util.TypeResolver;
 import org.kie.api.definition.type.Key;
 import org.kie.api.io.Resource;
-import org.drools.core.addon.TypeResolver;
+
+import static org.drools.compiler.rule.builder.util.AnnotationFactory.getTypedAnnotation;
 
 public class ClassHierarchyManager {
 
-    protected KnowledgeBuilderImpl kbuilder;
+    protected final TypeDeclarationContext tdContext;
 
     protected List<AbstractClassTypeDeclarationDescr> sortedDescriptors;
     protected Map<QualifiedName, Collection<QualifiedName>> taxonomy;
 
-    public ClassHierarchyManager(Collection<AbstractClassTypeDeclarationDescr> unsortedDescrs, KnowledgeBuilderImpl kbuilder) {
-        this.kbuilder = kbuilder;
-        this.sortedDescriptors = sortByHierarchy(unsortedDescrs, kbuilder);
+    public ClassHierarchyManager(Collection<AbstractClassTypeDeclarationDescr> unsortedDescrs, TypeDeclarationContext tdContext, BuildResultCollector results) {
+        this.tdContext = tdContext;
+        this.sortedDescriptors = sortByHierarchy(unsortedDescrs, tdContext, results);
     }
 
     public List<AbstractClassTypeDeclarationDescr> getSortedDescriptors() {
@@ -66,10 +71,10 @@ public class ClassHierarchyManager {
      * resulting collection. This ensures that superclasses are processed before
      * their subclasses
      */
-    protected List<AbstractClassTypeDeclarationDescr> sortByHierarchy(Collection<AbstractClassTypeDeclarationDescr> unsortedDescrs, KnowledgeBuilderImpl kbuilder) {
+    protected List<AbstractClassTypeDeclarationDescr> sortByHierarchy(Collection<AbstractClassTypeDeclarationDescr> unsortedDescrs, TypeDeclarationContext tdContext, BuildResultCollector results) {
 
-        taxonomy = new HashMap<QualifiedName, Collection<QualifiedName>>();
-        Map<QualifiedName, AbstractClassTypeDeclarationDescr> cache = new HashMap<QualifiedName, AbstractClassTypeDeclarationDescr>();
+        taxonomy = new HashMap<>();
+        Map<QualifiedName, AbstractClassTypeDeclarationDescr> cache = new HashMap<>();
 
         for (AbstractClassTypeDeclarationDescr tdescr : unsortedDescrs) {
             cache.put(tdescr.getType(), tdescr);
@@ -80,10 +85,10 @@ public class ClassHierarchyManager {
 
             Collection<QualifiedName> supers = taxonomy.get(name);
             if (supers == null) {
-                supers = new ArrayList<QualifiedName>();
+                supers = new ArrayList<>();
                 taxonomy.put(name, supers);
             } else {
-                kbuilder.addBuilderResult(new TypeDeclarationError(tdescr,
+                results.addBuilderResult(new TypeDeclarationError(tdescr,
                                                                    "Found duplicate declaration for type " + tdescr.getType()));
             }
 
@@ -96,7 +101,7 @@ public class ClassHierarchyManager {
                         }
                     } else {
                         circular = true;
-                        kbuilder.addBuilderResult(new TypeDeclarationError(tdescr,
+                        results.addBuilderResult(new TypeDeclarationError(tdescr,
                                                                            "Found circular dependency for type " + tdescr.getTypeName()));
                         break;
                     }
@@ -153,31 +158,27 @@ public class ClassHierarchyManager {
 
     public void inheritFields(PackageRegistry pkgRegistry,
                               AbstractClassTypeDeclarationDescr typeDescr,
-                              Collection<AbstractClassTypeDeclarationDescr> sortedTypeDescriptors,
-                              List<TypeDefinition> unresolvedTypes,
+                              BuildResultCollector results,
                               Map<String, AbstractClassTypeDeclarationDescr> unprocessableDescrs) {
         TypeDeclarationDescr tDescr = (TypeDeclarationDescr) typeDescr;
         boolean isNovel = TypeDeclarationUtils.isNovelClass(typeDescr, pkgRegistry);
         boolean inferFields = !isNovel && typeDescr.getFields().isEmpty();
 
-        for (QualifiedName qname : tDescr.getSuperTypes()) {
-            //descriptor needs fields inherited from superclass
-            mergeInheritedFields(tDescr, unresolvedTypes, unprocessableDescrs, pkgRegistry.getTypeResolver());
-        }
+        mergeInheritedFields(tDescr, unprocessableDescrs, pkgRegistry.getTypeResolver(), results);
 
         if (inferFields) {
             // not novel, but only an empty declaration was provided.
             // after inheriting the fields from supertypes, now we fill in the locally declared fields
             Class existingClass = TypeDeclarationUtils.getExistingDeclarationClass(typeDescr, pkgRegistry);
-            buildDescrsFromFields(existingClass, tDescr, pkgRegistry, tDescr.getFields());
+            buildDescrsFromFields(existingClass, tDescr, tDescr.getFields());
         }
     }
 
     private static void buildDescrsFromFields(Class klass, TypeDeclarationDescr typeDescr,
-                                              PackageRegistry pkgRegistry, Map<String, TypeFieldDescr> fieldMap) {
-        ClassFieldInspector inspector = null;
+                                              Map<String, TypeFieldDescr> fieldMap) {
+        ClassFieldInspector inspector;
         try {
-            inspector = new ClassFieldInspector(klass);
+            inspector = CoreComponentsBuilder.get().createClassFieldInspector(klass);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -192,9 +193,9 @@ public class ClassHierarchyManager {
                     inheritedFlDescr.setResource(resource);
                     inheritedFlDescr.setInherited(!Modifier.isAbstract(inspector.getGetterMethods().get(name).getModifiers()));
 
-                    if (!fieldMap.containsKey(inheritedFlDescr.getFieldName()))
-                        fieldMap.put(inheritedFlDescr.getFieldName(),
-                                     inheritedFlDescr);
+                    if (!fieldMap.containsKey(inheritedFlDescr.getFieldName())) {
+                        fieldMap.put(inheritedFlDescr.getFieldName(), inheritedFlDescr);
+                    }
                 }
             }
         }
@@ -218,12 +219,11 @@ public class ClassHierarchyManager {
      *
      * @param typeDescr The base class descriptor, to be completed with the inherited
      *                  fields descriptors
-     * @return true if all went well
      */
     protected void mergeInheritedFields(TypeDeclarationDescr typeDescr,
-                                        List<TypeDefinition> unresolvedTypes,
                                         Map<String, AbstractClassTypeDeclarationDescr> unprocessableDescrs,
-                                        TypeResolver typeResolver) {
+                                        TypeResolver typeResolver,
+                                        BuildResultCollector results) {
 
         if (typeDescr.getSuperTypes().isEmpty()) {
             return;
@@ -239,9 +239,9 @@ public class ClassHierarchyManager {
                         superTypePackageName,
                         fullSuper,
                         typeDescr,
-                        unresolvedTypes,
                         unprocessableDescrs,
-                        typeResolver);
+                        typeResolver,
+                        results);
         }
     }
 
@@ -249,14 +249,13 @@ public class ClassHierarchyManager {
                                String superTypePackageName,
                                String fullSuper,
                                TypeDeclarationDescr typeDescr,
-                               List<TypeDefinition> unresolvedTypes,
                                Map<String, AbstractClassTypeDeclarationDescr> unprocessableDescrs,
-                               TypeResolver resolver) {
+                               TypeResolver resolver,
+                               BuildResultCollector results) {
 
-        Map<String, TypeFieldDescr> fieldMap = new LinkedHashMap<String, TypeFieldDescr>();
-        boolean isNovel = TypeDeclarationUtils.isNovelClass(typeDescr, kbuilder.getPackageRegistry(typeDescr.getNamespace()));
+        Map<String, TypeFieldDescr> fieldMap = new LinkedHashMap<>();
 
-        PackageRegistry registry = kbuilder.getPackageRegistry(superTypePackageName);
+        PackageRegistry registry = tdContext.getPackageRegistry(superTypePackageName);
         InternalKnowledgePackage pack = null;
         if (registry != null) {
             pack = registry.getPackage();
@@ -302,7 +301,7 @@ public class ClassHierarchyManager {
                     // if the supertype has not been declared, and we have got so far, it means that this class is not novel
                     superKlass = resolver.resolveType(fullSuper);
                 }
-                buildDescrsFromFields(superKlass, typeDescr, registry, fieldMap);
+                buildDescrsFromFields(superKlass, typeDescr, fieldMap);
             } catch (ClassNotFoundException cnfe) {
                 unprocessableDescrs.put(typeDescr.getType().getFullName(), typeDescr);
                 return;
@@ -317,7 +316,7 @@ public class ClassHierarchyManager {
                 String type2 = typeDescr.getFields().get(fieldName).getPattern().getObjectType();
                 if (type2.lastIndexOf(".") < 0) {
                     try {
-                        TypeResolver typeResolver = kbuilder.getPackageRegistry(typeDescr.getNamespace()).getTypeResolver();
+                        TypeResolver typeResolver = tdContext.getPackageRegistry(typeDescr.getNamespace()).getTypeResolver();
                         type1 = typeResolver.resolveType(type1).getName();
                         type2 = typeResolver.resolveType(type2).getName();
                         // now that we are at it... this will be needed later anyway
@@ -345,7 +344,7 @@ public class ClassHierarchyManager {
                     }
                 }
                 if (clash) {
-                    kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr,
+                    results.addBuilderResult(new TypeDeclarationError(typeDescr,
                                                                        "Cannot redeclare field '" + fieldName + " from " + type1 + " to " + type2));
                     typeDescr.setType(null, null);
                     return;
@@ -397,7 +396,7 @@ public class ClassHierarchyManager {
         int overrideCount = 0;
         // only @aliasing local fields may override defaults.
         for (TypeFieldDescr localField : typeDescr.getFields().values()) {
-            Alias alias = localField.getTypedAnnotation(Alias.class);
+            Alias alias = getTypedAnnotation(localField, Alias.class);
             if (alias != null && fld.getName().equals(alias.value().replaceAll("\"", "")) && localField.getInitExpr() != null) {
                 overrideCount++;
                 initExprOverride = localField.getInitExpr();

@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.impl;
 
 import java.util.List;
@@ -24,8 +26,10 @@ import org.kie.dmn.api.core.DMNResult;
 import org.kie.dmn.api.core.ast.BusinessKnowledgeModelNode;
 import org.kie.dmn.api.core.ast.DecisionNode;
 import org.kie.dmn.api.core.ast.DecisionServiceNode;
+import org.kie.dmn.api.core.event.AfterConditionalEvaluationEvent;
 import org.kie.dmn.api.core.event.AfterEvaluateAllEvent;
 import org.kie.dmn.api.core.event.AfterEvaluateBKMEvent;
+import org.kie.dmn.api.core.event.AfterEvaluateConditionalEvent;
 import org.kie.dmn.api.core.event.AfterEvaluateContextEntryEvent;
 import org.kie.dmn.api.core.event.AfterEvaluateDecisionEvent;
 import org.kie.dmn.api.core.event.AfterEvaluateDecisionServiceEvent;
@@ -40,6 +44,7 @@ import org.kie.dmn.api.core.event.BeforeEvaluateDecisionTableEvent;
 import org.kie.dmn.api.core.event.BeforeInvokeBKMEvent;
 import org.kie.dmn.api.core.event.DMNRuntimeEventListener;
 import org.kie.dmn.api.core.event.DMNRuntimeEventManager;
+import org.kie.dmn.api.core.EvaluatorResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,16 +96,16 @@ public final class DMNRuntimeEventManagerUtils {
         }
     }
 
-    public static void fireBeforeEvaluateDecisionTable( DMNRuntimeEventManager eventManager, String nodeName, String dtName, DMNResult result) {
+    public static void fireBeforeEvaluateDecisionTable( DMNRuntimeEventManager eventManager, String nodeName, String dtName, String dtId, DMNResult result) {
         if( eventManager.hasListeners() ) {
-            BeforeEvaluateDecisionTableEvent event = new BeforeEvaluateDecisionTableEventImpl(nodeName, dtName, result);
+            BeforeEvaluateDecisionTableEvent event = new BeforeEvaluateDecisionTableEventImpl(nodeName, dtName, dtId, result);
             notifyListeners(eventManager, l -> l.beforeEvaluateDecisionTable(event));
         }
     }
 
-    public static void fireAfterEvaluateDecisionTable( DMNRuntimeEventManager eventManager, String nodeName, String dtName, DMNResult result, List<Integer> matches, List<Integer> fired ) {
+    public static void fireAfterEvaluateDecisionTable( DMNRuntimeEventManager eventManager, String nodeName, String dtName, String dtId, DMNResult result, List<Integer> matches, List<Integer> fired, List<String> matchedIds, List<String> firedIds ) {
         if( eventManager.hasListeners() ) {
-            AfterEvaluateDecisionTableEvent event = new AfterEvaluateDecisionTableEventImpl(nodeName, dtName, result, matches, fired);
+            AfterEvaluateDecisionTableEvent event = new AfterEvaluateDecisionTableEventImpl(nodeName, dtName, dtId, result, matches, fired, matchedIds, firedIds);
             notifyListeners(eventManager, l -> l.afterEvaluateDecisionTable(event));
         }
     }
@@ -119,16 +124,16 @@ public final class DMNRuntimeEventManagerUtils {
         }
     }
 
-    public static void fireBeforeInvokeBKM( DMNRuntimeEventManager eventManager, BusinessKnowledgeModelNode bkm, DMNResult result) {
+    public static void fireBeforeInvokeBKM( DMNRuntimeEventManager eventManager, BusinessKnowledgeModelNode bkm, DMNResult result, List<Object> invocationParameters ) {
         if( eventManager.hasListeners() ) {
-            BeforeInvokeBKMEvent event = new BeforeInvokeBKMEventImpl(bkm, result);
+            BeforeInvokeBKMEvent event = new BeforeInvokeBKMEventImpl(bkm, result, invocationParameters);
             notifyListeners(eventManager, l -> l.beforeInvokeBKM(event));
         }
     }
 
-    public static void fireAfterInvokeBKM( DMNRuntimeEventManager eventManager, BusinessKnowledgeModelNode bkm, DMNResult result) {
+    public static void fireAfterInvokeBKM( DMNRuntimeEventManager eventManager, BusinessKnowledgeModelNode bkm, DMNResult result, Object invocationResult ) {
         if (eventManager.hasListeners()) {
-            AfterInvokeBKMEvent event = new AfterInvokeBKMEventImpl(bkm, result);
+            AfterInvokeBKMEvent event = new AfterInvokeBKMEventImpl(bkm, result, invocationResult);
             notifyListeners(eventManager, l -> l.afterInvokeBKM(event));
         }
     }
@@ -147,6 +152,20 @@ public final class DMNRuntimeEventManagerUtils {
         }
     }
 
+    public static void fireAfterEvaluateConditional(DMNRuntimeEventManager eventManager, EvaluatorResult evaluatorResult, String executedId) {
+        if( eventManager.hasListeners() ) {
+            AfterEvaluateConditionalEvent event = new AfterEvaluateConditionalEventImpl(evaluatorResult, executedId);
+            notifyListeners(eventManager, l -> l.afterEvaluateConditional(event));
+        }
+    }
+
+    public static void fireAfterConditionalEvaluation(DMNRuntimeEventManager eventManager, EvaluatorResult evaluatorResult, String idExecuted) {
+        if( eventManager.hasListeners() ) {
+            AfterConditionalEvaluationEvent event = new AfterConditionalEvaluationEventImpl(evaluatorResult, idExecuted);
+            notifyListeners(eventManager, l -> l.afterConditionalEvaluation(event));
+        }
+    }
+
     private static void notifyListeners(DMNRuntimeEventManager eventManager, Consumer<DMNRuntimeEventListener> consumer) {
         for( DMNRuntimeEventListener listener : eventManager.getListeners() ) {
             try {
@@ -156,6 +175,7 @@ public final class DMNRuntimeEventManagerUtils {
             }
         }
     }
+
 
     private DMNRuntimeEventManagerUtils() {
         // Constructing instances is not allowed for this class

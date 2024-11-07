@@ -1,31 +1,37 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.validation.dtanalysis.model;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.kie.dmn.feel.runtime.Range;
 import org.kie.dmn.feel.runtime.Range.RangeBoundary;
+import org.kie.dmn.feel.runtime.impl.RangeImpl;
+import org.kie.dmn.feel.runtime.impl.UndefinedValueComparable;
+import org.kie.dmn.feel.util.Generated;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,23 +69,39 @@ public class Interval {
     private final Bound<?> upperBound;
     private final int rule;
     private final int col;
+    private final Range asRange;
 
     public Interval(RangeBoundary lowBoundary, Comparable<?> start, Comparable<?> end, RangeBoundary highBoundary, int rule, int col) {
         this.lowerBound = new Bound(start, lowBoundary, this);
         this.upperBound = new Bound(end, highBoundary, this);
         this.rule = rule;
         this.col = col;
+        this.asRange = new RangeImpl(lowBoundary, nullIfInfinity(start), nullIfInfinity(end), highBoundary);
     }
 
     private Interval(Bound<?> lowerBound, Bound<?> upperBound) {
         this.lowerBound = new Bound(lowerBound.getValue(), lowerBound.getBoundaryType(), this);
         this.upperBound = new Bound(upperBound.getValue(), upperBound.getBoundaryType(), this);
-        this.rule = 0;
-        this.col = 0;
+        if (lowerBound.getParent() != null && upperBound.getParent() != null && lowerBound.getParent().rule == upperBound.getParent().rule && lowerBound.getParent().col == upperBound.getParent().col) {
+            this.rule = lowerBound.getParent().rule;
+            this.col = lowerBound.getParent().col;
+        } else {
+            this.rule = 0;
+            this.col = 0;
+        }
+        this.asRange = new RangeImpl(lowerBound.getBoundaryType(), nullIfInfinity(lowerBound.getValue()), nullIfInfinity(upperBound.getValue()), upperBound.getBoundaryType());
     }
 
     public static Interval newFromBounds(Bound<?> lowerBound, Bound<?> upperBound) {
         return new Interval(lowerBound, upperBound);
+    }
+
+    private static Comparable<?> nullIfInfinity(Comparable<?> input) {
+        if (input != POS_INF && input != NEG_INF) {
+            return input;
+        } else {
+            return new UndefinedValueComparable();
+        }
     }
 
     @Override
@@ -106,6 +128,7 @@ public class Interval {
         return col;
     }
 
+    @Generated("org.eclipse.jdt.internal.corext.codemanipulation")
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -115,6 +138,7 @@ public class Interval {
         return result;
     }
 
+    @Generated("org.eclipse.jdt.internal.corext.codemanipulation")
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -142,6 +166,20 @@ public class Interval {
             return false;
         }
         return true;
+    }
+
+    public boolean asRangeIncludes(Object param) {
+        Boolean result = this.asRange.includes(param);
+        if (result != null) {
+            return result;
+        } else if (this.lowerBound.getValue() == NEG_INF &&
+                   this.lowerBound.getBoundaryType() == RangeBoundary.CLOSED &&
+                   this.upperBound.getValue() == POS_INF &&
+                   this.upperBound.getBoundaryType() == RangeBoundary.CLOSED) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public boolean includes(Interval o) {
@@ -172,7 +210,7 @@ public class Interval {
         List<Bound> bounds = intervals.stream().flatMap(i -> Stream.of(i.getLowerBound(), i.getUpperBound())).collect(Collectors.toList());
         Collections.sort(bounds);
         LOG.debug("bounds (sorted) {}", bounds);
-        Deque<Bound> stack = new ArrayDeque<Bound>();
+        Deque<Bound> stack = new ArrayDeque<>();
         Interval candidate = null;
         for (Bound cur : bounds) {
             if (stack.isEmpty() && !cur.isLowerBound()) {
@@ -229,6 +267,52 @@ public class Interval {
         LOG.debug("results {}", results);
         return results;
     }
+    
+    public static List<Interval> invertOverDomain(List<Interval> intervals, Interval domain) {
+        List<Interval> results = new ArrayList<>();
+        final List<Interval> is = flatten(intervals);
+        Iterator<Interval> iterator = is.iterator();
+        if (!iterator.hasNext()) {
+            return Collections.singletonList(domain); // if none, inversion is the domain.
+        }
+
+        Interval firstInterval = iterator.next();
+        if (!domain.lowerBound.equals(firstInterval.lowerBound)) {
+            Interval left = new Interval(domain.lowerBound.getBoundaryType(),
+                                         domain.lowerBound.getValue(),
+                                         firstInterval.lowerBound.getValue(),
+                                         invertBoundary(firstInterval.lowerBound.getBoundaryType()),
+                                         firstInterval.rule,
+                                         firstInterval.col);
+            results.add(left);
+        }
+        Interval previousInterval = firstInterval;
+        while (iterator.hasNext()) {
+            Interval nextInterval = iterator.next();
+            if ((!previousInterval.upperBound.getValue().equals(nextInterval.lowerBound.getValue()))
+                    || (previousInterval.upperBound.getBoundaryType() == RangeBoundary.OPEN && nextInterval.lowerBound.getBoundaryType() == RangeBoundary.OPEN)) {
+                Interval iNew = new Interval(invertBoundary(previousInterval.upperBound.getBoundaryType()),
+                                              previousInterval.upperBound.getValue(),
+                                              nextInterval.lowerBound.getValue(),
+                                              invertBoundary(nextInterval.lowerBound.getBoundaryType()),
+                                              previousInterval.rule,
+                                              previousInterval.col);
+                results.add(iNew);
+            }
+            previousInterval = nextInterval;
+        }
+        if (!domain.upperBound.equals(previousInterval.upperBound)) {
+            Interval right = new Interval(invertBoundary(previousInterval.upperBound.getBoundaryType()),
+                                          previousInterval.upperBound.getValue(),
+                                          domain.upperBound.getValue(),
+                                          domain.upperBound.getBoundaryType(),
+                                          previousInterval.rule,
+                                          previousInterval.col);
+            results.add(right);
+        }
+        LOG.debug("results {}", results);
+        return results;
+    }
 
     public String asHumanFriendly(Domain domain) {
         if (lowerBound.getValue().equals(upperBound.getValue()) 
@@ -250,6 +334,8 @@ public class Interval {
             } else {
                 return this.toString();
             }
+        } else if (this.equals(domain.getDomainMinMax())) {
+            return "-";
         } else if (upperBound.equals(domain.getMax()) && upperBound.getBoundaryType() == RangeBoundary.CLOSED) {
             if (lowerBound.getBoundaryType() == RangeBoundary.CLOSED) {
                 return ">=" + Bound.boundValueToString(lowerBound.getValue());

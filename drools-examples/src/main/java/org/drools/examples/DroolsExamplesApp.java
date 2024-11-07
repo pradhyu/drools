@@ -1,28 +1,34 @@
-/*
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.examples;
 
-import java.awt.*;
+import java.awt.Container;
+import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 
-import javax.swing.*;
-import org.drools.examples.datadriventemplate.DataDrivenTemplateExample;
+import javax.swing.AbstractAction;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+
 import org.drools.examples.decisiontable.PricingRuleDTExample;
-import org.drools.examples.decisiontable.PricingRuleTemplateExample;
 import org.drools.examples.fibonacci.FibonacciExample;
 import org.drools.examples.golfing.GolfingExample;
 import org.drools.examples.helloworld.HelloWorldExample;
@@ -32,12 +38,9 @@ import org.drools.examples.shopping.ShoppingExample;
 import org.drools.examples.state.StateExampleUsingAgendaGroup;
 import org.drools.examples.state.StateExampleUsingSalience;
 import org.drools.examples.sudoku.SudokuExample;
-import org.drools.examples.templates.SimpleRuleTemplateExample;
 import org.drools.examples.troubleticket.TroubleTicketExample;
 import org.drools.examples.troubleticket.TroubleTicketExampleWithDSL;
 import org.drools.examples.troubleticket.TroubleTicketExampleWithDT;
-import org.drools.examples.workitemconsequence.WorkItemConsequenceExample1;
-import org.drools.examples.workitemconsequence.WorkItemConsequenceExample2;
 import org.drools.games.adventures.TextAdventure;
 import org.drools.games.pong.PongMain;
 import org.drools.games.wumpus.WumpusWorldMain;
@@ -45,6 +48,8 @@ import org.kie.api.KieServices;
 import org.kie.api.runtime.KieContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.drools.examples.sudoku.SudokuExample.createSudokuKieContainer;
 
 public class DroolsExamplesApp extends JFrame {
 
@@ -61,7 +66,7 @@ public class DroolsExamplesApp extends JFrame {
     private final KieContainer kieContainer;
 
     public DroolsExamplesApp() {
-        super("JBoss BRMS examples");
+        super("Drools examples");
         setContentPane(createContentPane());
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         logger.info("DroolsExamplesApp started.");
@@ -77,10 +82,9 @@ public class DroolsExamplesApp extends JFrame {
     private Container createContentPane() {
         JPanel contentPane = new JPanel(new GridLayout(0, 1));
         contentPane.add(new JLabel("Which GUI example do you want to see?"));
-
         contentPane.add(new JButton(new AbstractAction("SudokuExample") {
             public void actionPerformed(ActionEvent e) {
-                new SudokuExample().init(kieContainer, false);
+                new SudokuExample().init(createSudokuKieContainer(), false);
             }
         }));
         contentPane.add(new JButton(new AbstractAction("PetStoreExample") {
@@ -103,7 +107,7 @@ public class DroolsExamplesApp extends JFrame {
                 new WumpusWorldMain().init(kieContainer, false);
             }
         }));
-        
+
         contentPane.add(new JLabel("Which output example do you want to see?"));
 
         contentPane.add(new JButton(new AbstractAction("HelloWorldExample") {
@@ -131,11 +135,6 @@ public class DroolsExamplesApp extends JFrame {
                 GolfingExample.execute( kieContainer );
             }
         }));
-        contentPane.add(new JButton(new AbstractAction("SimpleRuleTemplateExample") {
-            public void actionPerformed(ActionEvent e) {
-                SimpleRuleTemplateExample.execute( kieContainer );
-            }
-        }));
         contentPane.add(new JButton(new AbstractAction("TroubleTicketExample") {
             public void actionPerformed(ActionEvent e) {
                 TroubleTicketExample.execute( kieContainer );
@@ -143,12 +142,12 @@ public class DroolsExamplesApp extends JFrame {
         }));
         contentPane.add(new JButton(new AbstractAction("TroubleTicketExampleWithDT") {
             public void actionPerformed(ActionEvent e) {
-                TroubleTicketExampleWithDT.execute( kieContainer );
+                TroubleTicketExampleWithDT.execute(kieContainer );
             }
         }));
         contentPane.add(new JButton(new AbstractAction("TroubleTicketExampleWithDSL") {
             public void actionPerformed(ActionEvent e) {
-                TroubleTicketExampleWithDSL.execute( kieContainer );
+                TroubleTicketExampleWithDSL.execute(kieContainer );
             }
         }));
         contentPane.add(new JButton(new AbstractAction("StateExampleUsingSalience") {
@@ -161,29 +160,9 @@ public class DroolsExamplesApp extends JFrame {
                 StateExampleUsingAgendaGroup.execute( kieContainer );
             }
         }));
-        contentPane.add(new JButton(new AbstractAction("PricingRuleTemplateExample") {
-            public void actionPerformed(ActionEvent e) {
-                PricingRuleTemplateExample.execute( kieContainer );
-            }
-        }));
         contentPane.add(new JButton(new AbstractAction("PricingRuleDTExample") {
             public void actionPerformed(ActionEvent e) {
                 PricingRuleDTExample.execute( kieContainer );
-            }
-        }));
-        contentPane.add(new JButton(new AbstractAction("DataDrivenTemplateExample") {
-            public void actionPerformed(ActionEvent e) {
-                DataDrivenTemplateExample.main(new String[0]);
-            }
-        }));
-        contentPane.add(new JButton(new AbstractAction("WorkItemConsequenceExample1") {
-            public void actionPerformed(ActionEvent e) {
-                WorkItemConsequenceExample1.main(new String[0]);
-            }
-        }));
-        contentPane.add(new JButton(new AbstractAction("WorkItemConsequenceExample2") {
-            public void actionPerformed(ActionEvent e) {
-                WorkItemConsequenceExample2.main(new String[0]);
             }
         }));
         return contentPane;

@@ -1,57 +1,59 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.rule.builder;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.drools.base.base.ClassObjectType;
+import org.drools.base.base.CoreComponentsBuilder;
+import org.drools.base.base.ObjectType;
+import org.drools.base.base.extractors.ArrayElementReader;
+import org.drools.base.base.extractors.SelfReferenceClassFieldReader;
+import org.drools.base.definitions.rule.impl.QueryImpl;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.Pattern;
+import org.drools.base.rule.QueryArgument;
+import org.drools.base.rule.QueryElement;
+import org.drools.base.rule.RuleConditionElement;
+import org.drools.base.rule.accessor.DeclarationScopeResolver;
+import org.drools.base.rule.accessor.ReadAccessor;
 import org.drools.compiler.compiler.AnalysisResult;
 import org.drools.compiler.compiler.BoundIdentifiers;
 import org.drools.compiler.compiler.DescrBuildError;
-import org.drools.compiler.compiler.DrlExprParser;
-import org.drools.compiler.compiler.DroolsParserException;
-import org.drools.compiler.lang.MVELDumper;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.BindingDescr;
-import org.drools.compiler.lang.descr.ConstraintConnectiveDescr;
-import org.drools.compiler.lang.descr.ExprConstraintDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.core.base.ClassObjectType;
-import org.drools.core.base.extractors.ArrayElementReader;
-import org.drools.core.base.extractors.SelfReferenceClassFieldReader;
-import org.drools.core.rule.Declaration;
-import org.drools.core.rule.MVELDialectRuntimeData;
-import org.drools.core.rule.Pattern;
-import org.drools.core.rule.QueryArgument;
-import org.drools.core.rule.QueryElement;
-import org.drools.core.rule.QueryImpl;
-import org.drools.core.rule.RuleConditionElement;
-import org.drools.core.spi.DeclarationScopeResolver;
-import org.drools.core.spi.InternalReadAccessor;
-import org.drools.core.spi.ObjectType;
-import org.drools.core.util.ClassUtils;
-import org.drools.core.util.MVELSafeHelper;
-import org.drools.core.util.StringUtils;
-import org.mvel2.MVEL;
-import org.mvel2.ParserConfiguration;
-import org.mvel2.ParserContext;
+import org.drools.compiler.lang.DescrDumper;
+import org.drools.compiler.lang.DumperContext;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.BindingDescr;
+import org.drools.drl.ast.descr.ConstraintConnectiveDescr;
+import org.drools.drl.ast.descr.ExprConstraintDescr;
+import org.drools.drl.ast.descr.PatternDescr;
+import org.drools.drl.parser.DrlExprParser;
+import org.drools.drl.parser.DrlExprParserFactory;
+import org.drools.drl.parser.DroolsParserException;
+import org.drools.util.ClassUtils;
+import org.drools.util.StringUtils;
+import org.kie.internal.builder.conf.LanguageLevelOption;
 
-import static org.drools.core.rule.LogicTransformer.toIntArray;
-import static org.drools.core.util.StringUtils.isDereferencingIdentifier;
+import static org.drools.base.rule.LogicTransformer.toIntArray;
+import static org.drools.util.StringUtils.isDereferencingIdentifier;
 
 public class QueryElementBuilder
     implements
@@ -67,14 +69,13 @@ public class QueryElementBuilder
                                        BaseDescr descr ) {
         throw new UnsupportedOperationException();
     }
-    
+
     public RuleConditionElement build( RuleBuildContext context,
                                        BaseDescr descr,
                                        Pattern prefixPattern ) {
         throw new UnsupportedOperationException();
     }
 
-    @SuppressWarnings("unchecked")
     public RuleConditionElement build( RuleBuildContext context,
                                        BaseDescr descr,
                                        QueryImpl query) {
@@ -86,9 +87,10 @@ public class QueryElementBuilder
         List<Declaration> requiredDeclarations = new ArrayList<>();
 
         ObjectType argsObjectType = ClassObjectType.ObjectArray_ObjectType;
-        InternalReadAccessor arrayReader = new SelfReferenceClassFieldReader( Object[].class );
+        ReadAccessor arrayReader = new SelfReferenceClassFieldReader( Object[].class );
         Pattern pattern = new Pattern( context.getNextPatternId(),
-                                       0,
+                                       0, // tupleIndex is 0 by default
+                                       0, // patternIndex is 0 by default
                                        argsObjectType,
                                        null );
 
@@ -228,13 +230,12 @@ public class QueryElementBuilder
                                  query.isAbductive() );
     }
 
-    @SuppressWarnings("unchecked")
     private void processBinding( RuleBuildContext context,
                                  BaseDescr descr,
                                  Declaration[] params,
                                  QueryArgument[] arguments,
                                  List<Declaration> requiredDeclarations,
-                                 InternalReadAccessor arrayReader,
+                                 ReadAccessor arrayReader,
                                  Pattern pattern,
                                  BindingDescr bind ) {
         Declaration declr = context.getDeclarationResolver().getDeclaration( bind.getVariable() );
@@ -264,7 +265,7 @@ public class QueryElementBuilder
             } else {
                 // it must be a literal/expression
                 // it's an expression and thus an input
-                DrlExprParser parser = new DrlExprParser( context.getConfiguration().getLanguageLevel() );
+                DrlExprParser parser = DrlExprParserFactory.getDrlExprParser(context.getConfiguration().getOption(LanguageLevelOption.KEY));
                 ConstraintConnectiveDescr bresult = parser.parse( bind.getExpression() );
                 if ( parser.hasErrors() ) {
                     for ( DroolsParserException error : parser.getErrors() ) {
@@ -300,7 +301,7 @@ public class QueryElementBuilder
                                     Declaration[] params,
                                     QueryArgument[] arguments,
                                     List<Declaration> requiredDeclarations,
-                                    InternalReadAccessor arrayReader,
+                                    ReadAccessor arrayReader,
                                     Pattern pattern,
                                     BaseDescr base,
                                     String expression,
@@ -339,7 +340,7 @@ public class QueryElementBuilder
                     }
                 }
                 if (declarations.size() == analysisResult.getIdentifiers().size()) {
-                    arguments[pos] = new QueryArgument.Expression( declarations, expression, getParserContext( context ) );
+                    arguments[pos] = ConstraintBuilder.get().buildExpressionQueryArgument( context, declarations, expression );
                 } else {
                     arguments[pos] = getLiteralQueryArgument( context, base, result );
                 }
@@ -354,7 +355,7 @@ public class QueryElementBuilder
         return context.getDialect().analyzeBlock( context, base, expression, boundIds );
     }
 
-    private QueryArgument getVariableQueryArgument( InternalReadAccessor arrayReader, Declaration[] params, int pos, Pattern pattern, String expression) {
+    private QueryArgument getVariableQueryArgument( ReadAccessor arrayReader, Declaration[] params, int pos, Pattern pattern, String expression) {
         // this bit is different, notice its the ArrayElementReader that we wire up to, not the declaration.
         ArrayElementReader reader = new ArrayElementReader( arrayReader,
                                                             pos,
@@ -366,10 +367,12 @@ public class QueryElementBuilder
     }
 
     private QueryArgument getLiteralQueryArgument( RuleBuildContext context, BaseDescr descr, ConstraintConnectiveDescr result ) {
-        MVELDumper.MVELDumperContext mvelCtx = new MVELDumper.MVELDumperContext();
-        String expr = context.getCompilerFactory().getExpressionProcessor().dump( result, mvelCtx );
+        DumperContext mvelCtx = new DumperContext();
+        String expr = DescrDumper.getInstance().dump( result, mvelCtx );
         try {
-            Object value = MVELSafeHelper.getEvaluator().executeExpression( MVEL.compileExpression( expr, getParserContext(context) ) );
+            Object value = CoreComponentsBuilder.get()
+                    .evaluateMvelExpression( context.getPkg().getDialectRuntimeRegistry().getDialectData( "mvel" ),
+                            context.getKnowledgeBuilder().getRootClassLoader(), expr );
             return new QueryArgument.Literal( value );
         } catch ( Exception e ) {
             context.addError( new DescrBuildError( context.getParentDescr(),
@@ -378,13 +381,6 @@ public class QueryElementBuilder
                                                    "Unable to compile expression: " + expr ) );
         }
         return null;
-    }
-
-    private ParserContext getParserContext(RuleBuildContext context) {
-        MVELDialectRuntimeData data = ( MVELDialectRuntimeData) context.getPkg().getDialectRuntimeRegistry().getDialectData( "mvel" );
-        ParserConfiguration conf = data.getParserConfiguration();
-        conf.setClassLoader( context.getKnowledgeBuilder().getRootClassLoader() );
-        return new ParserContext( conf );
     }
 
     private static int getPos( String identifier,
@@ -397,11 +393,10 @@ public class QueryElementBuilder
         return -1;
     }
 
-    @SuppressWarnings("unchecked")
     private ConstraintConnectiveDescr parseExpression( final RuleBuildContext context,
                                                        final PatternDescr patternDescr,
                                                        final String expression ) {
-        DrlExprParser parser = new DrlExprParser( context.getConfiguration().getLanguageLevel() );
+        DrlExprParser parser = DrlExprParserFactory.getDrlExprParser( context.getConfiguration().getOption(LanguageLevelOption.KEY));
         ConstraintConnectiveDescr result = parser.parse( expression );
         if ( result == null || parser.hasErrors() ) {
             for ( DroolsParserException error : parser.getErrors() ) {

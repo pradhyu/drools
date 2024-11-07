@@ -1,29 +1,31 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.persistence.jpa.marshaller;
 
 import java.io.Serializable;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Version;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Version;
 
 @Entity
 @SequenceGenerator(name="mappedVarIdSeq", sequenceName="MAPPED_VAR_ID_SEQ")
@@ -41,7 +43,7 @@ public class MappedVariable implements Serializable {
 
     private String variableType;
 
-    private Long processInstanceId;
+    private String processInstanceId;
     private Long taskId;
     private Long workItemId;
 
@@ -49,13 +51,13 @@ public class MappedVariable implements Serializable {
 
     }
 
-    public MappedVariable(Long variableId, String variableType, Long processInstanceId) {
+    public MappedVariable(Long variableId, String variableType, String processInstanceId) {
         this.variableId = variableId;
         this.variableType = variableType;
         this.processInstanceId = processInstanceId;
     }
 
-    public MappedVariable(Long variableId, String variableType, Long processInstanceId, Long taskId, Long workItemId) {
+    public MappedVariable(Long variableId, String variableType, String processInstanceId, Long taskId, Long workItemId) {
         this.variableId = variableId;
         this.variableType = variableType;
         this.processInstanceId = processInstanceId;
@@ -87,11 +89,11 @@ public class MappedVariable implements Serializable {
         this.variableType = variableType;
     }
 
-    public Long getProcessInstanceId() {
+    public String getProcessInstanceId() {
         return processInstanceId;
     }
 
-    public void setProcessInstanceId(Long processInstanceId) {
+    public void setProcessInstanceId(String processInstanceId) {
         this.processInstanceId = processInstanceId;
     }
 

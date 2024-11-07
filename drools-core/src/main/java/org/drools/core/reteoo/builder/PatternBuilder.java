@@ -1,64 +1,60 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo.builder;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
+import java.util.stream.Collectors;
 
-import org.drools.core.base.ClassObjectType;
-import org.drools.core.base.DroolsQuery;
-import org.drools.core.base.mvel.ActivationPropertyHandler;
-import org.drools.core.base.mvel.MVELCompilationUnit.PropertyHandlerFactoryFixer;
-import org.drools.core.common.AgendaItemImpl;
-import org.drools.core.common.InstanceNotEqualsConstraint;
+import org.drools.base.base.ClassObjectType;
+import org.drools.base.base.DroolsQuery;
+import org.drools.base.base.ObjectType;
+import org.drools.base.rule.Accumulate;
+import org.drools.base.rule.Behavior;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.EntryPointId;
+import org.drools.base.rule.GroupElement;
+import org.drools.base.rule.IntervalProviderConstraint;
+import org.drools.base.rule.InvalidPatternException;
+import org.drools.base.rule.Pattern;
+import org.drools.base.rule.PatternSource;
+import org.drools.base.rule.RuleConditionElement;
+import org.drools.base.rule.TypeDeclaration;
+import org.drools.base.rule.WindowReference;
+import org.drools.base.rule.constraint.AlphaNodeFieldConstraint;
+import org.drools.base.rule.constraint.BetaConstraint;
+import org.drools.base.rule.constraint.Constraint;
+import org.drools.base.rule.constraint.XpathConstraint;
+import org.drools.base.time.impl.Timer;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.WindowNode;
-import org.drools.core.rule.Accumulate;
-import org.drools.core.rule.AsyncSend;
-import org.drools.core.rule.Behavior;
-import org.drools.core.rule.Declaration;
-import org.drools.core.rule.EntryPointId;
-import org.drools.core.rule.GroupElement;
-import org.drools.core.rule.IntervalProviderConstraint;
-import org.drools.core.rule.InvalidPatternException;
-import org.drools.core.rule.Pattern;
-import org.drools.core.rule.PatternSource;
-import org.drools.core.rule.RuleConditionElement;
-import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.rule.WindowReference;
-import org.drools.core.rule.constraint.XpathConstraint;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-import org.drools.core.spi.Constraint;
-import org.drools.core.spi.ObjectType;
+import org.drools.core.rule.BehaviorRuntime;
 import org.drools.core.time.impl.CompositeMaxDurationTimer;
 import org.drools.core.time.impl.DurationTimer;
-import org.drools.core.time.impl.Timer;
 import org.kie.api.conf.EventProcessingOption;
 import org.kie.api.definition.type.Expires.Policy;
-import org.mvel2.integration.PropertyHandler;
-import org.mvel2.integration.PropertyHandlerFactory;
 
+import static org.drools.base.rule.TypeDeclaration.NEVER_EXPIRES;
 import static org.drools.core.reteoo.builder.GroupElementBuilder.AndBuilder.buildJoinNode;
 import static org.drools.core.reteoo.builder.GroupElementBuilder.AndBuilder.buildTupleSource;
-import static org.drools.core.rule.TypeDeclaration.NEVER_EXPIRES;
-
 /**
  * A builder for patterns
  */
@@ -81,36 +77,29 @@ public class PatternBuilder
         }
 
         context.pushRuleComponent( pattern );
+        context.syncObjectTypesWithObjectCount(); // must unwind object types from subnetworks, if they exist
         this.attachPattern( context,
                             utils,
                             pattern );
+        // mus be added after
+        context.addPattern( pattern );
         context.popRuleComponent();
-
     }
 
     private void attachPattern(final BuildContext context,
                                final BuildUtils utils,
                                final Pattern pattern) throws InvalidPatternException {
-
-        // Set pattern offset to the appropriate value
-        pattern.setOffset( context.getCurrentPatternOffset() );
-        
-        // this is needed for Activation patterns, to allow declarations and annotations to be used like field constraints
-        if ( ClassObjectType.Match_ObjectType.isAssignableFrom( pattern.getObjectType() ) ) {
-            PropertyHandler handler = PropertyHandlerFactory.getPropertyHandler( AgendaItemImpl.class );
-            if ( handler == null ) {
-                PropertyHandlerFactoryFixer.getPropertyHandlerClass().put( AgendaItemImpl.class, new ActivationPropertyHandler() );
-            }
-        }
-
         Constraints constraints = createConstraints(context, pattern);
+
+        // Set pattern tuple index and objectIndex to the appropriate value
+        pattern.setTupleIndex(context.getTupleSource() == null ? 0 : context.getTupleSource().getPathIndex() + 1);
+        pattern.setObjectIndex((context.getTupleSource() != null) ? context.getTupleSource().getObjectCount() : 0);
 
         // Create BetaConstraints object
         context.setBetaconstraints( constraints.betaConstraints );
 
         if ( pattern.getSource() != null ) {
             context.setAlphaConstraints( constraints.alphaConstraints );
-            final int currentOffset = context.getCurrentPatternOffset();
 
             PatternSource source = pattern.getSource();
 
@@ -121,8 +110,6 @@ public class PatternBuilder
             }
 
             builder.build( context, utils, source );
-            // restoring offset
-            context.setCurrentPatternOffset( currentOffset );
         } else {
             // default entry point
             PatternSource source = EntryPointId.DEFAULT;
@@ -133,29 +120,24 @@ public class PatternBuilder
         buildBehaviors(context, utils, pattern, constraints);
 
         if ( context.getObjectSource() != null ) {
-            attachAlphaNodes( context, utils, pattern, constraints.alphaConstraints );
+            attachAlphaNodes( context, utils, constraints.alphaConstraints );
         }
 
-        buildXpathConstraints(context, utils, pattern, constraints);
-
-        // last thing to do is increment the offset, since if the pattern has a source,
-        // offset must be overriden
-        if ( !(pattern.getSource() instanceof AsyncSend) ) {
-            context.incrementCurrentPatternOffset();
-        }
+        buildXpathConstraints(context, utils, constraints);
     }
 
     private void buildBehaviors(BuildContext context, BuildUtils utils, Pattern pattern, Constraints constraints) {
-        final List<Behavior> behaviors = pattern.getBehaviors();
         if ( pattern.getSource() == null ||
-                ( !( pattern.getSource() instanceof WindowReference) &&
-                  ( context.getCurrentEntryPoint() != EntryPointId.DEFAULT || ! behaviors.isEmpty() ) ) ){
+             ( !( pattern.getSource() instanceof WindowReference) &&
+               ( context.getCurrentEntryPoint() != EntryPointId.DEFAULT || !pattern.getBehaviors().isEmpty() ) ) ){
             attachObjectTypeNode( context, utils, pattern );
         }
 
-        if( ! behaviors.isEmpty() ) {
+        if( !pattern.getBehaviors().isEmpty() ) {
+            final List<BehaviorRuntime> behaviors = pattern.getBehaviors().stream().map(BehaviorRuntime.class::cast).collect(Collectors.toList());
+
             // build the window node:
-            WindowNode wn = context.getComponentFactory().getNodeFactoryService().buildWindowNode( context.getNextId(),
+            WindowNode wn = CoreComponentFactory.get().getNodeFactoryService().buildWindowNode( context.getNextNodeId(),
                                                                                                    constraints.alphaConstraints,
                                                                                                    behaviors,
                                                                                                    context.getObjectSource(),
@@ -167,13 +149,12 @@ public class PatternBuilder
         }
     }
 
-    private void buildXpathConstraints(BuildContext context, BuildUtils utils, Pattern pattern, Constraints constraints) {
+    private void buildXpathConstraints(BuildContext context, BuildUtils utils, Constraints constraints) {
         if (!constraints.xpathConstraints.isEmpty()) {
-            buildTupleSource(context, utils);
+            buildTupleSource(context, utils, false);
 
             if (constraints.xpathConstraints.size() == 1 && constraints.xpathConstraints.get(0).getXpathStartDeclaration() != null) {
                 context.setObjectSource( null );
-                context.decrementCurrentPatternOffset();
             } else {
                 buildJoinNode( context, utils );
             }
@@ -185,18 +166,6 @@ public class PatternBuilder
                     context.setBetaconstraints(chunk.getBetaConstraints());
                     context.setXpathConstraints(chunk.getXpathConstraints());
                     builder.build(context, utils, chunk.asFrom());
-                }
-
-                Declaration declaration = xpathConstraint.getDeclaration();
-
-                if ( declaration != null ) { // oopath actually have the binding
-                    Pattern clonedPattern = new Pattern( pattern.getIndex(),
-                                                         context.getCurrentPatternOffset(),
-                                                         new ClassObjectType( xpathConstraint.getResultClass() ),
-                                                         declaration.getIdentifier(),
-                                                         declaration.isInternalFact() );
-    
-                    declaration.setPattern( clonedPattern );
                 }
             }
 
@@ -220,8 +189,8 @@ public class PatternBuilder
                     linkAlphaConstraint( (AlphaNodeFieldConstraint) constraint, constraints.alphaConstraints );
                     break;
                 case BETA:
-                    linkBetaConstraint( (BetaNodeFieldConstraint) constraint, constraints.betaConstraints );
-                    if ( isNegative && context.getKnowledgeBase().getConfiguration().getEventProcessingMode() == EventProcessingOption.STREAM && pattern.getObjectType().isEvent() && constraint.isTemporal() ) {
+                    linkBetaConstraint((BetaConstraint) constraint, constraints.betaConstraints);
+                    if ( isNegative && context.getRuleBase().getRuleBaseConfiguration().getEventProcessingMode() == EventProcessingOption.STREAM && pattern.getObjectType().isEvent() && constraint.isTemporal() ) {
                         checkDelaying( context, constraint );
                     }
                     break;
@@ -235,7 +204,7 @@ public class PatternBuilder
         return constraints;
     }
 
-    protected void linkBetaConstraint( BetaNodeFieldConstraint constraint, List<BetaNodeFieldConstraint> betaConstraints ) {
+    protected void linkBetaConstraint(BetaConstraint constraint, List<BetaConstraint> betaConstraints) {
         betaConstraints.add( constraint );
     }
 
@@ -287,8 +256,7 @@ public class PatternBuilder
     }
 
     private boolean isNegative(final BuildContext context) {
-        for ( ListIterator<RuleConditionElement> it = context.stackIterator(); it.hasPrevious(); ) {
-            RuleConditionElement rce = it.previous();
+        for ( RuleConditionElement rce : context.getBuildstack() ) {
             if ( rce instanceof GroupElement && ((GroupElement) rce).isNot() ) {
                 return true;
             }
@@ -301,7 +269,7 @@ public class PatternBuilder
         long offset = NEVER_EXPIRES;
         boolean hard = false;
 
-        for (TypeDeclaration type : context.getKnowledgeBase().getTypeDeclarations()) {
+        for (TypeDeclaration type : context.getRuleBase().getTypeDeclarations()) {
             if (type.getObjectType().isAssignableFrom( objectType )) {
                 if ( hard ) {
                     if ( type.getExpirationPolicy() == Policy.TIME_HARD && type.getExpirationOffset() > offset ) {
@@ -337,15 +305,14 @@ public class PatternBuilder
 
     public void attachAlphaNodes(final BuildContext context,
                                  final BuildUtils utils,
-                                 final Pattern pattern,
                                  final List<AlphaNodeFieldConstraint> alphaConstraints) throws InvalidPatternException {
 
         // Drools Query ObjectTypeNode never has memory, but other ObjectTypeNode/AlphaNoesNodes may (if not in sequential), 
         //so need to preserve, so we can restore after this node is added. LeftMemory  and Terminal remain the same once set.
 
-        buildAlphaNodeChain( context, utils, pattern, alphaConstraints );
+        buildAlphaNodeChain( context, utils, alphaConstraints );
 
-        NodeFactory nfactory = context.getComponentFactory().getNodeFactoryService();
+        NodeFactory nfactory = CoreComponentFactory.get().getNodeFactoryService();
         
         if ( context.getCurrentEntryPoint() != EntryPointId.DEFAULT && context.isAttachPQN() ) {
             // the entry-point specific network nodes are attached, so, set context to default entry-point
@@ -353,11 +320,11 @@ public class PatternBuilder
         }
     }
 
-    protected void buildAlphaNodeChain( BuildContext context, BuildUtils utils, Pattern pattern, List<AlphaNodeFieldConstraint> alphaConstraints ) {
+    private void buildAlphaNodeChain( BuildContext context, BuildUtils utils, List<AlphaNodeFieldConstraint> alphaConstraints ) {
         for ( final AlphaNodeFieldConstraint constraint : alphaConstraints ) {
             context.pushRuleComponent( constraint );
             context.setObjectSource( utils.attachNode( context,
-                                                       context.getComponentFactory().getNodeFactoryService().buildAlphaNode( context.getNextId(),
+                    CoreComponentFactory.get().getNodeFactoryService().buildAlphaNode( context.getNextNodeId(),
                                                                                                                              constraint,
                                                                                                                              context.getObjectSource(),
                                                                                                                              context) ) );
@@ -366,22 +333,20 @@ public class PatternBuilder
     }
 
     private void attachObjectTypeNode( final BuildContext context, final BuildUtils utils, final Pattern pattern ) {
-        boolean objectMemory = context.isObjectTypeNodeMemoryEnabled();
         ObjectType objectType = pattern.getObjectType();
         
         if ( pattern.getObjectType() instanceof ClassObjectType ) {
             // Is this the query node, if so we don't want any memory
-            if ( DroolsQuery.class == ((ClassObjectType) pattern.getObjectType()).getClassType() ) {
+            if (DroolsQuery.class == ((ClassObjectType) pattern.getObjectType()).getClassType() ) {
                 context.setTupleMemoryEnabled( false );
-                context.setObjectTypeNodeMemoryEnabled( false );
             }
         }
 
-        ObjectTypeNode otn = context.getComponentFactory().getNodeFactoryService().buildObjectTypeNode( context.getNextId(),
+        ObjectTypeNode otn = CoreComponentFactory.get().getNodeFactoryService().buildObjectTypeNode( context.getNextNodeId(),
                                                  (EntryPointNode) context.getObjectSource(),
                                                  objectType,
                                                  context );
-        if ( objectType.isEvent() && EventProcessingOption.STREAM.equals( context.getKnowledgeBase().getConfiguration().getEventProcessingMode() ) ) {
+        if ( objectType.isEvent() && EventProcessingOption.STREAM.equals( context.getRuleBase().getRuleBaseConfiguration().getEventProcessingMode() ) ) {
             ExpirationSpec expirationSpec = getExpirationForType( context, objectType );
 
             if( expirationSpec.offset != NEVER_EXPIRES && expirationSpec.hard ) {
@@ -402,7 +367,7 @@ public class PatternBuilder
                 }
 
                 long distance = context.getExpirationOffset( pattern );
-                if( distance == NEVER_EXPIRES ) {
+                if ( distance == NEVER_EXPIRES ) {
                     // it means the rules have no temporal constraints, or
                     // the constraints require events to be hold forever. In this 
                     // case, we allow type declarations to override the implicit 
@@ -416,7 +381,6 @@ public class PatternBuilder
         }
 
         context.setObjectSource( utils.attachNode( context, otn ) );
-        context.setObjectTypeNodeMemoryEnabled( objectMemory );
     }
 
     /**
@@ -426,20 +390,17 @@ public class PatternBuilder
      */
     private void checkRemoveIdentities(final BuildContext context,
                                        final Pattern pattern,
-                                       final List<BetaNodeFieldConstraint> betaConstraints) {
-        if ( context.getKnowledgeBase().getConfiguration().isRemoveIdentities() && pattern.getObjectType().getClass() == ClassObjectType.class ) {
+                                       final List<BetaConstraint> betaConstraints) {
+        if ( context.getRuleBase().getRuleBaseConfiguration().isRemoveIdentities() && pattern.getObjectType().getClass() == ClassObjectType.class ) {
             // Check if this object type exists before
             // If it does we need stop instance equals cross product
-            final Class< ? > thisClass = ((ClassObjectType) pattern.getObjectType()).getClassType();
-            for ( final Pattern previousPattern : context.getObjectType() ) {
-                final Class< ? > previousClass = ((ClassObjectType) previousPattern.getObjectType()).getClassType();
-                if ( thisClass.isAssignableFrom( previousClass ) ) {
+            final ObjectType thisObjectType = pattern.getObjectType();
+            for ( final Pattern previousPattern : context.getPatterns() ) {
+                final ObjectType previousObjectType = previousPattern.getObjectType();
+                if ( thisObjectType.isAssignableFrom( previousObjectType ) ) {
                     betaConstraints.add( new InstanceNotEqualsConstraint( previousPattern ) );
                 }
             }
-
-            // Must be added after the checking, otherwise it matches against itself
-            context.getObjectType().add( pattern );
         }
     }
 
@@ -454,8 +415,8 @@ public class PatternBuilder
     }
 
     private static class Constraints {
-        private final List<AlphaNodeFieldConstraint> alphaConstraints = new LinkedList<AlphaNodeFieldConstraint>();
-        private final List<BetaNodeFieldConstraint> betaConstraints = new LinkedList<BetaNodeFieldConstraint>();
-        private final List<XpathConstraint> xpathConstraints = new LinkedList<XpathConstraint>();
+        private final List<AlphaNodeFieldConstraint> alphaConstraints = new ArrayList<>();
+        private final List<BetaConstraint>           betaConstraints  = new ArrayList<>();
+        private final List<XpathConstraint>          xpathConstraints = new ArrayList<>();
     }
 }

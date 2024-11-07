@@ -1,27 +1,29 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.drl;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Cheesery;
 import org.drools.testcoverage.common.model.FirstClass;
@@ -30,44 +32,32 @@ import org.drools.testcoverage.common.model.SecondClass;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.Message;
 import org.kie.api.definition.KiePackage;
 import org.kie.api.runtime.KieSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class ImportsTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(ImportsTest.class);
-
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public ImportsTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testImportFunctions(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        testImportFunctionsBase(kieBaseTestConfiguration, StaticMethods.class.getCanonicalName(), StaticMethods2.class.getCanonicalName());
     }
 
-    @Test
-    public void testImportFunctions() {
-        testImportFunctionsBase(StaticMethods.class.getCanonicalName(), StaticMethods2.class.getCanonicalName());
-    }
-
-    @Test()
-    public void testImport() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testImport(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // Same package as this test
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -88,8 +78,9 @@ public class ImportsTest {
         }
     }
 
-    @Test
-    public void testImportColision() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testImportColision(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl1 = "package org.drools.compiler.integrationtests.drl;\n" +
                 "\n" +
                 "//list any import classes here.\n" +
@@ -142,8 +133,9 @@ public class ImportsTest {
         }
     }
 
-    @Test
-    public void testImportConflict() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testImportConflict(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "\n" +
@@ -161,8 +153,9 @@ public class ImportsTest {
         ksession.dispose();
     }
 
-    @Test
-    public void testMissingImport() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMissingImport(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
             "package org.drools.compiler.integrationtests.drl;\n" +
             "import " + Person.class.getName() + ";\n" +
@@ -176,12 +169,13 @@ public class ImportsTest {
             "end \n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
     }
 
-    @Test
-    public void testMissingImports() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMissingImports(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package foo;\n" +
                 "\n" +
@@ -193,12 +187,13 @@ public class ImportsTest {
                 "end";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
     }
 
-    @Test
-    public void testPackageImportWithMvelDialect() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testPackageImportWithMvelDialect(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-2244
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + "\n" +
@@ -219,15 +214,16 @@ public class ImportsTest {
             final Cheese c = new Cheese( "Gorgonzola" );
             ksession.insert( c );
 
-            assertEquals( 1, ksession.fireAllRules() );
-            assertSame( c, p.getCheese() );
+            assertThat(ksession.fireAllRules()).isEqualTo(1);
+            assertThat(p.getCheese()).isSameAs(c);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testImportStaticClass() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testImportStaticClass(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "\n" +
@@ -270,10 +266,10 @@ public class ImportsTest {
 
             session.fireAllRules();
 
-            assertEquals(2, list.size());
+            assertThat(list.size()).isEqualTo(2);
 
-            assertEquals(cheesery1, list.get(0));
-            assertEquals(cheesery2, list.get(1));
+            assertThat(list.get(0)).isEqualTo(cheesery1);
+            assertThat(list.get(1)).isEqualTo(cheesery2);
         } finally {
             session.dispose();
         }
@@ -297,8 +293,9 @@ public class ImportsTest {
         }
     }
 
-    @Test
-    public void testImportInnerFunctions() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testImportInnerFunctions(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import function " + org.drools.compiler.integrationtests.drl.ImportsTest.StaticMethods.class.getCanonicalName() + ".*;\n" +
@@ -343,11 +340,11 @@ public class ImportsTest {
                 "        list.add( getString4( \"rule4\" ) );\n" +
                 "end";
 
-        testImportFunctionsBase(org.drools.compiler.integrationtests.drl.ImportsTest.StaticMethods.class.getCanonicalName(),
+        testImportFunctionsBase(kieBaseTestConfiguration, org.drools.compiler.integrationtests.drl.ImportsTest.StaticMethods.class.getCanonicalName(),
                                 org.drools.compiler.integrationtests.drl.ImportsTest.StaticMethods2.class.getCanonicalName());
     }
 
-    private void testImportFunctionsBase(final String staticMethodImport1, final String staticMethodImport2) {
+    private void testImportFunctionsBase(KieBaseTestConfiguration kieBaseTestConfiguration, final String staticMethodImport1, final String staticMethodImport2) {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import function " + staticMethodImport1 + ".*;\n" +
                 "import function " + staticMethodImport2 + ".getString3;\n" +
@@ -403,15 +400,42 @@ public class ImportsTest {
 
             list = (List) session.getGlobal("list");
 
-            assertEquals(4, fired);
-            assertEquals(4, list.size());
+            assertThat(fired).isEqualTo(4);
+            assertThat(list.size()).isEqualTo(4);
 
-            assertEquals("rule1", list.get(0));
-            assertEquals("rule2", list.get(1));
-            assertEquals("rule3", list.get(2));
-            assertEquals("rule4", list.get(3));
+            assertThat(list.get(0)).isEqualTo("rule1");
+            assertThat(list.get(1)).isEqualTo("rule2");
+            assertThat(list.get(2)).isEqualTo("rule3");
+            assertThat(list.get(3)).isEqualTo("rule4");
         } finally {
             session.dispose();
         }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testWrongImportWithDeclaredType(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        // KOGITO-7729
+
+        final String drl =
+                "package org.acme.order\n" +
+                "\n" +
+                "import org.kie.order.Order\n" +
+                "\n" +
+                "declare ExpressDeliverer\n" +
+                "  term: int\n" +
+                "end\n" +
+                "\n" +
+                "rule R1 when\n" +
+                "    $order: Order ()\n" +
+                "    $deliverer: ExpressDeliverer ()\n" +
+                "then\n" +
+                "    $order.setDiscount(0);\n" +
+                "    $deliverer.setTerm(5);\n" +
+                "end";
+
+        final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).extracting(Message::getText).doesNotContain("");
     }
 }

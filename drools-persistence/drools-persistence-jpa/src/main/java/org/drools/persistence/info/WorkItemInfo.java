@@ -1,44 +1,49 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.persistence.info;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Date;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Lob;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Transient;
-import javax.persistence.Version;
-
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.marshalling.impl.InputMarshaller;
-import org.drools.core.marshalling.impl.MarshallerReaderContext;
-import org.drools.core.marshalling.impl.MarshallerWriteContext;
-import org.drools.core.marshalling.impl.ProtobufInputMarshaller;
-import org.drools.core.marshalling.impl.ProtobufOutputMarshaller;
-import org.drools.core.process.instance.WorkItem;
+import org.drools.core.marshalling.MarshallerReaderContext;
+import org.drools.core.marshalling.MarshallerWriteContext;
+import org.drools.core.process.WorkItem;
+import org.drools.core.process.impl.WorkItemImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.persistence.api.PersistentWorkItem;
-import org.drools.persistence.api.Transformable;
+import org.drools.serialization.protobuf.ProtobufInputMarshaller;
+import org.drools.serialization.protobuf.ProtobufMarshallerReaderContext;
+import org.drools.serialization.protobuf.ProtobufMarshallerWriteContext;
+import org.drools.serialization.protobuf.ProtobufOutputMarshaller;
+import org.kie.api.marshalling.ObjectMarshallingStrategy;
 import org.kie.api.runtime.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +55,7 @@ public class WorkItemInfo implements PersistentWorkItem {
     private static final Logger logger = LoggerFactory.getLogger(WorkItemInfo.class);
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO, generator="workItemInfoIdSeq")
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator="workItemInfoIdSeq")
     private Long   workItemId;
 
     @Version
@@ -59,7 +64,7 @@ public class WorkItemInfo implements PersistentWorkItem {
 
     private String name;
     private Date   creationDate;
-    private long   processInstanceId;
+    private String processInstanceId;
     private long   state;
     
     @Lob
@@ -99,7 +104,7 @@ public class WorkItemInfo implements PersistentWorkItem {
         return creationDate;
     }
 
-    public long getProcessInstanceId() {
+    public String getProcessInstanceId() {
         return processInstanceId;
     }
 
@@ -116,7 +121,7 @@ public class WorkItemInfo implements PersistentWorkItem {
         if ( workItem == null ) {
             try {
                 ByteArrayInputStream bais = new ByteArrayInputStream( workItemByteArray );
-                MarshallerReaderContext context = new MarshallerReaderContext( bais,
+                MarshallerReaderContext context = new ProtobufMarshallerReaderContext( bais,
                                                                                kBase,
                                                                                null,
                                                                                null,
@@ -129,14 +134,14 @@ public class WorkItemInfo implements PersistentWorkItem {
                     try {
                         context.close();
                         bais = new ByteArrayInputStream( workItemByteArray );
-                        context = new MarshallerReaderContext( bais,
+                        context = new ProtobufMarshallerReaderContext( bais,
                                                                kBase,
                                                                null,
                                                                null,
                                                                null,
                                                                env);
 
-                        workItem = InputMarshaller.readWorkItem(context);
+                        workItem = readWorkItem(context);
                     } catch (IOException e1) {
                         logger.error("Unable to read work item with InputMarshaller", e1);
                         // throw the original exception produced by failed protobuf op
@@ -146,14 +151,65 @@ public class WorkItemInfo implements PersistentWorkItem {
 
                 context.close();
             } catch ( IOException e ) {
-                e.printStackTrace();
+                logger.error("Exception", e);
                 throw new IllegalArgumentException( "IOException while loading work item: " + e.getMessage() );
             }
         }
         return workItem;
     }
 
-     
+    private static WorkItem readWorkItem( MarshallerReaderContext context ) throws IOException {
+        ObjectInputStream stream = (ObjectInputStream) context;
+
+        WorkItemImpl workItem = new WorkItemImpl();
+        workItem.setId( stream.readLong() );
+        workItem.setProcessInstanceId( stream.readUTF() );
+        workItem.setName( stream.readUTF() );
+        workItem.setState( stream.readInt() );
+
+        //WorkItem Paramaters
+        int nbVariables = stream.readInt();
+        if (nbVariables > 0) {
+
+            for (int i = 0; i < nbVariables; i++) {
+                String name = stream.readUTF();
+                try {
+                    int index = stream.readInt();
+                    ObjectMarshallingStrategy strategy = null;
+                    // Old way of retrieving strategy objects
+                    if (index >= 0) {
+                        strategy = context.getResolverStrategyFactory().getStrategy( index );
+                        if (strategy == null) {
+                            throw new IllegalStateException( "No strategy of with index " + index + " available." );
+                        }
+                    }
+                    // New way
+                    else if (index == -2) {
+                        String strategyClassName = stream.readUTF();
+                        // fix for backwards compatibility (5.x -> 6.x)
+                        if ("org.drools.marshalling.impl.SerializablePlaceholderResolverStrategy".equals(strategyClassName)) {
+                            strategyClassName = "org.drools.core.marshalling.impl.SerializablePlaceholderResolverStrategy";
+                        }
+                        strategy = context.getResolverStrategyFactory().getStrategyObject( strategyClassName );
+                        if (strategy == null) {
+                            throw new IllegalStateException( "No strategy of type " + strategyClassName + " available." );
+                        }
+                    } else {
+                        throw new IllegalStateException( "Wrong index of strategy field read: " + index + "!");
+                    }
+
+                    Object value = strategy.read( stream );
+                    workItem.setParameter( name,
+                            value );
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalArgumentException(
+                            "Could not reload variable " + name );
+                }
+            }
+        }
+
+        return workItem;
+    }
 
 //    @PreUpdate
     @Override
@@ -164,7 +220,7 @@ public class WorkItemInfo implements PersistentWorkItem {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
-            MarshallerWriteContext context = new MarshallerWriteContext( baos,
+            MarshallerWriteContext context = new ProtobufMarshallerWriteContext( baos,
                                                                          null,
                                                                          null,
                                                                          null,

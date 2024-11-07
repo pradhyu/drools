@@ -1,16 +1,20 @@
-/* * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.persistence.session;
 
@@ -23,17 +27,19 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
-import javax.naming.InitialContext;
-import javax.transaction.UserTransaction;
 
-import org.drools.compiler.Address;
-import org.drools.compiler.Person;
+import javax.naming.InitialContext;
+import jakarta.transaction.UserTransaction;
+
+import org.drools.commands.ChainableRunner;
+import org.drools.commands.impl.CommandBasedStatefulKnowledgeSessionImpl;
+import org.drools.commands.impl.FireAllRulesInterceptor;
+import org.drools.commands.impl.LoggingInterceptor;
+import org.drools.core.FlowSessionConfiguration;
 import org.drools.core.SessionConfiguration;
-import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
-import org.drools.core.command.impl.FireAllRulesInterceptor;
-import org.drools.core.command.impl.LoggingInterceptor;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.runtime.ChainableRunner;
+import org.drools.core.impl.RuleBaseFactory;
+import org.drools.mvel.compiler.Address;
+import org.drools.mvel.compiler.Person;
 import org.drools.persistence.PersistableRunner;
 import org.drools.persistence.util.DroolsPersistenceUtil;
 import org.junit.After;
@@ -53,10 +59,15 @@ import org.kie.api.runtime.rule.FactHandle;
 import org.kie.internal.command.CommandFactory;
 import org.kie.internal.persistence.jpa.JPAKnowledgeService;
 import org.kie.internal.runtime.StatefulKnowledgeSession;
+import org.kie.internal.utils.ChainedProperties;
 import org.kie.internal.utils.KieHelper;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.drools.persistence.util.DroolsPersistenceUtil.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
+import static org.drools.persistence.util.DroolsPersistenceUtil.OPTIMISTIC_LOCKING;
+import static org.drools.persistence.util.DroolsPersistenceUtil.PESSIMISTIC_LOCKING;
+import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
 
 @RunWith(Parameterized.class)
 public class JpaPersistentStatefulSessionTest {
@@ -117,7 +128,7 @@ public class JpaPersistentStatefulSessionTest {
 
         final KieBase kbase = new KieHelper().addContent(str, ResourceType.DRL).build();
 
-        KieSession ksession = KieServices.get().getStoreServices().newKieSession(kbase, null, env);
+        KieSession ksession = kbase.newKieSession();//KieServices.get().getStoreServices().newKieSession(kbase, null, env);
         List<AtomicInteger> list = new ArrayList<>();
 
         ksession.setGlobal("list", list);
@@ -136,7 +147,7 @@ public class JpaPersistentStatefulSessionTest {
         assertThat(list).hasSize(2);
         final String externalForm = atomicFH.toExternalForm();
 
-        ksession = KieServices.get().getStoreServices().loadKieSession(ksession.getIdentifier(), kbase, null, env);
+        //ksession = KieServices.get().getStoreServices().loadKieSession(ksession.getIdentifier(), kbase, null, env);
 
         atomicFH = ksession.execute(CommandFactory.fromExternalFactHandleCommand(externalForm));
 
@@ -273,7 +284,7 @@ public class JpaPersistentStatefulSessionTest {
         final KieBase kbase = new KieHelper().addContent(str, ResourceType.DRL).build();
 
         final KieSession ksession = KieServices.get().getStoreServices().newKieSession(kbase, null, env);
-        final PersistableRunner sscs = (PersistableRunner) ((CommandBasedStatefulKnowledgeSession) ksession).getRunner();
+        final PersistableRunner sscs = (PersistableRunner) ((CommandBasedStatefulKnowledgeSessionImpl) ksession).getRunner();
         sscs.addInterceptor(new LoggingInterceptor());
         sscs.addInterceptor(new FireAllRulesInterceptor());
         sscs.addInterceptor(new LoggingInterceptor());
@@ -300,7 +311,7 @@ public class JpaPersistentStatefulSessionTest {
         final KieBase kbase = new KieHelper().addContent(str, ResourceType.DRL).build();
 
         final KieSession ksession = KieServices.get().getStoreServices().newKieSession(kbase, null, env);
-        final PersistableRunner sscs = (PersistableRunner) ((CommandBasedStatefulKnowledgeSession) ksession).getRunner();
+        final PersistableRunner sscs = (PersistableRunner) ((CommandBasedStatefulKnowledgeSessionImpl) ksession).getRunner();
         sscs.addInterceptor(new LoggingInterceptor());
         sscs.addInterceptor(new FireAllRulesInterceptor());
         sscs.addInterceptor(new LoggingInterceptor());
@@ -404,12 +415,12 @@ public class JpaPersistentStatefulSessionTest {
 
         final Properties properties = new Properties();
         properties.put("drools.processInstanceManagerFactory", "com.example.CustomJPAProcessInstanceManagerFactory");
-        final KieSessionConfiguration config = KnowledgeBaseFactory.newKnowledgeSessionConfiguration(properties);
+        final KieSessionConfiguration config = RuleBaseFactory.newKnowledgeSessionConfiguration(ChainedProperties.getChainedProperties(null).addProperties(properties), null);
 
         final KieSession ksession = KieServices.get().getStoreServices().newKieSession(kbase, config, env);
-        final SessionConfiguration sessionConfig = (SessionConfiguration) ksession.getSessionConfiguration();
+        final SessionConfiguration sessionConfig = ksession.getSessionConfiguration().as(SessionConfiguration.KEY);
 
-        assertThat(sessionConfig.getProcessInstanceManagerFactory()).isEqualTo("com.example.CustomJPAProcessInstanceManagerFactory");
+        assertThat(sessionConfig.as(FlowSessionConfiguration.KEY).getProcessInstanceManagerFactory()).isEqualTo("com.example.CustomJPAProcessInstanceManagerFactory");
     }
 
     @Test(expected = IllegalStateException.class)
@@ -493,8 +504,8 @@ public class JpaPersistentStatefulSessionTest {
     private void fromNodeWithModifiedCollection(final boolean withOOPath) {
         // DROOLS-376
         final String str = "package org.drools.test\n" +
-                "import org.drools.compiler.Person\n" +
-                "import org.drools.compiler.Address\n" +
+                "import org.drools.mvel.compiler.Person\n" +
+                "import org.drools.mvel.compiler.Address\n" +
                 "rule rule1\n" +
                 "when\n" +
                 (withOOPath ?

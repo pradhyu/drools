@@ -1,28 +1,33 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.scenariosimulation.api.model;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * <code>ScesimModelDescriptor</code> describes the template of a concrete <code>AbstractScesimModel</code>
@@ -76,21 +81,20 @@ public class ScesimModelDescriptor {
     public int getIndexByIdentifier(FactIdentifier factIdentifier, ExpressionIdentifier expressionIdentifier) {
         return IntStream.range(0, factMappings.size()).filter(index -> {
             FactMapping factMapping = factMappings.get(index);
-            return factMapping.getExpressionIdentifier().equals(expressionIdentifier) &&
-                    factMapping.getFactIdentifier().equals(factIdentifier);
+            return Objects.equals(factMapping.getExpressionIdentifier(), expressionIdentifier) &&
+                    Objects.equals(factMapping.getFactIdentifier(), factIdentifier);
         }).findFirst().orElseThrow(() -> new IllegalArgumentException(
                 new StringBuilder().append("Impossible to find a FactMapping with factIdentifier '").append(factIdentifier.getName())
                         .append("' and expressionIdentifier '").append(expressionIdentifier.getName()).append("'").toString()));
     }
 
-    public List<FactMapping> getFactMappingsByFactName(String factName) {
+    public Stream<FactMapping> getFactMappingsByFactName(String factName) {
         return internalFilter(e -> e.getFactIdentifier().getName().equalsIgnoreCase(factName));
     }
 
     public Optional<FactMapping> getFactMapping(FactIdentifier factIdentifier, ExpressionIdentifier ei) {
-        List<FactMapping> factMappings = internalFilter(e -> e.getExpressionIdentifier().equals(ei) &&
-                e.getFactIdentifier().equals(factIdentifier));
-        return factMappings.stream().findFirst();
+        return internalFilter(e -> Objects.equals(e.getExpressionIdentifier(), ei) &&
+                Objects.equals(e.getFactIdentifier(), factIdentifier)).findFirst();
     }
 
     /**
@@ -137,7 +141,7 @@ public class ScesimModelDescriptor {
         factMappings.clear();
     }
 
-    private List<FactMapping> internalFilter(Predicate<FactMapping> predicate) {
-        return factMappings.stream().filter(predicate).collect(Collectors.toList());
+    private Stream<FactMapping> internalFilter(Predicate<FactMapping> predicate) {
+        return factMappings.stream().filter(predicate);
     }
 }

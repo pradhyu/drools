@@ -1,20 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- *
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model;
 
 import org.drools.model.constraints.AbstractSingleConstraint;
@@ -33,6 +34,11 @@ import org.drools.model.constraints.SingleConstraint7;
 import org.drools.model.constraints.SingleConstraint8;
 import org.drools.model.constraints.SingleConstraint9;
 import org.drools.model.functions.Predicate1;
+import org.drools.model.functions.Predicate2;
+import org.drools.model.functions.Predicate3;
+import org.drools.model.functions.Predicate4;
+import org.drools.model.functions.Predicate5;
+import org.drools.model.functions.PredicateInformation;
 import org.drools.model.functions.PredicateN;
 import org.drools.model.impl.ModelComponent;
 import org.drools.model.view.Expr10ViewItemImpl;
@@ -59,6 +65,22 @@ public interface SingleConstraint extends Constraint {
         throw new UnsupportedOperationException();
     }
 
+    default Predicate2 getPredicate2() {
+        throw new UnsupportedOperationException();
+    }
+
+    default Predicate3 getPredicate3() {
+        throw new UnsupportedOperationException();
+    }
+
+    default Predicate4 getPredicate4() {
+        throw new UnsupportedOperationException();
+    }
+
+    default Predicate5 getPredicate5() {
+        throw new UnsupportedOperationException();
+    }
+
     Index getIndex();
 
     String getExprId();
@@ -75,7 +97,7 @@ public interface SingleConstraint extends Constraint {
         return Type.SINGLE;
     }
 
-    SingleConstraint TRUE = new AbstractSingleConstraint("TRUE") {
+    SingleConstraint TRUE = new AbstractSingleConstraint("TRUE", PredicateInformation.EMPTY_PREDICATE_INFORMATION) {
         @Override
         public Constraint negate() {
             return FALSE;
@@ -107,7 +129,7 @@ public interface SingleConstraint extends Constraint {
         }
     };
 
-    SingleConstraint FALSE = new AbstractSingleConstraint("FALSE") {
+    SingleConstraint FALSE = new AbstractSingleConstraint("FALSE", PredicateInformation.EMPTY_PREDICATE_INFORMATION) {
         @Override
         public Constraint negate() {
             return TRUE;

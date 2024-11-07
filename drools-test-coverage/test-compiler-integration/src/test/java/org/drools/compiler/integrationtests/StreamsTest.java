@@ -1,17 +1,20 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.compiler.integrationtests;
 
@@ -19,26 +22,25 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
-import org.drools.core.base.ClassObjectType;
+import org.drools.base.base.ClassObjectType;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.impl.InternalKnowledgeBase;
 import org.drools.core.reteoo.ObjectTypeNode;
-import org.drools.core.rule.EntryPointId;
-import org.drools.core.spi.ObjectType;
+import org.drools.base.rule.EntryPointId;
+import org.drools.base.base.ObjectType;
 import org.drools.core.time.impl.PseudoClockScheduler;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.StockTick;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieSessionTestConfiguration;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.hamcrest.CoreMatchers;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.definition.type.FactType;
@@ -50,15 +52,9 @@ import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.EntryPoint;
 import org.mockito.ArgumentCaptor;
 
-import static org.drools.core.rule.TypeDeclaration.NEVER_EXPIRES;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.drools.base.rule.TypeDeclaration.NEVER_EXPIRES;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -66,22 +62,16 @@ import static org.mockito.Mockito.verify;
 /**
  * Tests related to the stream support features
  */
-@RunWith(Parameterized.class)
 public class StreamsTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public StreamsTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseStreamConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseStreamConfigurations(true);
-    }
-
-    @Test(timeout = 10000)
-    public void testEventAssertion() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventAssertion(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
@@ -115,19 +105,19 @@ public class StreamsTest {
             final InternalFactHandle handle3 = (InternalFactHandle) session.insert(tick3);
             final InternalFactHandle handle4 = (InternalFactHandle) session.insert(tick4);
 
-            assertNotNull(handle1);
-            assertNotNull(handle2);
-            assertNotNull(handle3);
-            assertNotNull(handle4);
+            assertThat(handle1).isNotNull();
+            assertThat(handle2).isNotNull();
+            assertThat(handle3).isNotNull();
+            assertThat(handle4).isNotNull();
 
-            assertTrue(handle1.isEvent());
-            assertTrue(handle2.isEvent());
-            assertTrue(handle3.isEvent());
-            assertTrue(handle4.isEvent());
+            assertThat(handle1.isEvent()).isTrue();
+            assertThat(handle2.isEvent()).isTrue();
+            assertThat(handle3.isEvent()).isTrue();
+            assertThat(handle4.isEvent()).isTrue();
 
             session.fireAllRules();
 
-            assertEquals(0, results.size());
+            assertThat(results.size()).isEqualTo(0);
 
             final StockTick tick5 = new StockTick(5, "DROO", 50, System.currentTimeMillis());
             final StockTick tick6 = new StockTick(6, "ACME", 10, System.currentTimeMillis());
@@ -141,27 +131,28 @@ public class StreamsTest {
             final InternalFactHandle handle7 = (InternalFactHandle) entry.insert(tick7);
             final InternalFactHandle handle8 = (InternalFactHandle) entry.insert(tick8);
 
-            assertNotNull(handle5);
-            assertNotNull(handle6);
-            assertNotNull(handle7);
-            assertNotNull(handle8);
+            assertThat(handle5).isNotNull();
+            assertThat(handle6).isNotNull();
+            assertThat(handle7).isNotNull();
+            assertThat(handle8).isNotNull();
 
-            assertTrue(handle5.isEvent());
-            assertTrue(handle6.isEvent());
-            assertTrue(handle7.isEvent());
-            assertTrue(handle8.isEvent());
+            assertThat(handle5.isEvent()).isTrue();
+            assertThat(handle6.isEvent()).isTrue();
+            assertThat(handle7.isEvent()).isTrue();
+            assertThat(handle8.isEvent()).isTrue();
 
             session.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertSame(tick7, results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isSameAs(tick7);
         } finally {
             session.dispose();
         }
     }
 
-    @Test
-    public void testEntryPointReference() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEntryPointReference(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("stream-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_EntryPointReference.drl");
         final KieSession session = kbase.newKieSession();
@@ -181,27 +172,29 @@ public class StreamsTest {
             final InternalFactHandle handle7 = (InternalFactHandle) entry.insert(tick7);
             final InternalFactHandle handle8 = (InternalFactHandle) entry.insert(tick8);
 
-            assertNotNull(handle5);
-            assertNotNull(handle6);
-            assertNotNull(handle7);
-            assertNotNull(handle8);
+            assertThat(handle5).isNotNull();
+            assertThat(handle6).isNotNull();
+            assertThat(handle7).isNotNull();
+            assertThat(handle8).isNotNull();
 
-            assertTrue(handle5.isEvent());
-            assertTrue(handle6.isEvent());
-            assertTrue(handle7.isEvent());
-            assertTrue(handle8.isEvent());
+            assertThat(handle5.isEvent()).isTrue();
+            assertThat(handle6.isEvent()).isTrue();
+            assertThat(handle7.isEvent()).isTrue();
+            assertThat(handle8.isEvent()).isTrue();
 
             session.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertSame(tick7, results.get(0));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.get(0)).isSameAs(tick7);
         } finally {
             session.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testModifyRetracOnEntryPointFacts() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testModifyRetracOnEntryPointFacts(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
@@ -245,33 +238,34 @@ public class StreamsTest {
             final InternalFactHandle handle7 = (InternalFactHandle) entry.insert(tick7);
             final InternalFactHandle handle8 = (InternalFactHandle) entry.insert(tick8);
 
-            assertNotNull(handle5);
-            assertNotNull(handle6);
-            assertNotNull(handle7);
-            assertNotNull(handle8);
+            assertThat(handle5).isNotNull();
+            assertThat(handle6).isNotNull();
+            assertThat(handle7).isNotNull();
+            assertThat(handle8).isNotNull();
 
-            assertTrue(handle5.isEvent());
-            assertTrue(handle6.isEvent());
-            assertTrue(handle7.isEvent());
-            assertTrue(handle8.isEvent());
+            assertThat(handle5.isEvent()).isTrue();
+            assertThat(handle6.isEvent()).isTrue();
+            assertThat(handle7.isEvent()).isTrue();
+            assertThat(handle8.isEvent()).isTrue();
 
             session.fireAllRules();
 
-            assertEquals(2, results.size());
-            assertEquals(30, results.get(0).intValue());
-            assertEquals(110, results.get(1).intValue());
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(results.get(0).intValue()).isEqualTo(30);
+            assertThat(results.get(1).intValue()).isEqualTo(110);
 
             // the 3 non-matched facts continue to exist in the entry point
-            assertEquals(3, entry.getObjects().size());
+            assertThat(entry.getObjects().size()).isEqualTo(3);
             // but no fact was inserted into the main session
-            assertEquals(0, session.getObjects().size());
+            assertThat(session.getObjects().size()).isEqualTo(0);
         } finally {
             session.dispose();
         }
     }
 
-    @Test
-    public void testModifyOnEntryPointFacts() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testModifyOnEntryPointFacts(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "declare StockTick\n" +
@@ -313,22 +307,24 @@ public class StreamsTest {
             ep2.insert(new StockTick(1, "RHT", 10, 1000));
             ep3.insert(new StockTick(1, "RHT", 10, 1000));
             final int rulesFired = ksession.fireAllRules();
-            assertEquals(3, rulesFired);
+            assertThat(rulesFired).isEqualTo(3);
 
             final ArgumentCaptor<org.kie.api.event.rule.AfterMatchFiredEvent> captor = ArgumentCaptor.forClass(org.kie.api.event.rule.AfterMatchFiredEvent.class);
             verify(ael, times(3)).afterMatchFired(captor.capture());
             final List<org.kie.api.event.rule.AfterMatchFiredEvent> aafe = captor.getAllValues();
 
-            assertThat(aafe.get(0).getMatch().getRule().getName(), is("R1"));
-            assertThat(aafe.get(1).getMatch().getRule().getName(), is("R2"));
-            assertThat(aafe.get(2).getMatch().getRule().getName(), is("R3"));
+            assertThat(aafe.get(0).getMatch().getRule().getName()).isEqualTo("R1");
+            assertThat(aafe.get(1).getMatch().getRule().getName()).isEqualTo("R2");
+            assertThat(aafe.get(2).getMatch().getRule().getName()).isEqualTo("R3");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testEntryPointWithAccumulateAndMVEL() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEntryPointWithAccumulateAndMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "rule R1 dialect 'mvel'\n" +
@@ -349,20 +345,22 @@ public class StreamsTest {
 
             ep1.insert(new StockTick(1, "RHT", 10, 1000));
             final int rulesFired = ksession.fireAllRules();
-            assertEquals(1, rulesFired);
+            assertThat(rulesFired).isEqualTo(1);
 
             final ArgumentCaptor<org.kie.api.event.rule.AfterMatchFiredEvent> captor = ArgumentCaptor.forClass(org.kie.api.event.rule.AfterMatchFiredEvent.class);
             verify(ael, times(1)).afterMatchFired(captor.capture());
             final List<org.kie.api.event.rule.AfterMatchFiredEvent> aafe = captor.getAllValues();
 
-            assertThat(aafe.get(0).getMatch().getRule().getName(), is("R1"));
+            assertThat(aafe.get(0).getMatch().getRule().getName()).isEqualTo("R1");
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testGetEntryPointList() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testGetEntryPointList(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromClasspathResources("stream-test", kieBaseTestConfiguration,
                                                                            "org/drools/compiler/integrationtests/test_EntryPointReference.drl");
         final KieSession session = kbase.newKieSession();
@@ -373,18 +371,20 @@ public class StreamsTest {
             final EntryPoint s3 = session.getEntryPoint("stream3");
             final Collection<? extends EntryPoint> eps = session.getEntryPoints();
 
-            assertEquals(4, eps.size());
-            assertTrue(eps.contains(def));
-            assertTrue(eps.contains(s1));
-            assertTrue(eps.contains(s2));
-            assertTrue(eps.contains(s3));
+            assertThat(eps.size()).isEqualTo(4);
+            assertThat(eps.contains(def)).isTrue();
+            assertThat(eps.contains(s1)).isTrue();
+            assertThat(eps.contains(s2)).isTrue();
+            assertThat(eps.contains(s3)).isTrue();
         } finally {
             session.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testEventDoesNotExpireIfNotInPattern() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventDoesNotExpireIfNotInPattern(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "declare StockTick\n" +
@@ -414,22 +414,24 @@ public class StreamsTest {
             ksession.insert(st2);
 
             verify(wml, times(2)).objectInserted(any(org.kie.api.event.rule.ObjectInsertedEvent.class));
-            assertThat(ksession.getObjects().size(), equalTo(2));
-            assertThat((Collection<Object>) ksession.getObjects(), CoreMatchers.hasItems(st1, st2));
+            assertThat(ksession.getObjects()).hasSize(2);
+            assertThat((Collection<Object>) ksession.getObjects()).contains(st1, st2);
 
             ksession.fireAllRules();
 
             clock.advanceTime(3, TimeUnit.SECONDS);
             ksession.fireAllRules();
 
-            assertThat(ksession.getObjects().size(), equalTo(0));
+            assertThat(ksession.getObjects()).hasSize(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testEventExpirationSetToZero() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventExpirationSetToZero(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "declare StockTick\n" +
@@ -460,24 +462,26 @@ public class StreamsTest {
             ksession.insert(st1);
             ksession.insert(st2);
 
-            assertThat(ksession.fireAllRules(), equalTo(2));
+            assertThat(ksession.fireAllRules()).isEqualTo(2);
 
             verify(wml, times(2)).objectInserted(any(org.kie.api.event.rule.ObjectInsertedEvent.class));
             verify(ael, times(2)).matchCreated(any(MatchCreatedEvent.class));
-            assertThat(ksession.getObjects().size(), equalTo(2));
-            assertThat((Collection<Object>) ksession.getObjects(), CoreMatchers.hasItems(st1, st2));
+            assertThat(ksession.getObjects()).hasSize(2);
+            assertThat((Collection<Object>) ksession.getObjects()).contains(st1, st2);
 
             clock.advanceTime(3, TimeUnit.SECONDS);
             ksession.fireAllRules();
 
-            assertThat(ksession.getObjects().size(), equalTo(0));
+            assertThat(ksession.getObjects()).hasSize(0);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testEventExpirationValue() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testEventExpirationValue(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl1 = "package org.drools.pkg1\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "declare StockTick\n" +
@@ -505,13 +509,15 @@ public class StreamsTest {
         final ObjectType stot = new ClassObjectType(StockTick.class);
         for (final ObjectTypeNode otn : otns) {
             if (otn.getObjectType().isAssignableFrom(stot)) {
-                assertEquals(NEVER_EXPIRES, otn.getExpirationOffset());
+                assertThat(otn.getExpirationOffset()).isEqualTo(NEVER_EXPIRES);
             }
         }
     }
 
-    @Test(timeout = 10000)
-    public void testDeclaredEntryPoint() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testDeclaredEntryPoint(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.jboss.qa.brms.declaredep\n" +
                 "declare entry-point UnusedEntryPoint\n" +
                 "end\n" +
@@ -525,15 +531,16 @@ public class StreamsTest {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("stream-test", kieBaseTestConfiguration, drl);
         final KieSession ksession = kbase.newKieSession();
         try {
-            assertNotNull(ksession.getEntryPoint("UsedEntryPoint"));
-            assertNotNull(ksession.getEntryPoint("UnusedEntryPoint"));
+            assertThat(ksession.getEntryPoint("UsedEntryPoint")).isNotNull();
+            assertThat(ksession.getEntryPoint("UnusedEntryPoint")).isNotNull();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testWindowDeclaration() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testWindowDeclaration(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "declare StockTick\n" +
@@ -574,15 +581,17 @@ public class StreamsTest {
             verify(ael, times(1)).afterMatchFired(captor.capture());
 
             final AfterMatchFiredEvent aafe = captor.getValue();
-            assertThat(((Number) aafe.getMatch().getDeclarationValue("$sum")).intValue(), is(95));
-            assertThat(((Number) aafe.getMatch().getDeclarationValue("$cnt")).intValue(), is(3));
+            assertThat(((Number) aafe.getMatch().getDeclarationValue("$sum")).intValue()).isEqualTo(95);
+            assertThat(((Number) aafe.getMatch().getDeclarationValue("$cnt")).intValue()).isEqualTo(3);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testWindowDeclaration2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testWindowDeclaration2(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "declare Double\n" +
                 "    @role(event)\n" +
@@ -617,14 +626,16 @@ public class StreamsTest {
             verify(ael, times(1)).afterMatchFired(captor.capture());
 
             final AfterMatchFiredEvent aafe = captor.getValue();
-            assertThat(((Number) aafe.getMatch().getDeclarationValue("$sum")).intValue(), is(33));
+            assertThat(((Number) aafe.getMatch().getDeclarationValue("$sum")).intValue()).isEqualTo(33);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testMultipleWindows() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testMultipleWindows(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler\n" +
                 "import " + StockTick.class.getCanonicalName() + ";\n" +
                 "declare StockTick\n" +
@@ -654,15 +665,16 @@ public class StreamsTest {
             verify(ael, times(1)).afterMatchFired(captor.capture());
 
             final AfterMatchFiredEvent aafe = captor.getValue();
-            assertThat(aafe.getMatch().getDeclarationValue("f1"), CoreMatchers.is(st1));
-            assertThat(aafe.getMatch().getDeclarationValue("f2"), CoreMatchers.is(st2));
+            assertThat(aafe.getMatch().getDeclarationValue("f1")).isEqualTo(st1);
+            assertThat(aafe.getMatch().getDeclarationValue("f2")).isEqualTo(st2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test(timeout = 10000)
-    public void testWindowWithEntryPointCompilationError() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testWindowWithEntryPointCompilationError(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "import " + Cheese.class.getCanonicalName() + ";\n" +
                 "declare window X\n" +
                 "   Cheese( type == \"gorgonzola\" ) over window:time(1m) from entry-point Z\n" +
@@ -674,13 +686,15 @@ public class StreamsTest {
                 "end\n";
 
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages())
+        assertThat(kieBuilder.getResults().getMessages())
                 .withFailMessage("Should have raised a compilation error as Cheese is not declared as an event.")
                 .isNotEmpty();
     }
 
-    @Test(timeout = 10000)
-    public void testAtomicActivationFiring() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+	@Timeout(10000)
+    public void testAtomicActivationFiring(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
         // JBRULES-3383
         final String drl = "package org.drools.compiler.test\n" +
                 "declare Event\n" +

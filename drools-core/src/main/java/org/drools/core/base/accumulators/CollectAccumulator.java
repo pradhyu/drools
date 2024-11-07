@@ -1,44 +1,43 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.base.accumulators;
 
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.io.Serializable;
 import java.util.Collection;
+import java.util.Objects;
 
-import org.drools.core.WorkingMemory;
-import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.InternalWorkingMemory;
+import org.drools.base.base.ValueResolver;
+import org.drools.base.reteoo.BaseTuple;
+import org.drools.base.rule.Collect;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.accessor.Accumulator;
 import org.drools.core.reteoo.LeftTuple;
-import org.drools.core.rule.Collect;
-import org.drools.core.rule.Declaration;
-import org.drools.core.spi.Accumulator;
-import org.drools.core.spi.Tuple;
+import org.drools.core.reteoo.TupleImpl;
+import org.kie.api.runtime.rule.FactHandle;
 
 /**
  * An accumulator to execute "collect" CEs
  */
-public class CollectAccumulator
-    implements
-    Accumulator,
-    Externalizable {
+public class CollectAccumulator implements Accumulator, Externalizable {
 
     private static final long                          serialVersionUID = 510l;
     private Collect collect;
@@ -67,44 +66,46 @@ public class CollectAccumulator
     /* (non-Javadoc)
      * @see org.kie.spi.Accumulator#createContext()
      */
-    public Serializable createContext() {
-        return new CollectContext();
+    public Object createContext() {
+        return null; // this is always instantiated in init - for now, can we fix this? (mdp)
     }
 
     /* (non-Javadoc)
      * @see org.kie.spi.Accumulator#init(java.lang.Object, org.kie.spi.Tuple, org.kie.rule.Declaration[], org.kie.WorkingMemory)
      */
-    public void init(Object workingMemoryContext,
-                     Object context,
-                     Tuple leftTuple,
-                     Declaration[] declarations,
-                     WorkingMemory workingMemory) throws Exception {
-        ((CollectContext) context).result = this.collect.instantiateResultObject( (InternalWorkingMemory) workingMemory );
+    public Object init(Object workingMemoryContext,
+                       Object context,
+                       BaseTuple leftTuple,
+                       Declaration[] declarations,
+                       ValueResolver valueResolver) {
+        return this.collect.instantiateResultObject( valueResolver );
     }
 
     /* (non-Javadoc)
      * @see org.kie.spi.Accumulator#accumulate(java.lang.Object, org.kie.spi.Tuple, org.kie.common.InternalFactHandle, org.kie.rule.Declaration[], org.kie.rule.Declaration[], org.kie.WorkingMemory)
      */
-    public void accumulate(Object workingMemoryContext,
-                           Object context,
-                           Tuple leftTuple,
-                           InternalFactHandle handle,
-                           Declaration[] declarations,
-                           Declaration[] innerDeclarations,
-                           WorkingMemory workingMemory) throws Exception {
-        Object value = this.unwrapHandle ? ((LeftTuple) handle.getObject()).getFactHandle().getObject() : handle.getObject();
-        ((CollectContext) context).result.add( value );
+    public Object accumulate(Object workingMemoryContext,
+                             Object context,
+                             BaseTuple leftTuple,
+                             FactHandle handle,
+                             Declaration[] declarations,
+                             Declaration[] innerDeclarations,
+                             ValueResolver valueResolver) {
+        Object value = this.unwrapHandle ? ((TupleImpl) handle.getObject()).getFactHandle().getObject() : handle.getObject();
+        ((Collection) context).add( value );
+        return value;
     }
 
-    public void reverse(Object workingMemoryContext,
-                        Object context,
-                        Tuple leftTuple,
-                        InternalFactHandle handle,
-                        Declaration[] declarations,
-                        Declaration[] innerDeclarations,
-                        WorkingMemory workingMemory) throws Exception {
-        Object value = this.unwrapHandle ? ((LeftTuple) handle.getObject()).getFactHandle().getObject() : handle.getObject();
-        ((CollectContext) context).result.remove( value );
+    public boolean tryReverse(Object workingMemoryContext,
+                              Object context,
+                              BaseTuple leftTuple,
+                              FactHandle handle,
+                              Object value,
+                              Declaration[] declarations,
+                              Declaration[] innerDeclarations,
+                              ValueResolver valueResolver) {
+        ((Collection) context).remove( value );
+        return true;
     }
 
     /* (non-Javadoc)
@@ -112,10 +113,10 @@ public class CollectAccumulator
      */
     public Object getResult(Object workingMemoryContext,
                             Object context,
-                            Tuple leftTuple,
+                            BaseTuple leftTuple,
                             Declaration[] declarations,
-                            WorkingMemory workingMemory) throws Exception {
-        return ((CollectContext) context).result;
+                            ValueResolver valueResolver) {
+        return context;
     }
 
     public boolean supportsReverse() {
@@ -127,21 +128,20 @@ public class CollectAccumulator
         return null;
     }
 
-    private static class CollectContext
-        implements
-        Externalizable {
-        public Collection<Object> result;
-        
-        public CollectContext() {}
-
-        @SuppressWarnings("unchecked")
-        public void readExternal(ObjectInput in) throws IOException,
-                                                ClassNotFoundException {
-            result = (Collection<Object>) in.readObject();
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
         }
-
-        public void writeExternal(ObjectOutput out) throws IOException {
-            out.writeObject( result );
+        if (o == null || getClass() != o.getClass()) {
+            return false;
         }
+        CollectAccumulator that = (CollectAccumulator) o;
+        return unwrapHandle == that.unwrapHandle && Objects.equals(collect, that.collect);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(collect, unwrapHandle);
     }
 }

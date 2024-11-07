@@ -1,55 +1,48 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.operators;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.drools.testcoverage.common.model.Order;
 import org.drools.testcoverage.common.model.OrderItem;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.runtime.KieSession;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class EvalRewriteTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public EvalRewriteTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test
-    public void testEvalRewrite() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEvalRewrite(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.operators\n" +
                 "import " + OrderItem.class.getCanonicalName() + " ;\n" +
@@ -135,19 +128,20 @@ public class EvalRewriteTest {
 
             ksession.fireAllRules();
 
-            assertEquals(5, list.size());
-            assertTrue(list.contains(item11));
-            assertTrue(list.contains(item12));
-            assertTrue(list.contains(item22));
-            assertTrue(list.contains(order3));
-            assertTrue(list.contains(order4));
+            assertThat(list.size()).isEqualTo(5);
+            assertThat(list.contains(item11)).isTrue();
+            assertThat(list.contains(item12)).isTrue();
+            assertThat(list.contains(item22)).isTrue();
+            assertThat(list.contains(order3)).isTrue();
+            assertThat(list.contains(order4)).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testEvalRewriteMatches() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEvalRewriteMatches(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + OrderItem.class.getCanonicalName() + " ;\n" +
@@ -190,16 +184,17 @@ public class EvalRewriteTest {
 
             ksession.fireAllRules();
 
-            assertEquals(2, list.size());
-            assertTrue(list.contains(item11));
-            assertTrue(list.contains(item12));
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list.contains(item11)).isTrue();
+            assertThat(list.contains(item12)).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testEvalRewriteWithSpecialOperators() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEvalRewriteWithSpecialOperators(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler\n" +
                 "import " + OrderItem.class.getCanonicalName() + " ;\n" +
@@ -350,17 +345,17 @@ public class EvalRewriteTest {
 
             ksession.fireAllRules();
 
-            assertEquals(9, list.size());
+            assertThat(list.size()).isEqualTo(9);
             int index = 0;
-            assertEquals(item11, list.get(index++));
-            assertEquals(item12, list.get(index++));
-            assertEquals(item21, list.get(index++));
-            assertEquals(item22, list.get(index++));
-            assertEquals(item31, list.get(index++));
-            assertEquals(item33, list.get(index++));
-            assertEquals(item41, list.get(index++));
-            assertEquals(order5, list.get(index++));
-            assertEquals(order5, list.get(index));
+            assertThat(list.get(index++)).isEqualTo(item11);
+            assertThat(list.get(index++)).isEqualTo(item12);
+            assertThat(list.get(index++)).isEqualTo(item21);
+            assertThat(list.get(index++)).isEqualTo(item22);
+            assertThat(list.get(index++)).isEqualTo(item31);
+            assertThat(list.get(index++)).isEqualTo(item33);
+            assertThat(list.get(index++)).isEqualTo(item41);
+            assertThat(list.get(index++)).isEqualTo(order5);
+            assertThat(list.get(index)).isEqualTo(order5);
         } finally {
             ksession.dispose();
         }

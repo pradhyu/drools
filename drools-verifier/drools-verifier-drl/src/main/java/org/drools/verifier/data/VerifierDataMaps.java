@@ -1,48 +1,66 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.data;
 
-import com.google.common.collect.Multimap;
-import com.google.common.collect.TreeMultimap;
-import org.drools.verifier.components.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
-import java.util.*;
+import org.drools.verifier.components.EntryPoint;
+import org.drools.verifier.components.Field;
+import org.drools.verifier.components.Import;
+import org.drools.verifier.components.ObjectType;
+import org.drools.verifier.components.Pattern;
+import org.drools.verifier.components.Restriction;
+import org.drools.verifier.components.RulePackage;
+import org.drools.verifier.components.Variable;
+import org.drools.verifier.components.VerifierComponentType;
+import org.drools.verifier.components.VerifierRule;
+import org.drools.verifier.misc.Multimap;
 
 class VerifierDataMaps
         implements
         VerifierData {
 
-    private Map<VerifierComponentType, Map<String, VerifierComponent>> all = new TreeMap<VerifierComponentType, Map<String, VerifierComponent>>();
+    private Map<VerifierComponentType, Map<String, VerifierComponent>> all = new TreeMap<>();
 
-    private Map<String, RulePackage> packagesByName = new TreeMap<String, RulePackage>(STRING_NULL_SAFE_COMPARATOR);
-    private Map<String, ObjectType> objectTypesByFullName = new TreeMap<String, ObjectType>(STRING_NULL_SAFE_COMPARATOR);
-    private Map<String, Field> fieldsByObjectTypeAndFieldName = new TreeMap<String, Field>(STRING_NULL_SAFE_COMPARATOR);
-    private Multimap<String, Field> fieldsByObjectTypeId = TreeMultimap.create();
-    private Multimap<String, Pattern> patternsByObjectTypeId = TreeMultimap.create();
-    private Multimap<String, Pattern> patternsByRuleName = TreeMultimap.create();
-    private Multimap<String, Restriction> restrictionsByFieldId = TreeMultimap.create();
-    private Map<String, Variable> variablesByRuleAndVariableName = new TreeMap<String, Variable>(STRING_NULL_SAFE_COMPARATOR);
-    private Map<String, EntryPoint> entryPointsByEntryId = new TreeMap<String, EntryPoint>(STRING_NULL_SAFE_COMPARATOR);
-    private Map<String, VerifierRule> rulesByName = new TreeMap<String, VerifierRule>(STRING_NULL_SAFE_COMPARATOR);
-    private Map<String, Import> importsByName = new TreeMap<String, Import>(STRING_NULL_SAFE_COMPARATOR);
-    private Multimap<String, VerifierRule> rulesByCategory = TreeMultimap.create();
+    private Map<String, RulePackage> packagesByName = new TreeMap<>(STRING_NULL_SAFE_COMPARATOR);
+    private Map<String, ObjectType> objectTypesByFullName = new TreeMap<>(STRING_NULL_SAFE_COMPARATOR);
+    private Map<String, Field> fieldsByObjectTypeAndFieldName = new TreeMap<>(STRING_NULL_SAFE_COMPARATOR);
+    private Multimap<String, Field> fieldsByObjectTypeId = new Multimap<>();
+    private Multimap<String, Pattern> patternsByObjectTypeId = new Multimap<>();
+    private Multimap<String, Pattern> patternsByRuleName = new Multimap<>();
+    private Multimap<String, Restriction> restrictionsByFieldId = new Multimap<>();
+    private Map<String, Variable> variablesByRuleAndVariableName = new TreeMap<>(STRING_NULL_SAFE_COMPARATOR);
+    private Map<String, EntryPoint> entryPointsByEntryId = new TreeMap<>(STRING_NULL_SAFE_COMPARATOR);
+    private Map<String, VerifierRule> rulesByName = new TreeMap<>(STRING_NULL_SAFE_COMPARATOR);
+    private Map<String, Import> importsByName = new TreeMap<>(STRING_NULL_SAFE_COMPARATOR);
+    private Multimap<String, VerifierRule> rulesByCategory = new Multimap<>();
 
     public Collection<ObjectType> getObjectTypesByRuleName(String ruleName) {
-        Set<ObjectType> set = new HashSet<ObjectType>();
+        Set<ObjectType> set = new HashSet<>();
 
         for (Pattern pattern : patternsByRuleName.get(ruleName)) {
             ObjectType objectType = (ObjectType) getVerifierObject(VerifierComponentType.OBJECT_TYPE,
@@ -68,7 +86,7 @@ class VerifierDataMaps
     }
 
     public Collection<VerifierComponent> getAll() {
-        List<VerifierComponent> objects = new ArrayList<VerifierComponent>();
+        List<VerifierComponent> objects = new ArrayList<>();
 
         for (VerifierComponentType type : all.keySet()) {
             objects.addAll(all.get(type).values());
@@ -82,7 +100,7 @@ class VerifierDataMaps
     }
 
     public Collection<VerifierRule> getRulesByObjectTypePath(String id) {
-        Set<VerifierRule> rules = new HashSet<VerifierRule>();
+        Set<VerifierRule> rules = new HashSet<>();
 
         for (Pattern pattern : patternsByObjectTypeId.get(id)) {
 
@@ -95,7 +113,7 @@ class VerifierDataMaps
 
     public Collection<VerifierRule> getRulesByFieldPath(String id) {
 
-        Set<VerifierRule> rules = new HashSet<VerifierRule>();
+        Set<VerifierRule> rules = new HashSet<>();
 
         for (Restriction restriction : restrictionsByFieldId.get(id)) {
 
@@ -170,7 +188,7 @@ class VerifierDataMaps
         Map<String, VerifierComponent> map = all.get(object.getVerifierComponentType());
 
         if (map == null) {
-            map = new TreeMap<String, VerifierComponent>();
+            map = new TreeMap<>();
             all.put(object.getVerifierComponentType(),
                     map);
         }
@@ -234,7 +252,7 @@ class VerifierDataMaps
         return null;
     }
 
-    private static final NullSafeComparator<String> STRING_NULL_SAFE_COMPARATOR = new NullSafeComparator<String>();
+    private static final NullSafeComparator<String> STRING_NULL_SAFE_COMPARATOR = new NullSafeComparator<>();
 
     public static class NullSafeComparator<T extends Comparable<T>> implements Comparator<T> {
         public int compare(T o1, T o2) {

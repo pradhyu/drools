@@ -1,17 +1,20 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 //created on: 25.10.2007
@@ -21,8 +24,8 @@ package org.drools.verifier.optimisation.drl
 import java.util.Collection;
 import java.util.ArrayList;
 
-import org.drools.core.base.evaluators.Operator;
-import org.drools.core.base.evaluators.MatchesEvaluatorsDefinition;
+import org.drools.drl.parser.impl.Operator;
+import org.drools.mvel.evaluators.MatchesEvaluatorsDefinition;
 
 import org.drools.verifier.components.SubPattern;
 import org.drools.verifier.components.Restriction;
@@ -60,38 +63,38 @@ rule "Optimise restrictions inside operator"
         (
                 $r1 :Restriction(
                     this memberOf $sp.items,
-                    ( operator == Operator.EQUAL || == MatchesEvaluatorsDefinition.MATCHES )
+                    ( operator == Operator.BuiltInOperator.EQUAL.getOperator() || == MatchesEvaluatorsDefinition.MATCHES )
                 )
             and
                 $r2 :Restriction(
                     this memberOf $sp.items,
                     path != $r1.path,
                     orderNumber < $r1.orderNumber,
-                    ( operator == Operator.GREATER || == Operator.LESS || == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL || == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
+                    ( operator == Operator.BuiltInOperator.GREATER.getOperator() || == Operator.BuiltInOperator.LESS.getOperator() || == Operator.BuiltInOperator.GREATER_OR_EQUAL.getOperator() || == Operator.BuiltInOperator.LESS_OR_EQUAL.getOperator() || == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.BuiltInOperator.NOT_EQUAL.getOperator() )
                 )
         ) or (
                 $r1 :Restriction(
                     this memberOf $sp.items,
-                    ( operator == Operator.GREATER || == Operator.LESS )
+                    ( operator == Operator.BuiltInOperator.GREATER.getOperator() || == Operator.BuiltInOperator.LESS.getOperator() )
                 )
             and
                 $r2 :Restriction(
                     this memberOf $sp.items,
                     path != $r1.path,
                     orderNumber < $r1.orderNumber,
-                    ( operator == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL || == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
+                    ( operator == Operator.BuiltInOperator.GREATER_OR_EQUAL.getOperator() || == Operator.BuiltInOperator.LESS_OR_EQUAL.getOperator() || == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.BuiltInOperator.NOT_EQUAL.getOperator() )
                 )
         ) or (
                 $r1 :Restriction(
                     this memberOf $sp.items,
-                    ( operator == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL )
+                    ( operator == Operator.BuiltInOperator.GREATER_OR_EQUAL.getOperator() || == Operator.BuiltInOperator.LESS_OR_EQUAL.getOperator() )
                 )
             and
                 $r2 :Restriction(
                     this memberOf $sp.items,
                     path != $r1.path,
                     orderNumber < $r1.orderNumber,
-                    ( operator == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
+                    ( operator == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.BuiltInOperator.NOT_EQUAL.getOperator() )
                 )
         )
 
@@ -127,46 +130,46 @@ rule "Optimise restrictions inside constraint"
     when
         (
                 $r1 :Restriction(
-                    ( operator == Operator.EQUAL || == MatchesEvaluatorsDefinition.MATCHES )
+                    ( operator == Operator.BuiltInOperator.EQUAL.getOperator() || == MatchesEvaluatorsDefinition.MATCHES )
                 )
             and
                 $r2 :Restriction(
                     parentPath == $r1.parentPath,
                     parentType == $r1.parentType,
                     orderNumber < $r1.orderNumber,
-                    ( operator == Operator.GREATER ||
-                               == Operator.LESS ||
-                               == Operator.GREATER_OR_EQUAL ||
-                               == Operator.LESS_OR_EQUAL ||
+                    ( operator == Operator.BuiltInOperator.GREATER.getOperator() ||
+                               == Operator.BuiltInOperator.LESS.getOperator() ||
+                               == Operator.BuiltInOperator.GREATER_OR_EQUAL.getOperator() ||
+                               == Operator.BuiltInOperator.LESS_OR_EQUAL.getOperator() ||
                                == MatchesEvaluatorsDefinition.NOT_MATCHES ||
-                               == Operator.NOT_EQUAL )
+                               == Operator.BuiltInOperator.NOT_EQUAL.getOperator() )
                 )
         ) or (
                 $r1 :Restriction(
-                    ( operator == Operator.GREATER ||
-                               == Operator.LESS )
+                    ( operator == Operator.BuiltInOperator.GREATER.getOperator() ||
+                               == Operator.BuiltInOperator.LESS.getOperator() )
                 )
             and
                 $r2 :Restriction(
                     parentPath == $r1.parentPath,
                     parentType == $r1.parentType,
                     orderNumber < $r1.orderNumber,
-                    ( operator == Operator.GREATER_OR_EQUAL ||
-                               == Operator.LESS_OR_EQUAL ||
+                    ( operator == Operator.BuiltInOperator.GREATER_OR_EQUAL.getOperator() ||
+                               == Operator.BuiltInOperator.LESS_OR_EQUAL.getOperator() ||
                                == MatchesEvaluatorsDefinition.NOT_MATCHES ||
-                               == Operator.NOT_EQUAL )
+                               == Operator.BuiltInOperator.NOT_EQUAL.getOperator() )
                 )
         )
         or (
                 $r1 :Restriction(
-                    ( operator == Operator.GREATER_OR_EQUAL || == Operator.LESS_OR_EQUAL )
+                    ( operator == Operator.BuiltInOperator.GREATER_OR_EQUAL.getOperator() || == Operator.BuiltInOperator.LESS_OR_EQUAL.getOperator() )
                 )
             and
                 $r2 :Restriction(
                     parentPath == $r1.parentPath,
                     parentType == $r1.parentType,
                     orderNumber < $r1.orderNumber,
-                    ( operator == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.NOT_EQUAL )
+                    ( operator == MatchesEvaluatorsDefinition.NOT_MATCHES || == Operator.BuiltInOperator.NOT_EQUAL.getOperator() )
                 )
         )
 

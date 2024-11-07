@@ -1,17 +1,20 @@
-/*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.compiler.kie.util;
 
@@ -26,30 +29,34 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl;
-import org.drools.compiler.compiler.DrlParser;
+import org.drools.base.definitions.InternalKnowledgePackage;
+import org.drools.compiler.builder.impl.KnowledgeBuilderFactoryServiceImpl;
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.FunctionDescr;
-import org.drools.compiler.lang.descr.GlobalDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeFieldDescr;
-import org.drools.core.addon.TypeResolver;
-import org.drools.core.io.impl.ByteArrayResource;
-import org.drools.core.util.StringUtils;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.FunctionDescr;
+import org.drools.drl.ast.descr.GlobalDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
+import org.drools.drl.ast.descr.TypeFieldDescr;
+import org.drools.drl.parser.DrlParser;
+import org.drools.io.ByteArrayResource;
+import org.drools.util.StringUtils;
+import org.drools.util.TypeResolver;
 import org.kie.api.io.ResourceType;
 import org.kie.internal.builder.ChangeType;
+import org.kie.internal.builder.KnowledgeBuilder;
+import org.kie.internal.builder.KnowledgeBuilderConfiguration;
 import org.kie.internal.builder.ResourceChange;
 import org.kie.internal.builder.ResourceChangeSet;
+import org.kie.internal.builder.conf.DefaultPackageNameOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.drools.compiler.builder.impl.KnowledgeBuilderConfigurationImpl.DEFAULT_PACKAGE;
-import static org.drools.core.util.ClassUtils.convertClassToResourcePath;
-import static org.drools.core.util.ClassUtils.convertResourceToClassName;
-import static org.drools.core.util.StringUtils.isEmpty;
+import static org.drools.util.ClassUtils.convertClassToResourcePath;
+import static org.drools.util.ClassUtils.convertResourceToClassName;
+import static org.drools.util.StringUtils.isEmpty;
 
 public class ChangeSetBuilder {
     
@@ -103,7 +110,12 @@ public class ChangeSetBuilder {
                 continue;
             }
 
-            TypeResolver resolver = original.getPackage( typeDeclaration.getNamespace() ).getTypeResolver();
+            InternalKnowledgePackage pkg = original.getPackage( typeDeclaration.getNamespace() );
+            if (pkg == null) {
+                continue;
+            }
+
+            TypeResolver resolver = pkg.getTypeResolver();
             for (TypeFieldDescr field : typeDeclaration.getFields().values()) {
                 String fieldType;
                 try {
@@ -121,43 +133,53 @@ public class ChangeSetBuilder {
         for (String changedClass : changedClasses.values()) {
             result.registerChanges( changedClass, new ResourceChangeSet( changedClass, ChangeType.UPDATED ) );
         }
-        
+
+        if (original.getKieModuleModel() != null) {
+            for (String kieBaseName : original.getKieModuleModel().getKieBaseModels().keySet()) {
+                KnowledgeBuilder originalKbuilder = original.getKnowledgeBuilderForKieBase( kieBaseName );
+                if ( originalKbuilder != null && currentJar.getKnowledgeBuilderForKieBase( kieBaseName ) == null ) {
+                    currentJar.cacheKnowledgeBuilderForKieBase( kieBaseName, originalKbuilder );
+                }
+            }
+        }
+
         return result;
     }
 
 
-    private static ResourceChangeSet diffResource(String file, byte[] ob, byte[] cb, List<TypeDeclarationDescr> typeDeclarations) {
+    private static ResourceChangeSet diffResource(String file, byte[] originalBytes, byte[] currentBytes, List<TypeDeclarationDescr> typeDeclarations) {
         ResourceChangeSet pkgcs = new ResourceChangeSet( file, ChangeType.UPDATED );
         ResourceType type = ResourceType.determineResourceType( file );
         if( ResourceType.DRL.equals( type ) || ResourceType.GDRL.equals( type ) || ResourceType.RDRL.equals( type ) || ResourceType.TDRL.equals( type )) {
             try {
-                PackageDescr opkg = new DrlParser().parse( new ByteArrayResource( ob ) );
-                PackageDescr cpkg = new DrlParser().parse( new ByteArrayResource( cb ) );
-                String pkgName = isEmpty(cpkg.getName()) ? getDefaultPackageName() : cpkg.getName();
-                String oldPkgName = isEmpty(opkg.getName()) ? getDefaultPackageName() : opkg.getName();
+                PackageDescr originalPkg = new DrlParser().parse( new ByteArrayResource( originalBytes ) );
+                PackageDescr currentPkg = new DrlParser().parse( new ByteArrayResource( currentBytes ) );
+                String pkgName = isEmpty(currentPkg.getName()) ? getDefaultPackageName() : currentPkg.getName();
+                String oldPkgName = isEmpty(originalPkg.getName()) ? getDefaultPackageName() : originalPkg.getName();
 
                 if (!oldPkgName.equals(pkgName)) {
                     // if the package name is changed everthing has to be recreated from scratch
                     // so it is useless to further investigate other changes
                     return pkgcs;
                 }
+                pkgcs.setPackageName(pkgName);
 
-                for( RuleDescr crd : cpkg.getRules() ) {
+                for( RuleDescr crd : currentPkg.getRules() ) {
                     pkgcs.getLoadOrder().add(new ResourceChangeSet.RuleLoadOrder(pkgName, crd.getName(), crd.getLoadOrder()));
                 }
 
-                List<RuleDescr> orules = new ArrayList<>( opkg.getRules() ); // needs to be cloned
-                diffDescrs(ob, cb, pkgcs, orules, cpkg.getRules(), ResourceChange.Type.RULE, RULE_CONVERTER);
+                List<RuleDescr> orules = new ArrayList<>( originalPkg.getRules() ); // needs to be cloned
+                diffDescrs(originalBytes, currentBytes, pkgcs, orules, currentPkg.getRules(), ResourceChange.Type.RULE, RULE_CONVERTER);
 
-                List<FunctionDescr> ofuncs = new ArrayList<>( opkg.getFunctions() ); // needs to be cloned
-                diffDescrs(ob, cb, pkgcs, ofuncs, cpkg.getFunctions(), ResourceChange.Type.FUNCTION, FUNC_CONVERTER);
+                List<FunctionDescr> ofuncs = new ArrayList<>( originalPkg.getFunctions() ); // needs to be cloned
+                diffDescrs(originalBytes, currentBytes, pkgcs, ofuncs, currentPkg.getFunctions(), ResourceChange.Type.FUNCTION, FUNC_CONVERTER);
 
-                List<GlobalDescr> oglobals = new ArrayList<>( opkg.getGlobals() ); // needs to be cloned
-                diffDescrs(ob, cb, pkgcs, oglobals, cpkg.getGlobals(), ResourceChange.Type.GLOBAL, GLOBAL_CONVERTER);
+                List<GlobalDescr> oglobals = new ArrayList<>( originalPkg.getGlobals() ); // needs to be cloned
+                diffDescrs(originalBytes, currentBytes, pkgcs, oglobals, currentPkg.getGlobals(), ResourceChange.Type.GLOBAL, GLOBAL_CONVERTER);
 
-                for (TypeDeclarationDescr typeDeclaration : cpkg.getTypeDeclarations()) {
+                for (TypeDeclarationDescr typeDeclaration : currentPkg.getTypeDeclarations()) {
                     if ( isEmpty( typeDeclaration.getNamespace()) ) {
-                        typeDeclaration.setNamespace( isEmpty( cpkg.getNamespace() ) ? DEFAULT_PACKAGE : cpkg.getNamespace() );
+                        typeDeclaration.setNamespace( isEmpty( currentPkg.getNamespace() ) ? DEFAULT_PACKAGE : currentPkg.getNamespace() );
                     }
                     typeDeclarations.add( typeDeclaration );
                 }
@@ -254,7 +276,8 @@ public class ChangeSetBuilder {
 
     private static String getDefaultPackageName() {
         if (defaultPackageName == null) {
-            defaultPackageName = new KnowledgeBuilderConfigurationImpl().getDefaultPackageName();
+            KnowledgeBuilderConfiguration conf = new KnowledgeBuilderFactoryServiceImpl().newKnowledgeBuilderConfiguration();
+            defaultPackageName = conf.getOption(DefaultPackageNameOption.KEY).packageName();
         }
         return defaultPackageName;
     }

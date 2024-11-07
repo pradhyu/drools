@@ -1,19 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.model.v1_3;
 
 import java.util.ArrayList;
@@ -33,7 +35,7 @@ public class TDecisionRule extends TDMNElement implements DecisionRule {
     @Override
     public List<UnaryTests> getInputEntry() {
         if (inputEntry == null) {
-            inputEntry = new ArrayList<UnaryTests>();
+            inputEntry = new ArrayList<>();
         }
         return this.inputEntry;
     }
@@ -41,7 +43,7 @@ public class TDecisionRule extends TDMNElement implements DecisionRule {
     @Override
     public List<LiteralExpression> getOutputEntry() {
         if (outputEntry == null) {
-            outputEntry = new ArrayList<LiteralExpression>();
+            outputEntry = new ArrayList<>();
         }
         return this.outputEntry;
     }
@@ -49,7 +51,7 @@ public class TDecisionRule extends TDMNElement implements DecisionRule {
     @Override
     public List<RuleAnnotation> getAnnotationEntry() {
         if (annotationEntry == null) {
-            annotationEntry = new ArrayList<RuleAnnotation>();
+            annotationEntry = new ArrayList<>();
         }
         return this.annotationEntry;
     }

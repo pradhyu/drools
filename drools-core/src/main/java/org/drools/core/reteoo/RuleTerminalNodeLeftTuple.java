@@ -1,45 +1,43 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-import org.drools.core.beliefsystem.ModedAssertion;
-import org.drools.core.beliefsystem.simple.SimpleMode;
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.base.reteoo.NodeTypeEnums;
+import org.drools.base.rule.Declaration;
+import org.drools.base.rule.consequence.Consequence;
 import org.drools.core.common.ActivationGroupNode;
 import org.drools.core.common.ActivationNode;
-import org.drools.core.common.AgendaItem;
-import org.drools.core.common.InternalAgenda;
+import org.drools.core.common.ActivationsManager;
 import org.drools.core.common.InternalAgendaGroup;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.LogicalDependency;
-import org.drools.core.definitions.rule.impl.RuleImpl;
+import org.drools.core.common.PropagationContext;
 import org.drools.core.phreak.RuleAgendaItem;
-import org.drools.core.rule.Declaration;
-import org.drools.core.rule.GroupElement;
-import org.drools.core.spi.Consequence;
-import org.drools.core.spi.PropagationContext;
-import org.drools.core.util.LinkedList;
+import org.drools.core.rule.consequence.InternalMatch;
 import org.kie.api.runtime.rule.FactHandle;
 
-public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends BaseLeftTuple implements
-                                                                    AgendaItem<T> {
+public class RuleTerminalNodeLeftTuple extends LeftTuple implements InternalMatch {
     private static final long serialVersionUID = 540l;
     /**
      * The salience
@@ -49,21 +47,26 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
      * The activation number
      */
     private           long                                           activationNumber;
+
     private           int                                            queueIndex;
+
     private           boolean                                        queued;
-    private           LinkedList<LogicalDependency<T>>               justified;
-    private           LinkedList<LogicalDependency<SimpleMode>>      blocked;
-    private           LinkedList<SimpleMode>                         blockers;
     private transient InternalAgendaGroup                            agendaGroup;
     private           ActivationGroupNode                            activationGroupNode;
     private           ActivationNode                                 activationNode;
     private           InternalFactHandle                             activationFactHandle;
-    private transient boolean                                        canceled;
     private           boolean                                        matched;
     private           boolean                                        active;
-    private           RuleAgendaItem                                 ruleAgendaItem;
+
+    protected         RuleAgendaItem                                 ruleAgendaItem;
 
     private Runnable callback;
+
+    private RuleImpl rule;
+    private Consequence consequence;
+
+    // left here for debugging purposes: switch RuleExecutor.DEBUG_DORMANT_TUPLE to true to enable this debugging
+    // private boolean dormant;
 
     public RuleTerminalNodeLeftTuple() {
         // constructor needed for serialisation
@@ -81,12 +84,12 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
     }
 
     public RuleTerminalNodeLeftTuple(final InternalFactHandle factHandle,
-                                     final LeftTuple leftTuple,
+                                     final TupleImpl leftTuple,
                                      final Sink sink) {
         super(factHandle, leftTuple, sink);
     }
 
-    public RuleTerminalNodeLeftTuple(final LeftTuple leftTuple,
+    public RuleTerminalNodeLeftTuple(final TupleImpl leftTuple,
                                      final Sink sink,
                                      final PropagationContext pctx,
                                      final boolean leftTupleMemoryEnabled) {
@@ -96,30 +99,18 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
               leftTupleMemoryEnabled);
     }
 
-    public RuleTerminalNodeLeftTuple(final LeftTuple leftTuple,
-                                     RightTuple rightTuple,
+    public RuleTerminalNodeLeftTuple(final TupleImpl leftTuple,
+                                     TupleImpl rightTuple,
                                      Sink sink) {
         super(leftTuple,
               rightTuple,
               sink);
     }
 
-    public RuleTerminalNodeLeftTuple(final LeftTuple leftTuple,
-                                     final RightTuple rightTuple,
-                                     final Sink sink,
-                                     final boolean leftTupleMemoryEnabled) {
-        this( leftTuple,
-              rightTuple,
-              null,
-              null,
-              sink,
-              leftTupleMemoryEnabled );
-    }
-
-    public RuleTerminalNodeLeftTuple(final LeftTuple leftTuple,
-                                     final RightTuple rightTuple,
-                                     final LeftTuple currentLeftChild,
-                                     final LeftTuple currentRightChild,
+    public RuleTerminalNodeLeftTuple(final TupleImpl leftTuple,
+                                     final TupleImpl rightTuple,
+                                     final TupleImpl currentLeftChild,
+                                     final TupleImpl currentRightChild,
                                      final Sink sink,
                                      final boolean leftTupleMemoryEnabled) {
         super(leftTuple,
@@ -151,18 +142,28 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
         this.matched = true;
     }
 
+    @Override
+    protected void setSink(Sink sink) {
+        super.setSink(sink);
+        TerminalNode terminalNode = (TerminalNode) sink;
+        this.rule = terminalNode.getRule();
+        if (this.rule != null && terminalNode.getType() == NodeTypeEnums.RuleTerminalNode) {
+            String consequenceName = ((RuleTerminalNode)terminalNode).getConsequenceName();
+            this.consequence = consequenceName.equals(RuleImpl.DEFAULT_CONSEQUENCE_NAME) ? rule.getConsequence() : rule.getNamedConsequence(consequenceName);
+        }
+    }
+
     /**
      * Retrieve the rule.
      *
      * @return The rule.
      */
     public RuleImpl getRule() {
-        return getTerminalNode().getRule();
+        return this.rule;
     }
 
     public Consequence getConsequence() {
-        String consequenceName = ((RuleTerminalNode) getTerminalNode()).getConsequenceName();
-        return consequenceName.equals(RuleImpl.DEFAULT_CONSEQUENCE_NAME) ? getTerminalNode().getRule().getConsequence() : getTerminalNode().getRule().getNamedConsequence(consequenceName);
+        return consequence;
     }
 
     /**
@@ -203,85 +204,6 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
         return this.activationNumber;
     }
 
-    public void addBlocked(final LogicalDependency<SimpleMode> dep) {
-        // Adds the blocked to the blockers list
-        if (this.blocked == null) {
-            this.blocked = new LinkedList<LogicalDependency<SimpleMode>>();
-        }
-
-        this.blocked.add(dep);
-
-        // now ad the blocker to the blocked's list - we need to check that references are null first
-        RuleTerminalNodeLeftTuple blocked = (RuleTerminalNodeLeftTuple) dep.getJustified();
-        if (blocked.blockers == null) {
-            blocked.blockers = new LinkedList<SimpleMode>();
-            blocked.blockers.add(dep.getMode());
-        } else if (dep.getMode().getNext() == null && dep.getMode().getPrevious() == null && blocked.getBlockers().getFirst() != dep.getMode()) {
-            blocked.blockers.add(dep.getMode());
-        }
-    }
-
-    public void removeAllBlockersAndBlocked(InternalAgenda agenda) {
-        if (this.blockers != null) {
-            // Iterate and remove this node's logical dependency list from each of it's blockers
-            for (SimpleMode node = blockers.getFirst(); node != null; node = node.getNext()) {
-                LogicalDependency dep = node.getObject();
-                dep.getJustifier().getBlocked().remove(dep);
-            }
-        }
-        this.blockers = null;
-
-        if (this.blocked != null) {
-            // Iterate and remove this node's logical dependency list from each of it's blocked
-            for (LogicalDependency<SimpleMode> dep = blocked.getFirst(); dep != null; ) {
-                LogicalDependency<SimpleMode> tmp = dep.getNext();
-                removeBlocked(dep);
-                RuleTerminalNodeLeftTuple justified = (RuleTerminalNodeLeftTuple) dep.getJustified();
-                if (justified.getBlockers().isEmpty() && justified.isActive()) {
-                    agenda.stageLeftTuple(ruleAgendaItem, justified);
-
-                }
-                dep = tmp;
-            }
-        }
-        this.blocked = null;
-    }
-
-    public void removeBlocked(final LogicalDependency<SimpleMode> dep) {
-        this.blocked.remove(dep);
-
-        RuleTerminalNodeLeftTuple blocked = (RuleTerminalNodeLeftTuple) dep.getJustified();
-        blocked.blockers.remove(dep.getMode());
-    }
-
-    public LinkedList<LogicalDependency<SimpleMode>> getBlocked() {
-        return this.blocked;
-    }
-
-    public void setBlocked(LinkedList<LogicalDependency<SimpleMode>> justified) {
-        this.blocked = justified;
-    }
-
-    public LinkedList<SimpleMode> getBlockers() {
-        return this.blockers;
-    }
-
-    public void addLogicalDependency(final LogicalDependency<T> node) {
-        if (this.justified == null) {
-            this.justified = new LinkedList<LogicalDependency<T>>();
-        }
-
-        this.justified.add(node);
-    }
-
-    public LinkedList<LogicalDependency<T>> getLogicalDependencies() {
-        return this.justified;
-    }
-
-    public void setLogicalDependencies(LinkedList<LogicalDependency<T>> justified) {
-        this.justified = justified;
-    }
-
     public boolean isQueued() {
         return this.queued;
     }
@@ -297,15 +219,12 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
         this.queueIndex = queueIndex;
     }
 
-    public void dequeue() {
-        if (this.agendaGroup != null) {
-            this.agendaGroup.remove(this);
-        }
-        setQueued(false);
-    }
-
     public int getQueueIndex() {
         return this.queueIndex;
+    }
+
+    public void dequeue() {
+        ruleAgendaItem.getRuleExecutor().removeActiveTuple(this);
     }
 
     public void remove() {
@@ -333,12 +252,8 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
         this.activationNode = activationNode;
     }
 
-    public GroupElement getSubRule() {
-        return getTerminalNode().getSubRule();
-    }
-
     public TerminalNode getTerminalNode() {
-        return (TerminalNode) getTupleSink();
+        return (AbstractTerminalNode) this.getSink();
     }
 
     public List<FactHandle> getFactHandles() {
@@ -361,26 +276,17 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
 
     public Object getDeclarationValue(String variableName) {
         Declaration decl = getTerminalNode().getSubRule().getOuterDeclarations().get(variableName);
-        InternalFactHandle handle = get(decl);
         // need to double check, but the working memory reference is only used for resolving globals, right?
-        return decl.getValue(null, handle.getObject());
+        return decl.getValue(this);
     }
 
     public List<String> getDeclarationIds() {
-        Declaration[] declArray = ((org.drools.core.reteoo.RuleTerminalNode) getTupleSink()).getAllDeclarations();
-        List<String> declarations = new ArrayList<String>();
+        Declaration[] declArray = ((org.drools.core.reteoo.RuleTerminalNode) this.getSink()).getAllDeclarations();
+        List<String> declarations = new ArrayList<>();
         for (Declaration decl : declArray) {
             declarations.add(decl.getIdentifier());
         }
         return Collections.unmodifiableList(declarations);
-    }
-
-    public boolean isCanceled() {
-        return canceled;
-    }
-
-    public void cancel() {
-        this.canceled = true;
     }
 
     public boolean isMatched() {
@@ -399,7 +305,7 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
         this.active = active;
     }
 
-    public boolean isRuleAgendaItem() {
+    public boolean hasBlockers() {
         return false;
     }
 
@@ -416,5 +322,43 @@ public class RuleTerminalNodeLeftTuple<T extends ModedAssertion<T>> extends Base
     @Override
     public String toString() {
         return "["+toExternalForm()+" [ " + super.toString()+ " ] ]";
+    }
+
+    public void cancelActivation(ActivationsManager activationsManager) {
+        activationsManager.cancelActivation( this );
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        RuleTerminalNodeLeftTuple that = (RuleTerminalNodeLeftTuple) o;
+        return ruleAgendaItem.getRule().getName().equals(that.ruleAgendaItem.getRule().getName());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), ruleAgendaItem.getRule().getName());
+    }
+
+    public boolean isFullMatch() {
+        return true;
+    }
+
+    public boolean isDormant() {
+        throw new IllegalStateException("This method can be called only for debugging purposes. Uncomment dormant boolean to enable debugging.");
+        // return dormant;
+    }
+
+    public void setDormant(boolean dormant) {
+        throw new IllegalStateException("This method can be called only for debugging purposes. Uncomment dormant boolean to enable debugging.");
+        // this.dormant = dormant;
     }
 }

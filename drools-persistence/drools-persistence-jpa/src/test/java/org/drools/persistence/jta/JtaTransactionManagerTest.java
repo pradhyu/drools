@@ -1,42 +1,40 @@
-/*
- * Copyright 2011 Red Hat Inc.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.persistence.jta;
-
-import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
-import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
-import static org.drools.persistence.util.DroolsPersistenceUtil.setupWithPoolingDataSource;
-import static org.junit.Assert.*;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.transaction.RollbackException;
-import javax.transaction.UserTransaction;
-import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.transaction.RollbackException;
+import jakarta.transaction.UserTransaction;
+
+import org.drools.commands.impl.CommandBasedStatefulKnowledgeSessionImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.drools.persistence.PersistableRunner;
 import org.drools.persistence.api.TransactionManager;
 import org.drools.persistence.jpa.JpaPersistenceContextManager;
 import org.drools.persistence.util.DroolsPersistenceUtil;
-import org.hibernate.TransientObjectException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -52,6 +50,12 @@ import org.kie.internal.io.ResourceFactory;
 import org.kie.test.util.db.PersistenceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
+import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
+import static org.drools.persistence.util.DroolsPersistenceUtil.setupWithPoolingDataSource;
 
 public class JtaTransactionManagerTest {
 
@@ -145,15 +149,15 @@ public class JtaTransactionManagerTest {
             tx.commit();
         }
         catch( Exception e ) { 
-            if( e instanceof RollbackException || e.getCause() instanceof TransientObjectException ) {
+            if ( e instanceof RollbackException  ) {
                 rollBackExceptionthrown = true;
 
                 if( tx.getStatus() == 1 ) {
                     tx.rollback();
                 }
             }
-        }           
-        assertTrue( "A rollback exception should have been thrown because of foreign key violations.", rollBackExceptionthrown );
+        }
+        assertThat(rollBackExceptionthrown).as("A rollback exception should have been thrown because of foreign key violations.").isTrue();
        
         TransactionTestObject mainObject = new TransactionTestObject();
         mainObject.setName("main" + testName);
@@ -257,7 +261,7 @@ public class JtaTransactionManagerTest {
         KieSession commandKSession = KieServices.get().getStoreServices().newKieSession( kbase, null, env );
 //        StatefulKnowledgeSession commandKSession = JPAKnowledgeService.newStatefulKnowledgeSession( kbase, null, env );
         commandKSession.getIdentifier(); // initialize CSEM
-        PersistableRunner commandService = (PersistableRunner) ((CommandBasedStatefulKnowledgeSession) commandKSession).getRunner();
+        PersistableRunner commandService = (PersistableRunner) ((CommandBasedStatefulKnowledgeSessionImpl) commandKSession).getRunner();
         JpaPersistenceContextManager jpm = (JpaPersistenceContextManager) getValueOfField("jpm", commandService);
         
         TransactionTestObject mainObject = new TransactionTestObject();
@@ -302,7 +306,7 @@ public class JtaTransactionManagerTest {
             fail("Unable to retrieve " + fieldname + " field from " + sourceClassName + ": " + e.getCause());
         }
     
-        assertNotNull("." + fieldname + " field is null!?!", field);
+        assertThat(field).as("." + fieldname + " field is null!?!").isNotNull();
         Object fieldValue = null;
         try {
             fieldValue = field.get(source);

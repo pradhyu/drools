@@ -1,19 +1,21 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.rule.builder;
 
 import java.text.ParseException;
@@ -26,44 +28,39 @@ import java.util.StringTokenizer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.drools.compiler.compiler.DroolsError;
+import org.drools.base.base.CoreComponentsBuilder;
+import org.drools.base.base.EnabledBoolean;
+import org.drools.base.base.SalienceInteger;
+import org.drools.base.definitions.rule.impl.QueryImpl;
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.base.factmodel.AnnotationDefinition;
+import org.drools.base.rule.GroupElement;
+import org.drools.base.rule.accessor.Salience;
+import org.drools.base.time.TimeUtils;
+import org.drools.base.time.impl.Timer;
 import org.drools.compiler.compiler.DroolsWarning;
 import org.drools.compiler.compiler.RuleBuildError;
 import org.drools.compiler.compiler.RuleBuildWarning;
-import org.drools.compiler.lang.DroolsSoftKeywords;
-import org.drools.compiler.lang.descr.AndDescr;
-import org.drools.compiler.lang.descr.AnnotationDescr;
-import org.drools.compiler.lang.descr.AttributeDescr;
-import org.drools.compiler.lang.descr.EntryPointDescr;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.compiler.lang.descr.QueryDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
-import org.drools.compiler.rule.builder.dialect.mvel.MVELObjectExpressionBuilder;
-import org.drools.core.base.EnabledBoolean;
-import org.drools.core.base.SalienceInteger;
-import org.drools.core.base.mvel.MVELObjectExpression;
-import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.factmodel.AnnotationDefinition;
-import org.drools.core.rule.GroupElement;
-import org.drools.core.rule.Pattern;
-import org.drools.core.spi.AgendaGroup;
-import org.drools.core.spi.Salience;
-import org.drools.core.time.TimeUtils;
+import org.drools.core.common.InternalAgendaGroup;
+import org.drools.core.time.TimerExpression;
 import org.drools.core.time.impl.CronExpression;
 import org.drools.core.time.impl.CronTimer;
 import org.drools.core.time.impl.ExpressionIntervalTimer;
 import org.drools.core.time.impl.IntervalTimer;
-import org.drools.core.time.impl.Timer;
-import org.drools.core.util.DateUtils;
-import org.drools.core.util.MVELSafeHelper;
-import org.drools.core.util.StringUtils;
+import org.drools.drl.ast.descr.AnnotationDescr;
+import org.drools.drl.ast.descr.AttributeDescr;
+import org.drools.drl.ast.descr.QueryDescr;
+import org.drools.drl.ast.descr.RuleDescr;
+import org.drools.drl.parser.DroolsError;
+import org.drools.drl.parser.lang.DroolsSoftKeywords;
+import org.drools.util.DateUtils;
+import org.drools.util.StringUtils;
 import org.kie.api.definition.rule.ActivationListener;
 import org.kie.api.definition.rule.All;
 import org.kie.api.definition.rule.Direct;
 import org.kie.api.definition.rule.Propagation;
-import org.kie.api.definition.rule.Unit;
 
-import static org.kie.internal.ruleunit.RuleUnitUtil.RULE_UNIT_DECLARATION;
+import static org.drools.compiler.rule.builder.util.AnnotationFactory.getTypedAnnotation;
 
 /**
  * This builds the rule structure from an AST.
@@ -82,14 +79,11 @@ public class RuleBuilder {
             context.getRule().setParent( context.getPkg().getRule( ruleDescr.getParentName() ) );
         }
 
-        parseUnitAnnotations( context, context.getRule(), ruleDescr );
-
         // add all the rule's meta attributes
         buildMetaAttributes( context );
 
         if ( context.getRuleDescr() instanceof QueryDescr ) {
-            context.getDialect().getQueryBuilder().build( context,
-                                                          (QueryDescr) context.getRuleDescr() );
+            context.getDialect().getPatternBuilderForQuery(((QueryImpl) context.getRule())).build( context, (QueryDescr) context.getRuleDescr() );
         }
 
         context.initRule();
@@ -103,12 +97,7 @@ public class RuleBuilder {
 
         final RuleConditionBuilder builder = (RuleConditionBuilder) context.getDialect().getBuilder( ruleDescr.getLhs().getClass() );
         if ( builder != null ) {
-            Pattern prefixPattern = context.getPrefixPattern(); // this is established during pre-processing, if it's query
-            final GroupElement ce = (GroupElement) builder.build( context,
-                                                                  getLhsForRuleUnit( context.getRule(), ruleDescr.getLhs() ),
-                                                                  prefixPattern );
-
-            context.getRule().setLhs( ce );
+            context.getRule().setLhs( (GroupElement) builder.build( context, ruleDescr.getLhs(), context.getPrefixPattern() ) );
         } else {
             throw new RuntimeException( "BUG: builder not found for descriptor class " + ruleDescr.getLhs().getClass() );
         }
@@ -131,16 +120,6 @@ public class RuleBuilder {
         }
     }
 
-    private static AndDescr getLhsForRuleUnit(RuleImpl rule, AndDescr lhs) {
-        if (rule.hasRuleUnit()) {
-            PatternDescr unitPattern = new PatternDescr( rule.getRuleUnitClassName(), RULE_UNIT_DECLARATION );
-            unitPattern.setSource( EntryPointDescr.RULE_UNIT_ENTRY_POINT_DESCR );
-            unitPattern.setResource( rule.getResource() );
-            lhs.getDescrs().add(0, unitPattern);
-        }
-        return lhs;
-    }
-
     public static void buildMetaAttributes(final RuleBuildContext context ) {
         RuleImpl rule = context.getRule();
         for ( String metaAttr : context.getRuleDescr().getAnnotationNames() ) {
@@ -160,7 +139,7 @@ public class RuleBuilder {
                 if ( annotationDefinition.getValues().size() == 1 && annotationDefinition.getValues().containsKey( AnnotationDescr.VALUE ) ) {
                     rule.addMetaAttribute( metaAttr, annotationDefinition.getPropertyValue( AnnotationDescr.VALUE ) );
                 } else {
-                    Map<String, Object> map = new HashMap<String, Object>( annotationDefinition.getValues().size() );
+                    Map<String, Object> map = new HashMap<>( annotationDefinition.getValues().size() );
                     for ( String key : annotationDefinition.getValues().keySet() ) {
                         map.put( key, annotationDefinition.getPropertyValue( key ) );
                     }
@@ -168,7 +147,7 @@ public class RuleBuilder {
                 }
             } else {
                 if ( ad.hasValue() ) {
-                    if ( ad.getValues().size() == 1 ) {
+                    if ( ad.getValueMap().size() == 1 ) {
                         rule.addMetaAttribute( metaAttr,
                                                resolveValue( ad.getSingleValueAsString() ) );
                     } else {
@@ -188,7 +167,7 @@ public class RuleBuilder {
         Object result = value;
         // try to resolve as an expression:
         try {
-            result = MVELSafeHelper.getEvaluator().eval( value );
+            result = CoreComponentsBuilder.get().getMVELExecutor().eval( value );
         } catch ( Exception e ) {
             // do nothing
         }
@@ -229,7 +208,7 @@ public class RuleBuilder {
                     break;
                 case "ruleflow-group":
                     rule.setRuleFlowGroup( attributeDescr.getValue() );
-                    if ( !rule.getAgendaGroup().equals( AgendaGroup.MAIN ) && !rule.getAgendaGroup().equals( attributeDescr.getValue() ) ) {
+                    if ( !rule.getAgendaGroup().equals( InternalAgendaGroup.MAIN ) && !rule.getAgendaGroup().equals( attributeDescr.getValue() ) ) {
                         DroolsWarning warn = new RuleBuildWarning( rule, context.getParentDescr(), null,
                                                                    "Both an agenda-group ( " + attributeDescr.getValue() +
                                                                    " ) and a ruleflow-group ( " + rule.getRuleFlowGroup() +
@@ -289,15 +268,15 @@ public class RuleBuilder {
 
     private static void parseAnnotation(RuleBuildContext context, RuleImpl rule, RuleDescr ruleDescr, boolean enforceEager) {
         try {
-            ActivationListener activationListener = ruleDescr.getTypedAnnotation(ActivationListener.class);
+            ActivationListener activationListener = getTypedAnnotation(ruleDescr, ActivationListener.class);
             if (activationListener != null) {
-                rule.setActivationListener(MVELSafeHelper.getEvaluator().evalToString(activationListener.value()));
+                rule.setActivationListener(CoreComponentsBuilder.get().getMVELExecutor().evalToString(activationListener.value()));
             }
 
             if (enforceEager) {
                 rule.setEager(true);
             } else {
-                Propagation propagation = ruleDescr.getTypedAnnotation(Propagation.class);
+                Propagation propagation = getTypedAnnotation(ruleDescr, Propagation.class);
                 if (propagation != null) {
                     if (propagation.value() == Propagation.Type.IMMEDIATE) {
                         rule.setDataDriven(true);
@@ -307,7 +286,7 @@ public class RuleBuilder {
                 }
             }
 
-            Direct direct = ruleDescr.getTypedAnnotation(Direct.class);
+            Direct direct = getTypedAnnotation(ruleDescr, Direct.class);
             if (direct != null && direct.value()) {
                 rule.setActivationListener("direct");
             }
@@ -321,21 +300,7 @@ public class RuleBuilder {
         }
     }
 
-    private static void parseUnitAnnotations( RuleBuildContext context, RuleImpl rule, RuleDescr ruleDescr ) {
-        try {
-            Unit unit = ruleDescr.getTypedAnnotation( Unit.class );
-            if (unit != null) {
-                rule.setRuleUnitClass( unit.value() );
-            }
-        } catch (Exception e) {
-            DroolsError err = new RuleBuildError( rule, context.getParentDescr(), null,
-                                                  e.getMessage() );
-            context.addError( err  );
-        }
-    }
-
-    private static boolean getBooleanValue(final AttributeDescr attributeDescr,
-                                    final boolean defaultValue) {
+    private static boolean getBooleanValue(AttributeDescr attributeDescr, boolean defaultValue) {
         return (attributeDescr.getValue() == null || "".equals( attributeDescr.getValue().trim() )) ? defaultValue : Boolean.valueOf(attributeDescr.getValue());
     }
 
@@ -371,7 +336,7 @@ public class RuleBuilder {
     private static void buildCalendars(RuleImpl rule, String calendarsString, RuleBuildContext context) {
         Object val = null;
         try {
-            val = MVELSafeHelper.getEvaluator().eval( calendarsString );
+            val = CoreComponentsBuilder.get().getMVELExecutor().eval( calendarsString );
             String[] calNames = null;
             if ( val instanceof List ) {
                 calNames = ( String[] ) ((List)val).toArray( new String[ ((List)val).size() ] );
@@ -393,11 +358,11 @@ public class RuleBuilder {
     }
     
     public static Timer buildTimer(RuleImpl rule, String timerString, RuleBuildContext context) {
-        return buildTimer( rule, timerString, context, expr -> createMVELExpr(expr, context), error -> registerError(error, rule, context) );
+        return buildTimer( timerString, context, expr -> createMVELExpr(expr, context), error -> registerError(error, rule, context) );
     }
 
-    public static Timer buildTimer( RuleImpl rule, String timerString, RuleBuildContext context,
-                                    Function<String, MVELObjectExpression> exprCreator, Consumer<String> errorManager ) {
+    public static Timer buildTimer( String timerString, RuleBuildContext context,
+                                    Function<String, TimerExpression> exprCreator, Consumer<String> errorManager ) {
         if( timerString.indexOf( '(' ) >=0 ) {
             timerString = timerString.substring( timerString.indexOf( '(' )+1, timerString.lastIndexOf( ')' ) ).trim();
         }
@@ -466,16 +431,20 @@ public class RuleBuilder {
                 return null;
             }
 
-            MVELObjectExpression times = MVELObjectExpressionBuilder.build( tok.nextToken().trim(), context );
-            MVELObjectExpression period = tok.hasMoreTokens() ?
-                                          MVELObjectExpressionBuilder.build( tok.nextToken().trim(), context ) :
-                                          MVELObjectExpressionBuilder.build( "0", context );
+            TimerExpression times = createTimerExpression( context, exprCreator, tok.nextToken().trim() );
+            TimerExpression period = createTimerExpression( context, exprCreator, tok.hasMoreTokens() ? tok.nextToken().trim() : "0");
 
             return new ExpressionIntervalTimer( exprCreator.apply(startDate), exprCreator.apply(endDate), repeatLimit, times, period );
         }
 
         errorManager.accept( "Protocol for timer does not exist '" + timerString +"'" );
         return null;
+    }
+
+    private static TimerExpression createTimerExpression( RuleBuildContext context, Function<String, TimerExpression> exprCreator, String expression ) {
+        return context != null ?
+                ConstraintBuilder.get().buildTimerExpression( expression, context ) :
+                exprCreator.apply( expression );
     }
 
     private static String extractParam(String timerString, String name) {
@@ -489,7 +458,7 @@ public class RuleBuilder {
         return timerString.substring( equalsPos + 1, endPos ).trim();
     }
 
-    private static MVELObjectExpression createMVELExpr(String expr, RuleBuildContext context) {
+    private static TimerExpression createMVELExpr(String expr, RuleBuildContext context) {
         if (expr == null || context == null) {
             return null;
         }
@@ -497,7 +466,7 @@ public class RuleBuilder {
             DateUtils.parseDate( expr );
             expr = "\"" + expr + "\""; // if expr is a valid date wrap in quotes
         } catch (Exception e) { }
-        return MVELObjectExpressionBuilder.build( expr, context );
+        return ConstraintBuilder.get().buildTimerExpression( expr, context );
     }
 
     private static void registerError(String error, RuleImpl rule, RuleBuildContext context) {

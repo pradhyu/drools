@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.kproject.models;
 
 import java.util.ArrayList;
@@ -26,25 +29,22 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import com.thoughtworks.xstream.converters.MarshallingContext;
-import com.thoughtworks.xstream.converters.UnmarshallingContext;
-import com.thoughtworks.xstream.io.HierarchicalStreamReader;
-import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
-import org.drools.core.util.AbstractXStreamConverter;
-import org.drools.core.util.StringUtils;
+import org.kie.api.KieServices;
 import org.kie.api.builder.model.KieBaseModel;
 import org.kie.api.builder.model.KieModuleModel;
 import org.kie.api.builder.model.KieSessionModel;
 import org.kie.api.builder.model.RuleTemplateModel;
+import org.kie.api.conf.BetaRangeIndexOption;
 import org.kie.api.conf.DeclarativeAgendaOption;
 import org.kie.api.conf.EqualityBehaviorOption;
 import org.kie.api.conf.EventProcessingOption;
+import org.kie.api.conf.KieBaseMutabilityOption;
+import org.kie.api.conf.PrototypesOption;
 import org.kie.api.conf.SequentialOption;
 import org.kie.api.conf.SessionsPoolOption;
 import org.kie.api.io.ResourceType;
 
-import static org.drools.core.util.IoUtils.recursiveListFile;
-import static org.kie.api.conf.SequentialOption.YES;
+import static org.drools.util.IoUtils.recursiveListFile;
 
 public class KieBaseModelImpl
         implements
@@ -52,11 +52,15 @@ public class KieBaseModelImpl
 
     private String                       name;
 
-    private Set<String>                  includes= new HashSet<String>();
+    private Set<String>                  includes= new HashSet<>();
 
     private List<String>                 packages;
 
     private EqualityBehaviorOption       equalsBehavior = EqualityBehaviorOption.IDENTITY;
+
+    private PrototypesOption             prototypes = PrototypesOption.DISABLED;
+
+    private KieBaseMutabilityOption      mutability = KieBaseMutabilityOption.ALLOWED;
 
     private EventProcessingOption        eventProcessingMode = EventProcessingOption.CLOUD;
 
@@ -66,25 +70,34 @@ public class KieBaseModelImpl
 
     private SessionsPoolOption sessionsPool = SessionsPoolOption.NO;
 
-    private Map<String, KieSessionModel> kSessions = new HashMap<String, KieSessionModel>();
+    private BetaRangeIndexOption         betaRangeIndexOption = BetaRangeIndexOption.DISABLED;
+
+    private Map<String, KieSessionModel> kSessions = new HashMap<>();
 
     private KieModuleModel               kModule;
     
-    private String                       scope = "javax.enterprise.context.ApplicationScoped";
+    private String                       scope = "jakarta.enterprise.context.ApplicationScoped";
 
-    private List<RuleTemplateModel>      ruleTemplates = new ArrayList<RuleTemplateModel>();
+    private List<RuleTemplateModel>      ruleTemplates = new ArrayList<>();
 
     private boolean                      isDefault = false;
 
     public KieBaseModelImpl() {
     }
 
-    public KieBaseModelImpl(KieModuleModel kModule,
-                            String name) {
+    public KieBaseModelImpl(String name) {
+        this(null, name);
+    }
+
+    public KieBaseModelImpl(KieModuleModel kModule, String name) {
         this.kModule = kModule;
-        this.includes = new HashSet<String>();
+        this.includes = new HashSet<>();
         this.name = name;
         this.kSessions = Collections.emptyMap();
+    }
+
+    public static KieBaseModel defaultKieBaseModel() {
+        return KieServices.get().newKieModuleModel().newKieBaseModel( "defaultKieBase" ).addPackage( "*" ).setDefault( true );
     }
 
     public boolean isDefault() {
@@ -97,12 +110,12 @@ public class KieBaseModelImpl
     }
 
     public List<String> getPackages() {
-        return packages != null ? packages : Collections.<String>emptyList();
+        return packages != null ? packages : Collections.emptyList();
     }
 
     public KieBaseModel addPackage(String pkg) {
         if ( packages == null ) {
-            packages = new ArrayList<String>();
+            packages = new ArrayList<>();
         }
         packages.add( pkg );
         return this;
@@ -146,7 +159,7 @@ public class KieBaseModelImpl
      */
     public KieSessionModel newKieSessionModel(String name) {
         KieSessionModel kieSessionModel = new KieSessionModelImpl( this, name );
-        Map<String, KieSessionModel> newMap = new HashMap<String, KieSessionModel>();
+        Map<String, KieSessionModel> newMap = new HashMap<>();
         newMap.putAll( this.kSessions );
         newMap.put( kieSessionModel.getName(), kieSessionModel );
         setKSessions( newMap );
@@ -158,20 +171,11 @@ public class KieBaseModelImpl
      * @see org.kie.kproject.KieBaseModel#removeKieSessionModel(org.kie.kproject.KieSessionModelImpl)
      */
     public KieBaseModel removeKieSessionModel(String qName) {
-        Map<String, KieSessionModel> newMap = new HashMap<String, KieSessionModel>();
+        Map<String, KieSessionModel> newMap = new HashMap<>();
         newMap.putAll( this.kSessions );
         newMap.remove(qName);
         setKSessions(newMap);
         return this;
-    }
-
-    public void moveKSession(String oldQName,
-                             String newQName) {
-        Map<String, KieSessionModel> newMap = new HashMap<String, KieSessionModel>();
-        newMap.putAll( this.kSessions );
-        KieSessionModel kieSessionModel = newMap.remove( oldQName );
-        newMap.put(newQName, kieSessionModel);
-        setKSessions( newMap );
     }
 
     public List<RuleTemplateModel> getRuleTemplates() {
@@ -194,8 +198,7 @@ public class KieBaseModelImpl
         return name;
     }
 
-    public KieBaseModel setName(String name) {
-        ((KieModuleModelImpl)kModule).changeKBaseName(this, this.name, name);
+    public KieBaseModel setNameForUnmarshalling(String name) {
         this.name = name;
         return this;
     }
@@ -228,18 +231,30 @@ public class KieBaseModelImpl
         return this;
     }
 
-    /* (non-Javadoc)
-     * @see org.kie.kproject.KieBaseModel#getEqualsBehavior()
-     */
     public EqualityBehaviorOption getEqualsBehavior() {
         return equalsBehavior;
     }
 
-    /* (non-Javadoc)
-     * @see org.kie.kproject.KieBaseModel#setEqualsBehavior(org.kie.api.conf.EqualityBehaviorOption)
-     */
     public KieBaseModel setEqualsBehavior(EqualityBehaviorOption equalsBehaviour) {
         this.equalsBehavior = equalsBehaviour;
+        return this;
+    }
+
+    public PrototypesOption getPrototypes() {
+        return prototypes;
+    }
+
+    public KieBaseModel setPrototypes(PrototypesOption prototypes) {
+        this.prototypes = prototypes;
+        return this;
+    }
+
+    public KieBaseMutabilityOption getMutability() {
+        return mutability;
+    }
+
+    public KieBaseModel setMutability( KieBaseMutabilityOption mutability ) {
+        this.mutability = mutability;
         return this;
     }
 
@@ -268,6 +283,17 @@ public class KieBaseModelImpl
     }
 
     @Override
+    public BetaRangeIndexOption getBetaRangeIndexOption() {
+        return betaRangeIndexOption;
+    }
+
+    @Override
+    public KieBaseModel setBetaRangeIndexOption(BetaRangeIndexOption betaRangeIndexOption) {
+        this.betaRangeIndexOption = betaRangeIndexOption;
+        return this;
+    }
+
+    @Override
     public SequentialOption getSequential() {
         return sequential;
     }
@@ -292,7 +318,7 @@ public class KieBaseModelImpl
 
     public static List<String> getFiles(String kBaseName,
                                         ZipFile zipFile) {
-        List<String> files = new ArrayList<String>();
+        List<String> files = new ArrayList<>();
         Enumeration< ? extends ZipEntry> zipEntries = zipFile.entries();
         while ( zipEntries.hasMoreElements() ) {
             ZipEntry zipEntry = zipEntries.nextElement();
@@ -325,163 +351,19 @@ public class KieBaseModelImpl
                         fileName.endsWith( ResourceType.TDRL.getDefaultExtension() ) );
     }
 
-    public static class KBaseConverter extends AbstractXStreamConverter {
-
-        public KBaseConverter() {
-            super( KieBaseModelImpl.class );
-        }
-
-        public void marshal(Object value,
-                            HierarchicalStreamWriter writer,
-                            MarshallingContext context) {
-            KieBaseModelImpl kBase = (KieBaseModelImpl) value;
-            writer.addAttribute( "name", kBase.getName() );
-            writer.addAttribute( "default", Boolean.toString(kBase.isDefault()) );
-            if ( kBase.getEventProcessingMode() != null ) {
-                writer.addAttribute( "eventProcessingMode", kBase.getEventProcessingMode().getMode() );
-            }
-            if ( kBase.getEqualsBehavior() != null ) {
-                writer.addAttribute( "equalsBehavior", kBase.getEqualsBehavior().toString().toLowerCase() );
-            }
-            if ( kBase.getDeclarativeAgenda() != null ) {
-                writer.addAttribute( "declarativeAgenda", kBase.getDeclarativeAgenda().toString().toLowerCase() );
-            }
-            if ( kBase.getSequential() != null ) {
-                writer.addAttribute( "sequential", kBase.getSequential() == YES ? "true" : "false" );
-            }
-            if ( kBase.getSessionsPool() != null ) {
-                writer.addAttribute( "sessionsPool", "" + kBase.getSessionsPool().getSize() );
-            }
-
-            if ( kBase.getScope() != null ) {
-                writer.addAttribute( "scope", kBase.getScope() );
-            }
-            
-            if ( ! kBase.getPackages().isEmpty() ) {
-                StringBuilder buf = new StringBuilder();
-                boolean first = true;
-                for( String pkg : kBase.getPackages() ) {
-                    if( first ) {
-                        first = false;
-                    } else {
-                        buf.append( ", " );
-                    } 
-                    buf.append( pkg );
-                }
-                writer.addAttribute( "packages", buf.toString() );
-            }
-            if ( !kBase.getIncludes().isEmpty() ) {
-                StringBuilder sb = new StringBuilder();
-                boolean insertComma = false;
-                for ( String include : kBase.getIncludes() ) {
-                    if ( insertComma ) {
-                        sb.append( ", " );
-                    }                    
-                    sb.append( include );
-                    if ( !insertComma ) {
-                        insertComma = true;
-                    }
-                }
-                writer.addAttribute( "includes", sb.toString() );
-            }
-            
-            for ( RuleTemplateModel ruleTemplateModel : kBase.getRuleTemplates()) {
-                writeObject( writer, context, "ruleTemplate", ruleTemplateModel);
-            }            
-
-            for ( KieSessionModel kSessionModel : kBase.getKieSessionModels().values()) {
-                writeObject( writer, context, "ksession", kSessionModel);
-            }
-        }
-
-        public Object unmarshal(HierarchicalStreamReader reader,
-                                final UnmarshallingContext context) {
-            final KieBaseModelImpl kBase = new KieBaseModelImpl();
-
-            String kbaseName = reader.getAttribute( "name" );
-            kBase.name = kbaseName != null ? kbaseName : StringUtils.uuid();
-
-            kBase.setDefault( "true".equals(reader.getAttribute( "default" )) );
-
-            String eventMode = reader.getAttribute( "eventProcessingMode" );
-            if ( eventMode != null ) {
-                kBase.setEventProcessingMode( EventProcessingOption.determineEventProcessingMode( eventMode ) );
-            }
-            
-            String equalsBehavior = reader.getAttribute( "equalsBehavior" );
-            if ( equalsBehavior != null ) {
-                kBase.setEqualsBehavior( EqualityBehaviorOption.determineEqualityBehavior( equalsBehavior ) );
-            }
-
-            String declarativeAgenda = reader.getAttribute( "declarativeAgenda" );
-            if ( declarativeAgenda != null ) {
-                kBase.setDeclarativeAgenda( DeclarativeAgendaOption.determineDeclarativeAgenda( declarativeAgenda ) );
-            }
-
-            String sequential = reader.getAttribute( "sequential" );
-            if ( sequential != null ) {
-                kBase.setSequential( SequentialOption.determineSequential( sequential ) );
-            }
-
-            String sessionsPool = reader.getAttribute( "sessionsPool" );
-            if ( sessionsPool != null ) {
-                kBase.setSessionsPool( SessionsPoolOption.get( Integer.parseInt( sessionsPool ) ) );
-            }
-
-            String scope = reader.getAttribute( "scope" );
-            if ( scope != null ) {
-                kBase.setScope( scope.trim() );
-            }
-            
-            String pkgs = reader.getAttribute( "packages" );
-            if( pkgs != null ) {
-                for( String pkg : pkgs.split( "," ) ) {
-                    kBase.addPackage( pkg.trim() );
-                }
-            }
-            
-            String includes = reader.getAttribute( "includes" );
-            if( includes != null ) {
-                for( String include : includes.split( "," ) ) {
-                    kBase.addInclude( include.trim() );
-                }
-            }            
-
-            readNodes( reader, new AbstractXStreamConverter.NodeReader() {
-                public void onNode(HierarchicalStreamReader reader,
-                                   String name,
-                                   String value) {
-                    if ( "ksession".equals( name ) ) {
-                        KieSessionModelImpl kSession = readObject( reader, context, KieSessionModelImpl.class );
-                        kBase.getRawKieSessionModels().put( kSession.getName(), kSession );
-                        kSession.setKBase(kBase);
-                    } else if ( "ruleTemplate".equals( name ) ) {
-                        RuleTemplateModelImpl ruleTemplate = readObject( reader, context, RuleTemplateModelImpl.class );
-                        kBase.getRawRuleTemplates().add( ruleTemplate );
-                        ruleTemplate.setKBase( kBase );
-                    }
-                    
-                   // @TODO we don't use support nested includes
-//                    if ( "includes".equals( name ) ) {
-//                        for ( String include : readList( reader ) ) {
-//                            kBase.addInclude( include );
-//                        }
-//                    }
-                }
-            } );
-            return kBase;
-        }
-    }
-
     @Override
     public String toString() {
-        return "KieBaseModelImpl [name=" + name + ", includes=" + includes + ", packages=" + getPackages() + ", equalsBehavior=" + equalsBehavior + ", eventProcessingMode=" + eventProcessingMode + ", kSessions=" + kSessions + "]";
+        return "KieBaseModelImpl [name=" + name + ", includes=" + includes + ", packages=" + getPackages() + ", equalsBehavior=" + equalsBehavior + ", prototypes=" + prototypes + ", mutability=" + mutability + ", eventProcessingMode=" + eventProcessingMode + ", kSessions=" + kSessions + "]";
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         KieBaseModelImpl that = (KieBaseModelImpl) o;
         return name.equals(that.name);

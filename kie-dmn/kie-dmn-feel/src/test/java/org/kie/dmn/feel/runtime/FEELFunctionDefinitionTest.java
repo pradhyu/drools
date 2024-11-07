@@ -1,31 +1,40 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.feel.runtime;
 
 import java.math.BigDecimal;
 import java.util.Collection;
 
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.dmn.api.feel.runtime.events.FEELEvent;
+import org.kie.dmn.feel.lang.FEELDialect;
 
 public class FEELFunctionDefinitionTest extends BaseFEELTest {
 
-    @Parameterized.Parameters(name = "{3}: {0} ({1}) = {2}")
-    public static Collection<Object[]> data() {
+    @ParameterizedTest
+    @MethodSource("data")
+    protected void instanceTest(String expression, Object result, FEELEvent.Severity severity, FEEL_TARGET testFEELTarget, Boolean useExtendedProfile, FEELDialect feelDialect) {
+        expression( expression,  result, severity, testFEELTarget, useExtendedProfile, feelDialect);
+    }
+
+    private static Collection<Object[]> data() {
         final Object[][] cases = new Object[][] {
                 // function definition and invocation
                 {"{ hello : function() \"Hello World!\"}.hello()", "Hello World!", null},
@@ -68,6 +77,7 @@ public class FEELFunctionDefinitionTest extends BaseFEELTest {
                 {"{ maximum : function( v1, v2 ) external { }, the max : maximum( 10, 20 ) }.the max", null, FEELEvent.Severity.ERROR },
                 {"{ maximum : function( v1, v2 ) external { missingDefiniton }, the max : maximum( 10, 20 ) }.the max", null, FEELEvent.Severity.ERROR },
                 {"{ maximum : function( v1, v2 ) external { missingDefiniton : }, the max : maximum( 10, 20 ) }.the max", null, FEELEvent.Severity.ERROR },
+                {"{ something : \"hello world\" }.something()", null, FEELEvent.Severity.ERROR },
                 // variable number of parameters
                 {"{ \n"
                  + "    string format : function( mask, value ) external {\n"
@@ -87,7 +97,10 @@ public class FEELFunctionDefinitionTest extends BaseFEELTest {
                 {"{ myimport : { f1 : function() \"Hi\", f2 : function() f1() + \" \" , x1 : function(name) f2() + name }, r1 : myimport.x1(\"John\") }.r1", "Hi John", null },
                 {"{ m : { n : { o : { f1 : function() \"Hi\", f2 : function() f1() + \" \" , x1 : function(name) f2() + name }}}, r1 : m.n.o.x1(\"John\") }.r1", "Hi John", null },
                 {"{ m : { n : { f1 : function() \"Hi\", f2 : function() f1() + \" \" , o : { x1 : function(name) f2() + name }}}, r1 : m.n.o.x1(\"John\") }.r1", "Hi John", null },
-                {"{ m : { n : { f1 : function() \"Hi\", f2 : function() f1() + \" \" , o : { x1 : function(name) f2() + name }}}, r2 : m.n.f1() }.r2", "Hi", null }
+                {"{ m : { n : { f1 : function() \"Hi\", f2 : function() f1() + \" \" , o : { x1 : function(name) f2() + name }}}, r2 : m.n.f1() }.r2", "Hi", null },
+                {"{ f : function(a) function(b) a + b, r : f(1)(2) }.r", BigDecimal.valueOf(3), null },
+                {"{ a: 9, b: 9, f : function(a) function(b) a + b, r : f(1)(2) }.r", BigDecimal.valueOf(3), null },
+                {"{ Y: function(f) (function(x) x(x))(function(y) f(function(x) y(y)(x))), fac: Y(function(f) function(n) if n > 1 then n * f(n-1) else 1), fac4: fac(4) }.fac4", BigDecimal.valueOf(24), null }
         };
         return addAdditionalParameters(cases, false);
     }

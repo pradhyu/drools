@@ -1,19 +1,21 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.scenariosimulation.backend.runner;
 
 import java.util.ArrayList;
@@ -21,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -34,27 +35,31 @@ import org.drools.scenariosimulation.api.model.FactIdentifier;
 import org.drools.scenariosimulation.api.model.FactMapping;
 import org.drools.scenariosimulation.api.model.FactMappingType;
 import org.drools.scenariosimulation.api.model.FactMappingValue;
+import org.drools.scenariosimulation.api.model.FactMappingValueStatus;
 import org.drools.scenariosimulation.api.model.Scenario;
 import org.drools.scenariosimulation.api.model.ScenarioWithIndex;
 import org.drools.scenariosimulation.api.model.ScesimModelDescriptor;
 import org.drools.scenariosimulation.api.model.Settings;
 import org.drools.scenariosimulation.backend.expression.ExpressionEvaluator;
 import org.drools.scenariosimulation.backend.expression.ExpressionEvaluatorFactory;
+import org.drools.scenariosimulation.backend.expression.ExpressionEvaluatorResult;
 import org.drools.scenariosimulation.backend.runner.model.InstanceGiven;
-import org.drools.scenariosimulation.backend.runner.model.ResultWrapper;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioExpect;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioResult;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioResultMetadata;
 import org.drools.scenariosimulation.backend.runner.model.ScenarioRunnerData;
+import org.drools.scenariosimulation.backend.runner.model.ValueWrapper;
+import org.drools.scenariosimulation.backend.util.ScenarioSimulationServerMessages;
 import org.kie.api.runtime.KieContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.stream.Collectors.toList;
-import static org.drools.scenariosimulation.api.utils.ScenarioSimulationSharedUtils.isCollection;
-import static org.drools.scenariosimulation.backend.runner.model.ResultWrapper.createErrorResult;
-import static org.drools.scenariosimulation.backend.runner.model.ResultWrapper.createErrorResultWithErrorMessage;
-import static org.drools.scenariosimulation.backend.runner.model.ResultWrapper.createResult;
+import static org.drools.scenariosimulation.api.utils.ScenarioSimulationSharedUtils.isCollectionOrMap;
+import static org.drools.scenariosimulation.backend.runner.model.ValueWrapper.errorWithValidValue;
+import static org.drools.scenariosimulation.backend.runner.model.ValueWrapper.errorWithMessage;
+import static org.drools.scenariosimulation.backend.runner.model.ValueWrapper.errorWithCollectionPathToValue;
+import static org.drools.scenariosimulation.backend.runner.model.ValueWrapper.of;
 
 public abstract class AbstractRunnerHelper {
 
@@ -97,7 +102,7 @@ public abstract class AbstractRunnerHelper {
                          requestContext);
 
         validateAssertion(scenarioRunnerData.getResults(),
-                          scenario);
+                          scesimModelDescriptor);
     }
 
     protected List<InstanceGiven> extractBackgroundValues(Background background,
@@ -145,7 +150,7 @@ public abstract class AbstractRunnerHelper {
                                                                            entry.getValue(),
                                                                            expressionEvaluatorFactory);
 
-                Object bean = createObject(getDirectMapping(paramsForBean).getOptional(), factIdentifier.getClassName(), paramsForBean, classLoader);
+                Object bean = createObject(getDirectMapping(paramsForBean), factIdentifier.getClassName(), paramsForBean, classLoader);
 
                 instanceGiven.add(new InstanceGiven(factIdentifier, bean));
             } catch (Exception e) {
@@ -162,14 +167,14 @@ public abstract class AbstractRunnerHelper {
         return instanceGiven;
     }
 
-    protected ResultWrapper<Object> getDirectMapping(Map<List<String>, Object> params) {
+    protected ValueWrapper<Object> getDirectMapping(Map<List<String>, Object> params) {
         // if a direct mapping exists (no steps to reach the field) the value itself is the object (just converted)
         for (Map.Entry<List<String>, Object> entry : params.entrySet()) {
             if (entry.getKey().isEmpty()) {
-                return ResultWrapper.createResult(entry.getValue());
+                return of(entry.getValue());
             }
         }
-        return ResultWrapper.createErrorResultWithErrorMessage("No direct mapping available");
+        return errorWithMessage("No direct mapping available");
     }
 
     protected List<ScenarioExpect> extractExpectedValues(List<FactMappingValue> factMappingValues) {
@@ -180,6 +185,7 @@ public abstract class AbstractRunnerHelper {
 
         Set<FactIdentifier> inputFacts = factMappingValues.stream()
                 .filter(elem -> FactMappingType.GIVEN.equals(elem.getExpressionIdentifier().getType()))
+                .filter(elem -> !isFactMappingValueToSkip(elem))
                 .map(FactMappingValue::getFactIdentifier)
                 .collect(Collectors.toSet());
 
@@ -199,8 +205,7 @@ public abstract class AbstractRunnerHelper {
         for (FactMappingValue factMappingValue : factMappingValues) {
             FactIdentifier factIdentifier = factMappingValue.getFactIdentifier();
 
-            // null means skip
-            if (factMappingValue.getRawValue() == null) {
+            if (isFactMappingValueToSkip(factMappingValue)) {
                 continue;
             }
 
@@ -217,6 +222,10 @@ public abstract class AbstractRunnerHelper {
                     .add(factMappingValue);
         }
         return groupByFactIdentifier;
+    }
+
+    protected boolean isFactMappingValueToSkip(FactMappingValue factMappingValue) {
+        return factMappingValue.getRawValue() == null;
     }
 
     protected Map<List<String>, Object> getParamsForBean(ScesimModelDescriptor scesimModelDescriptor,
@@ -256,63 +265,90 @@ public abstract class AbstractRunnerHelper {
         return paramsForBean;
     }
 
-    protected void validateAssertion(List<ScenarioResult> scenarioResults, Scenario scenario) {
-        boolean scenarioFailed = false;
+    protected void validateAssertion(List<ScenarioResult> scenarioResults, ScesimModelDescriptor scesimModelDescriptor) {
+
         for (ScenarioResult scenarioResult : scenarioResults) {
             if (!scenarioResult.getResult()) {
-                scenarioFailed = true;
-                break;
+                throwScenarioException(scenarioResult.getFactMappingValue(), scesimModelDescriptor);
             }
         }
 
-        if (scenarioFailed) {
-            throw new ScenarioException("Scenario '" + scenario.getDescription() + "' failed");
+    }
+
+    private void throwScenarioException(FactMappingValue factMappingValue,
+                                        ScesimModelDescriptor scesimModelDescriptor) {
+        FactMapping factMapping = scesimModelDescriptor.getFactMapping(factMappingValue.getFactIdentifier(),
+                                                                       factMappingValue.getExpressionIdentifier())
+                .orElseThrow(() -> new IllegalStateException("Wrong expression, this should not happen"));
+        String factName = String.join(".", factMapping.getExpressionElements().stream()
+                .map(ExpressionElement::getStep).collect(Collectors.toList()));
+        if (FactMappingValueStatus.FAILED_WITH_ERROR == factMappingValue.getStatus()) {
+            throw new ScenarioException(determineExceptionMessage(factMappingValue, factName), true);
+        } else if (FactMappingValueStatus.FAILED_WITH_EXCEPTION == factMappingValue.getStatus()) {
+            throw new ScenarioException(ScenarioSimulationServerMessages.getGenericScenarioExceptionMessage(factMappingValue.getExceptionMessage()));
+        } else {
+            throw new IllegalStateException("Illegal FactMappingValue status");
         }
     }
 
-    protected ScenarioResult fillResult(FactMappingValue expectedResult,
-                                        Supplier<ResultWrapper<?>> resultSupplier,
-                                        ExpressionEvaluator expressionEvaluator) {
-        ResultWrapper<?> resultValue = resultSupplier.get();
+    private String determineExceptionMessage(FactMappingValue factMappingValue, String factName) {
+        if (factMappingValue.getCollectionPathToValue() == null) {
+            return ScenarioSimulationServerMessages.getFactWithWrongValueExceptionMessage(factName,
+                                                                                          factMappingValue.getRawValue(),
+                                                                                          factMappingValue.getErrorValue());
+        }
+        return ScenarioSimulationServerMessages.getCollectionFactExceptionMessage(factName,
+                                                                                  factMappingValue.getCollectionPathToValue(),
+                                                                                  factMappingValue.getErrorValue());
+    }
 
-        if (resultValue.isSatisfied()) {
+    protected ScenarioResult fillResult(FactMappingValue expectedResult,
+                                        Supplier<ValueWrapper<?>> resultSupplier,
+                                        ExpressionEvaluator expressionEvaluator) {
+        ValueWrapper<?> resultValue = resultSupplier.get();
+
+        if (resultValue.isValid()) {
             // result is satisfied so clean up previous error state
             expectedResult.resetStatus();
         } else if (resultValue.getErrorMessage().isPresent()) {
             // propagate error message
             expectedResult.setExceptionMessage(resultValue.getErrorMessage().get());
+        } else if (resultValue.getCollectionPathToValue() != null) {
+            expectedResult.setCollectionPathToValue(resultValue.getCollectionPathToValue());
+            expectedResult.setErrorValue(resultValue.getValue());
         } else {
             try {
                 // set actual as proposed value
-                expectedResult.setErrorValue(expressionEvaluator.fromObjectToExpression(resultValue.getResult()));
+                expectedResult.setErrorValue(expressionEvaluator.fromObjectToExpression(resultValue.getValue()));
             } catch (Exception e) {
                 // otherwise generic error message
                 expectedResult.setExceptionMessage(e.getMessage());
             }
         }
 
-        return new ScenarioResult(expectedResult, resultValue.getResult()).setResult(resultValue.isSatisfied());
+        return new ScenarioResult(expectedResult, resultValue.getValue()).setResult(resultValue.isValid());
     }
 
-    protected ResultWrapper getResultWrapper(String className,
-                                             FactMappingValue expectedResult,
-                                             ExpressionEvaluator expressionEvaluator,
-                                             Object expectedResultRaw,
-                                             Object resultRaw,
-                                             Class<?> resultClass) {
+    protected ValueWrapper getResultWrapper(String className,
+                                            FactMappingValue expectedResult,
+                                            ExpressionEvaluator expressionEvaluator,
+                                            Object expectedResultRaw,
+                                            Object resultRaw,
+                                            Class<?> resultClass) {
         try {
-            boolean evaluationSucceed = expressionEvaluator.evaluateUnaryExpression((String) expectedResultRaw, resultRaw, resultClass);
-            if (evaluationSucceed) {
-                return createResult(resultRaw);
-            } else if (isCollection(className)) {
-                // no suggestions for collection yet
-                return createErrorResultWithErrorMessage("Impossible to find elements in the collection to satisfy the conditions");
+            ExpressionEvaluatorResult evaluationResult = expressionEvaluator.evaluateUnaryExpression((String) expectedResultRaw,
+                                                                                                     resultRaw,
+                                                                                                     resultClass);
+            if (evaluationResult.isSuccessful()) {
+                return of(resultRaw);
+            } else if (isCollectionOrMap(className)) {
+                return errorWithCollectionPathToValue(evaluationResult.getWrongValue(), evaluationResult.getPathToWrongValue());
             } else {
-                return createErrorResult(resultRaw, expectedResultRaw);
+                return errorWithValidValue(resultRaw, expectedResultRaw);
             }
         } catch (Exception e) {
             expectedResult.setExceptionMessage(e.getMessage());
-            return createErrorResultWithErrorMessage(e.getMessage());
+            return errorWithMessage(e.getMessage());
         }
     }
 
@@ -339,7 +375,7 @@ public abstract class AbstractRunnerHelper {
      * @param classLoader
      * @return
      */
-    protected abstract Object createObject(Optional<Object> initialInstance,
+    protected abstract Object createObject(ValueWrapper<Object> initialInstance,
                                            String className,
                                            Map<List<String>, Object> params,
                                            ClassLoader classLoader);

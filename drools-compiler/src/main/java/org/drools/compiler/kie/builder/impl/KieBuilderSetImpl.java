@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.kie.builder.impl;
 
 import java.io.IOException;
@@ -29,12 +32,16 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.drools.base.definitions.InternalKnowledgePackage;
+import org.drools.compiler.builder.InternalKnowledgeBuilder;
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
-import org.drools.core.io.impl.BaseResource;
-import org.drools.reflective.classloader.ProjectClassLoader;
+import org.drools.io.BaseResource;
+import org.drools.util.PortablePath;
+import org.drools.wiring.api.classloader.ProjectClassLoader;
 import org.kie.api.KieServices;
 import org.kie.api.builder.Message;
 import org.kie.api.builder.model.KieBaseModel;
+import org.kie.api.definition.KiePackage;
 import org.kie.api.io.Resource;
 import org.kie.internal.builder.CompositeKnowledgeBuilder;
 import org.kie.internal.builder.IncrementalResults;
@@ -42,9 +49,9 @@ import org.kie.internal.builder.KieBuilderSet;
 import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderResult;
 import org.kie.internal.builder.ResultSeverity;
+import org.kie.internal.builder.conf.GroupDRLsInKieBasesByFolderOption;
 
 import static java.util.Arrays.asList;
-
 import static org.drools.compiler.kie.builder.impl.KieBuilderImpl.filterFileInKBase;
 
 public class KieBuilderSetImpl implements KieBuilderSet {
@@ -93,7 +100,7 @@ public class KieBuilderSetImpl implements KieBuilderSet {
         }
     }
 
-    KieBuilderSetImpl setFiles( String[] files) {
+    public KieBuilderSetImpl setFiles( String[] files) {
         this.files = files;
         return this;
     }
@@ -108,7 +115,7 @@ public class KieBuilderSetImpl implements KieBuilderSet {
         kieBuilder.cloneKieModuleForIncrementalCompilation();
         for (String file : srcFiles) {
             if ( !file.endsWith( ".properties" ) ) {
-                String trgFile = kieBuilder.copySourceToTarget(file);
+                String trgFile = kieBuilder.copySourceToTarget(PortablePath.of(file));
                 if (trgFile != null) {
                     filesToBuild.add(trgFile);
                 }
@@ -122,7 +129,7 @@ public class KieBuilderSetImpl implements KieBuilderSet {
 
     private Set<String> findResourcesWithMessages( KnowledgeBuilder kBuilder) {
         if ( kBuilder.hasResults( getSeverities() ) ) {
-            Set<String> resourcesWithMessages = new HashSet<String>();
+            Set<String> resourcesWithMessages = new HashSet<>();
             for ( KnowledgeBuilderResult result : kBuilder.getResults( getSeverities() ) ) {
                 resourcesWithMessages.add(result.getResource().getSourcePath());
             }
@@ -136,19 +143,18 @@ public class KieBuilderSetImpl implements KieBuilderSet {
 
         InternalKieModule kieModule = (InternalKieModule) kieBuilder.getKieModuleIgnoringErrors();
         for (KieBaseModel kBaseModel : kieModule.getKieModuleModel().getKieBaseModels().values()) {
-            KnowledgeBuilder kBuilder = kieModule.getKnowledgeBuilderForKieBase( kBaseModel.getName() );
+            InternalKnowledgeBuilder kBuilder = (InternalKnowledgeBuilder)kieModule.getKnowledgeBuilderForKieBase( kBaseModel.getName() );
             if (kBuilder == null) {
                 continue;
             }
             CompositeKnowledgeBuilder ckbuilder = kBuilder.batch();
-            boolean useFolders = (( KnowledgeBuilderImpl ) kBuilder).getBuilderConfiguration().isGroupDRLsInKieBasesByFolder();
+            boolean useFolders = kBuilder.getBuilderConfiguration().getOption(GroupDRLsInKieBasesByFolderOption.KEY).isGroupDRLsInKieBasesByFolder();
 
             KnowledgeBuilderImpl.ResourceRemovalResult removalResult = new KnowledgeBuilderImpl.ResourceRemovalResult();
-            KnowledgeBuilderImpl pkgBuilder = ((KnowledgeBuilderImpl)kBuilder);
 
             Set<String> wrongResources = resourcesWithErrors.get(kBaseModel.getName());
             for ( String resourceName : wrongResources ) {
-                removalResult.add( pkgBuilder.removeObjectsGeneratedFromResource(new DummyResource(resourceName)) );
+                removalResult.add( kBuilder.removeObjectsGeneratedFromResource(new DummyResource(resourceName)) );
                 removalResult.mergeModified( addResource(ckbuilder, kBaseModel, kieModule, resourceName, useFolders) );
             }
 
@@ -157,15 +163,16 @@ public class KieBuilderSetImpl implements KieBuilderSet {
                     removalResult.mergeModified( true );
                 } else {
                     // remove the objects generated by the old Resource
-                    removalResult.add( pkgBuilder.removeObjectsGeneratedFromResource(new DummyResource(file)) );
+                    removalResult.add( kBuilder.removeObjectsGeneratedFromResource(new DummyResource(file)) );
                     // add the modified Resource
                     removalResult.mergeModified( addResource(ckbuilder, kBaseModel, kieModule, file, useFolders) );
                 }
             }
 
             if (removalResult.isModified()) {
-                if (!removalResult.getRemovedTypes().isEmpty()) {
-                    ProjectClassLoader projectClassLoader = (ProjectClassLoader) (( KnowledgeBuilderImpl ) kBuilder).getRootClassLoader();
+                boolean typeRefreshed = !removalResult.getRemovedTypes().isEmpty();
+                if (typeRefreshed) {
+                    ProjectClassLoader projectClassLoader = (ProjectClassLoader) kBuilder.getRootClassLoader();
                     projectClassLoader.reinitTypes();
                     for (String removedType : removalResult.getRemovedTypes()) {
                         projectClassLoader.undefineClass(removedType);
@@ -173,6 +180,15 @@ public class KieBuilderSetImpl implements KieBuilderSet {
                 }
 
                 ckbuilder.build();
+
+                if (typeRefreshed) {
+                    Collection<KiePackage> kiePackages = kBuilder.getKnowledgePackages();
+                    for (KiePackage kiePackage : kiePackages) {
+                        ((InternalKnowledgePackage) kiePackage).wireStore();
+                        ((InternalKnowledgePackage) kiePackage).wireTypeDeclarations();
+                    }
+                }
+
                 resourcesWithErrors.put(kBaseModel.getName(), findResourcesWithMessages(kBuilder));
                 if ( kBuilder.hasResults( getSeverities() ) ) {
                     currentResults.put( kBaseModel.getName(), kBuilder.getResults( getSeverities() ) );

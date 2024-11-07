@@ -1,37 +1,34 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-import org.drools.core.base.ClassFieldReader;
+import org.drools.base.rule.Declaration;
 import org.drools.core.base.QueryRowWithSubruleIndex;
-import org.drools.core.base.ValueType;
-import org.drools.core.rule.Declaration;
-import org.drools.core.spi.InternalReadAccessor;
+import org.drools.core.common.ReteEvaluator;
 import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.runtime.rule.QueryResultsRow;
 
@@ -46,17 +43,17 @@ public class QueryResultsImpl
     private Map<String, Declaration>[]        declarations;
 
     protected List<QueryRowWithSubruleIndex>  results;
-    protected WorkingMemory                   workingMemory;
+    protected ReteEvaluator                   reteEvaluator;
     protected Declaration[] parameters;
 
     private String[] identifiers;
 
     public QueryResultsImpl(final List<QueryRowWithSubruleIndex> results,
                             final Map<String, Declaration>[] declarations,
-                            final WorkingMemory workingMemory,
+                            final ReteEvaluator reteEvaluator,
                             final Declaration[] parameters) {
         this.results = results;
-        this.workingMemory = workingMemory;
+        this.reteEvaluator = reteEvaluator;
         this.declarations = declarations;
         this.parameters = parameters;
 
@@ -72,7 +69,7 @@ public class QueryResultsImpl
 
     public Map<String, Declaration> getDeclarations(int subruleIndex) {
         if ( this.declarations == null || this.declarations.length == 0 ) {
-            return Collections.<String, Declaration>emptyMap();
+            return Collections.emptyMap();
         } else {
             return this.declarations[subruleIndex];
         }
@@ -83,7 +80,7 @@ public class QueryResultsImpl
             throw new NoSuchElementException();
         }
         return new QueryResultsRowImpl( this.results.get( i ),
-                                this.workingMemory,
+                                this.reteEvaluator,
                                 this );
     }
 
@@ -97,15 +94,13 @@ public class QueryResultsImpl
         }
         Declaration[] parameters = getParameters();
 
-        Set<String> idSet  = new HashSet<String>();
+        Set<String> idSet  = new HashSet<>();
         for ( Declaration declr : parameters ) {
             idSet.add( declr.getIdentifier() );
         }
 
         for ( Declaration declr : getDeclarations(0).values() ) {
-            if ( ! idSet.contains( declr.getIdentifier() ) ) {
-                idSet.add(declr.getIdentifier());
-            }
+            idSet.add(declr.getIdentifier());
         }
 
         identifiers = idSet.toArray(new String[idSet.size()]);
@@ -131,7 +126,7 @@ public class QueryResultsImpl
 
         public QueryResultsRow next() {
             return new QueryResultsRowImpl( this.iterator.next(),
-                                    QueryResultsImpl.this.workingMemory,
+                                    QueryResultsImpl.this.reteEvaluator,
                                     QueryResultsImpl.this );
         }
 

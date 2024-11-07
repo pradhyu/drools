@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.beliefs.bayes.model;
 
 import java.io.IOException;
@@ -32,12 +35,12 @@ import org.drools.beliefs.bayes.BayesVariable;
 import org.drools.beliefs.bayes.assembler.BayesNetworkAssemblerError;
 import org.drools.beliefs.graph.GraphNode;
 import org.drools.beliefs.graph.impl.EdgeImpl;
-import org.drools.compiler.compiler.ParserError;
-import org.drools.core.io.internal.InternalResource;
+import org.drools.drl.parser.ParserError;
+import org.drools.io.InternalResource;
 import org.kie.api.io.Resource;
 import org.kie.internal.builder.KnowledgeBuilderError;
 
-import static org.kie.soup.commons.xstream.XStreamUtils.createTrustingXStream;
+import static org.kie.utll.xml.XStreamUtils.createNonTrustingXStream;
 
 public class XmlBifParser {
 
@@ -52,7 +55,7 @@ public class XmlBifParser {
 
         try {
             String encoding = resource instanceof InternalResource ? ((InternalResource) resource).getEncoding() : null;
-            XStream xstream = encoding != null ? createTrustingXStream(new DomDriver(encoding)) : createTrustingXStream();
+            XStream xstream = encoding != null ? createNonTrustingXStream(new DomDriver(encoding)) : createNonTrustingXStream();
             initXStream(xstream);
 
             Bif bif = (Bif) xstream.fromXML(is);
@@ -64,7 +67,7 @@ public class XmlBifParser {
     }
 
     public static Bif loadBif(URL url) {
-        XStream xstream = createTrustingXStream();
+        XStream xstream = createNonTrustingXStream();
         initXStream( xstream );
 
         Bif bif = (Bif) xstream.fromXML(url);
@@ -93,7 +96,7 @@ public class XmlBifParser {
 
         BayesNetwork graph = new BayesNetwork(name, packageName);
 
-        Map<String, GraphNode<BayesVariable>> map = new HashMap<String, GraphNode<BayesVariable>>();
+        Map<String, GraphNode<BayesVariable>> map = new HashMap<>();
         for (Definition def : bif.getNetwork().getDefinitions()) {
             GraphNode<BayesVariable> node = graph.addNode();
             BayesVariable var = buildVariable(def, bif.getNetwork(), node.getId());
@@ -120,7 +123,7 @@ public class XmlBifParser {
     private static BayesVariable buildVariable(Definition def, Network network, int id) {
         List<String> outcomes = new ArrayList();
         getOutcomesByVariable(network, def.getName(), outcomes);
-        List<String> given = (def.getGiven() == null) ? Collections.<String>emptyList() : def.getGiven();
+        List<String> given = (def.getGiven() == null) ? Collections.emptyList() : def.getGiven();
 
         return new BayesVariable<String>(def.getName(), id, outcomes.toArray( new String[ outcomes.size()] ),
                                          getProbabilities(def.getProbabilities(), outcomes), given.toArray(new String[given.size()]) );
@@ -129,9 +132,7 @@ public class XmlBifParser {
     private static void getOutcomesByVariable(Network network, String nameDefinition, List<String> outcomes) {
         for (Variable var : network.getVariables()) {
             if (var.getName().equals(nameDefinition)) {
-                for (String outcome : var.getOutComes()) {
-                    outcomes.add(outcome);
-                }
+                outcomes.addAll(var.getOutComes());
             }
         }
     }

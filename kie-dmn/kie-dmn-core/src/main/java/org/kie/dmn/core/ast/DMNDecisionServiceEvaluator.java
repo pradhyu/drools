@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.ast;
 
 import java.util.ArrayList;
@@ -31,9 +33,10 @@ import org.kie.dmn.api.core.DMNRuntime;
 import org.kie.dmn.api.core.ast.DecisionServiceNode;
 import org.kie.dmn.api.core.event.DMNRuntimeEventManager;
 import org.kie.dmn.core.api.DMNExpressionEvaluator;
-import org.kie.dmn.core.api.EvaluatorResult;
-import org.kie.dmn.core.api.EvaluatorResult.ResultType;
+import org.kie.dmn.api.core.EvaluatorResult;
+import org.kie.dmn.api.core.EvaluatorResult.ResultType;
 import org.kie.dmn.core.compiler.DMNCompilerImpl;
+import org.kie.dmn.core.impl.DMNDecisionResultImpl;
 import org.kie.dmn.core.impl.DMNResultImpl;
 import org.kie.dmn.core.impl.DMNRuntimeEventManagerUtils;
 import org.kie.dmn.core.impl.DMNRuntimeImpl;
@@ -64,7 +67,7 @@ public class DMNDecisionServiceEvaluator implements DMNExpressionEvaluator {
         DMNModel dmnModel = dmnRuntime.getModel(dsNode.getModelNamespace(), dsNode.getModelName());
         List<String> decisionIDs = dsNode.getDecisionService().getOutputDecision().stream().map(er -> DMNCompilerImpl.getId(er)).collect(Collectors.toList());
         DMNResult evaluateById = dmnRuntime.evaluateById(dmnModel, result.getContext().clone(), decisionIDs.toArray(new String[]{}));
-        Map<String, Object> ctx = new HashMap<String, Object>();
+        Map<String, Object> ctx = new HashMap<>();
         List<DMNDecisionResult> decisionResults = new ArrayList<>();
         for (String id : decisionIDs) {
             DMNDecisionResult decisionResultById = evaluateById.getDecisionResultById(id);
@@ -79,9 +82,11 @@ public class DMNDecisionServiceEvaluator implements DMNExpressionEvaluator {
                 errors = true;
             }
         }
-        if (((DMNRuntimeImpl) eventManager.getRuntime()).performRuntimeTypeCheck(result.getModel())) {
-            Object c = DMNRuntimeImpl.coerceUsingType(ctx,
+        boolean typeCheck = ((DMNRuntimeImpl) eventManager.getRuntime()).performRuntimeTypeCheck(result.getModel());
+        if (typeCheck) {
+            Object c = DMNRuntimeImpl.coerceUsingType(decisionIDs.size() == 1 ? ctx.values().iterator().next() : ctx,
                                                       dsNode.getResultType(),
+                                                      typeCheck,
                                                       (rx, tx) -> MsgUtil.reportMessage(LOG,
                                                                                         DMNMessage.Severity.WARN,
                                                                                         dsNode.getDecisionService(),
@@ -94,7 +99,7 @@ public class DMNDecisionServiceEvaluator implements DMNExpressionEvaluator {
                                                                                         MsgUtil.clipString(rx.toString(), 50)));
             if (c == null) {
                 ctx.clear();
-                decisionResults.clear();
+                decisionResults.forEach(it -> ((DMNDecisionResultImpl) it).setResult(null));
             }
         }
         for (DMNDecisionResult dr : decisionResults) {

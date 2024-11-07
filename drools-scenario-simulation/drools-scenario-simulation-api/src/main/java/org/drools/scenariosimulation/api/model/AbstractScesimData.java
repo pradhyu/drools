@@ -1,17 +1,20 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.drools.scenariosimulation.api.model;
 
@@ -19,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.stream.Collectors.toList;
@@ -71,8 +75,8 @@ public abstract class AbstractScesimData {
     }
 
     public Optional<FactMappingValue> getFactMappingValue(FactIdentifier factIdentifier, ExpressionIdentifier expressionIdentifier) {
-        return factMappingValues.stream().filter(e -> e.getFactIdentifier().equals(factIdentifier) &&
-                e.getExpressionIdentifier().equals(expressionIdentifier)).findFirst();
+        return factMappingValues.stream().filter(e -> Objects.equals(e.getFactIdentifier(), factIdentifier) &&
+                Objects.equals(e.getExpressionIdentifier(), expressionIdentifier)).findFirst();
     }
 
     public Optional<FactMappingValue> getFactMappingValue(FactMapping factMapping) {
@@ -80,13 +84,13 @@ public abstract class AbstractScesimData {
     }
 
     public List<FactMappingValue> getFactMappingValuesByFactIdentifier(FactIdentifier factIdentifier) {
-        return factMappingValues.stream().filter(e -> e.getFactIdentifier().equals(factIdentifier)).collect(toList());
+        return factMappingValues.stream().filter(e -> Objects.equals(e.getFactIdentifier(), factIdentifier)).collect(toList());
     }
 
     public String getDescription() {
         return factMappingValues.stream()
-                .filter(e -> e.getExpressionIdentifier().equals(ExpressionIdentifier.DESCRIPTION) &&
-                        e.getFactIdentifier().equals(FactIdentifier.DESCRIPTION) &&
+                .filter(e -> Objects.equals(e.getExpressionIdentifier(), ExpressionIdentifier.DESCRIPTION) &&
+                        Objects.equals(e.getFactIdentifier(), FactIdentifier.DESCRIPTION) &&
                         e.getRawValue() != null)
                 .map(e -> (String) e.getRawValue())
                 .findFirst().orElse("");

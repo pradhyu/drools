@@ -1,10 +1,29 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.examples.performance;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import java.util.ArrayList;
 
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
 import org.kie.api.KieBase;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
@@ -18,8 +37,6 @@ import org.kie.api.runtime.StatelessKieSession;
 import org.kie.internal.builder.KnowledgeBuilder;
 import org.kie.internal.builder.KnowledgeBuilderFactory;
 import org.kie.internal.io.ResourceFactory;
-
-import java.util.ArrayList;
 
 public class PerformanceExample {
     public static void main(final String[] args) throws Exception {
@@ -53,14 +70,14 @@ public class PerformanceExample {
         ArrayList output = new ArrayList();
         kSession.setGlobal("mo", output);
         Object o = ft.newInstance();
-        Gson gConverter = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss").create();
-        Object fo = gConverter.fromJson(getFact(), o.getClass());
+        ObjectMapper mapper = new ObjectMapper(new JsonFactory());
+        Object fo = mapper.readValue(getFact(), o.getClass());
         kSession.execute(fo); //initial execute
         startTime = System.currentTimeMillis();
         kSession.execute(fo);
         endTime = System.currentTimeMillis();
         System.out.println("Execution time: " + (endTime - startTime)  + " ms" );
-        String rulesOutput = gConverter.toJson(output);
+        String rulesOutput = mapper.writeValueAsString(output);
         System.out.println(rulesOutput);
 
     }
@@ -113,19 +130,19 @@ public class PerformanceExample {
 
     private static String getFact() {
         return "{\n" +
-                "\"TransactionNumber\": \"88882\",\n" +
-                "\"TrackingID\": \"T001\",\n" +
-                "\"CurrencyCode\": \"USD\",\n" +
-                "\"TransactionNetTotal\" : 100.0,\n" +
-                "\"StoreCode\": \"D001\",\n" +
-                "\"CardNumber\": \"3614838386\",\n" +
-                "\"TransactionDetails\": [\n" +
+                "\"transactionNumber\": \"88882\",\n" +
+                "\"trackingID\": \"T001\",\n" +
+                "\"currencyCode\": \"USD\",\n" +
+                "\"transactionNetTotal\" : 100.0,\n" +
+                "\"storeCode\": \"D001\",\n" +
+                "\"cardNumber\": \"3614838386\",\n" +
+                "\"transactionDetails\": [\n" +
                 "{\n" +
-                "\"Quantity\": 25,\n" +
-                "\"ItemNumber\": \"SKU1_0\",\n" +
-                "\"BrandID\": \"Nike\",\n" +
-                "\"SKU\": \"SKU1\",\n" +
-                "\"ProductCategoryCode\" : \"Clothing\"\n" +
+                "\"quantity\": 25,\n" +
+                "\"itemNumber\": \"SKU1_0\",\n" +
+                "\"brandID\": \"Nike\",\n" +
+                "\"sku\": \"SKU1\",\n" +
+                "\"productCategoryCode\" : \"Clothing\"\n" +
                 "}]\n" +
                 "}";
     }

@@ -1,30 +1,34 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.incrementalcompilation;
 
 import java.util.Arrays;
 import java.util.Collection;
 
 import org.drools.core.common.DefaultFactHandle;
-import org.drools.core.impl.InternalKnowledgeBase;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.LeftTuple;
 import org.drools.core.reteoo.ObjectSink;
 import org.drools.core.reteoo.ObjectTypeNode;
+import org.drools.core.reteoo.TupleImpl;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.model.Tuple;
 import org.drools.testcoverage.common.model.Address;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Person;
@@ -40,10 +44,8 @@ import org.kie.api.builder.ReleaseId;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @RunWith(Parameterized.class)
 public class RemoveRuleTest {
@@ -184,10 +186,10 @@ public class RemoveRuleTest {
         KieUtil.getKieModuleFromDrls(releaseId, kieBaseTestConfiguration, str);
         final KieContainer kieContainer = kieServices.newKieContainer(releaseId);
         final KieBase kbase = kieContainer.getKieBase();
-        assertEquals(2, kbase.getKiePackage("org.drools.compiler").getRules().size());
+        assertThat(kbase.getKiePackage("org.drools.compiler").getRules().size()).isEqualTo(2);
         kbase.removeRule( "org.drools.compiler", "R2" );
 
-        assertEquals( 1, kbase.getKiePackage( "org.drools.compiler" ).getRules().size() );
+        assertThat(kbase.getKiePackage("org.drools.compiler").getRules().size()).isEqualTo(1);
     }
 
     @Test
@@ -218,13 +220,13 @@ public class RemoveRuleTest {
         final KieSession ksession = kbase.newKieSession();
         final DefaultFactHandle handle = (DefaultFactHandle) ksession.insert("hello");
         ksession.fireAllRules();
-        LeftTuple leftTuple = handle.getFirstLeftTuple();
-        assertNotNull(leftTuple);
-        assertNotNull(leftTuple.getPeer());
+        TupleImpl leftTuple = handle.getFirstLeftTuple();
+        assertThat(leftTuple).isNotNull();
+        assertThat(leftTuple.getPeer()).isNotNull();
         kbase.removeRule("org.drools.compiler", "rule2");
         leftTuple = handle.getFirstLeftTuple();
-        assertNotNull(leftTuple);
-        assertNull(leftTuple.getHandleNext());
+        assertThat(leftTuple).isNotNull();
+        assertThat((Tuple) leftTuple.getHandleNext()).isNull();
     }
 
      @Test

@@ -1,39 +1,44 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.util;
 
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import org.drools.core.spi.Activation;
+import org.drools.core.util.Queue.QueueEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.stream.Collectors.toList;
 
-public class BinaryHeapQueue
+public class BinaryHeapQueue<T extends QueueEntry>
         implements
-        Queue,
+        Queue<T>,
         Externalizable {
     protected static final transient Logger log = LoggerFactory.getLogger(BinaryHeapQueue.class);
 
@@ -41,13 +46,13 @@ public class BinaryHeapQueue
     private static final int DEFAULT_CAPACITY = 13;
 
     /** The comparator used to order the elements */
-    private Comparator<Activation> comparator;
+    private Comparator<T> comparator;
 
     /** The number of elements currently in this heap. */
-    private volatile int size;
+    private int size;
 
     /** The elements in this heap. */
-    private Activation[] elements;
+    private ArrayList<T> elements;
 
     public BinaryHeapQueue() {
 
@@ -60,7 +65,7 @@ public class BinaryHeapQueue
      * @param comparator the comparator used to order the elements, null
      *                   means use natural order
      */
-    public BinaryHeapQueue(final Comparator<Activation> comparator) {
+    public BinaryHeapQueue(final Comparator<T> comparator) {
         this(comparator,
              BinaryHeapQueue.DEFAULT_CAPACITY);
     }
@@ -73,21 +78,22 @@ public class BinaryHeapQueue
      * @param capacity   the initial capacity for the heap
      * @throws IllegalArgumentException if <code>capacity</code> is &lt;= <code>0</code>
      */
-    public BinaryHeapQueue(final Comparator<Activation> comparator,
+    public BinaryHeapQueue(final Comparator<T> comparator,
                            final int capacity) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("invalid capacity");
         }
 
         //+1 as 0 is noop
-        this.elements = new Activation[capacity + 1];
+        this.elements = new ArrayList<>(capacity +1);
+        this.elements.add(null); // root is always null
         this.comparator = comparator;
     }
 
     //-----------------------------------------------------------------------
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         comparator = (Comparator) in.readObject();
-        elements = (Activation[]) in.readObject();
+        elements = (ArrayList<T>) in.readObject();
         size = in.readInt();
     }
 
@@ -101,16 +107,9 @@ public class BinaryHeapQueue
      * Clears all elements from queue.
      */
     public void clear() {
-        this.elements = new Activation[this.elements.length]; // for gc
+        this.elements.clear(); ; // for gc
+        this.elements.add(null); // 0 must be null;
         this.size = 0;
-    }
-
-    public Activation[] getAndClear() {
-        Activation[] queue = new Activation[size];
-        System.arraycopy( this.elements, 1, queue, 0, size );
-        this.elements = new Activation[this.elements.length]; // for gc
-        this.size = 0;
-        return queue;
     }
 
     /**
@@ -131,7 +130,7 @@ public class BinaryHeapQueue
      */
     public  boolean isFull() {
         //+1 as Queueable 0 is noop
-        return this.elements.length == this.size + 1;
+        return this.elements.size() == this.size + 1;
     }
 
     /**
@@ -140,11 +139,11 @@ public class BinaryHeapQueue
      * @return the number of elements in this heap
      */
     public int size() {
-        return this.size;
+        return size;
     }
 
-    public Activation peek() {
-        return this.elements[1];
+    public T peek() {
+        return size > 0 ? this.elements.get(1) : null;
     }
 
     /**
@@ -152,7 +151,7 @@ public class BinaryHeapQueue
      *
      * @param element the Queueable to be inserted
      */
-    public void enqueue(final Activation element) {
+    public void enqueue(final T element) {
         if ( isFull() ) {
             grow();
         }
@@ -171,41 +170,40 @@ public class BinaryHeapQueue
      * @return the Queueable at top of heap
      * @throws NoSuchElementException if <code>isEmpty() == true</code>
      */
-    public Activation dequeue() {
+    public T dequeue() {
         if ( isEmpty() ) {
             return null;
         }
 
-        final Activation result = this.elements[1];
+        final T result = this.elements.get(1);
         dequeue(result.getQueueIndex());
 
         return result;
     }
 
-    public Activation dequeue(Activation activation) {
-        return dequeue(activation.getQueueIndex());
+    public void dequeue(T activation) {
+        dequeue(activation.getQueueIndex());
     }
 
-    Activation dequeue(final int index) {
+    T dequeue(final int index) {
         if ( index < 1 || index > this.size ) {
             return null;
         }
 
-
-        final Activation result = this.elements[index];
+        final T result = this.elements.get(index);
         if ( log.isTraceEnabled() ) {
             log.trace( "Queue Removed {} {}", result.getQueueIndex(), result);
         }
 
         setElement( index,
-                    this.elements[this.size] );
-        this.elements[this.size] = null;
+                    this.elements.get(this.size) );
+        this.elements.set(this.size, null);
         this.size--;
         if ( this.size != 0 && index <= this.size ) {
             int compareToParent = 0;
             if ( index > 1 ) {
-                compareToParent = compare( this.elements[index],
-                                           this.elements[index / 2] );
+                compareToParent = compare( this.elements.get(index),
+                                           this.elements.get(index / 2) );
             }
             if ( index > 1 && compareToParent > 0 ) {
                 percolateUpMaxHeap( index );
@@ -228,7 +226,7 @@ public class BinaryHeapQueue
      * @param index the index of the element
      */
     protected void percolateDownMaxHeap(final int index) {
-        final Activation element = elements[index];
+        final T element = elements.get(index);
         int hole = index;
 
         while ((hole * 2) <= size) {
@@ -236,16 +234,16 @@ public class BinaryHeapQueue
 
             // if we have a right child and that child can not be percolated
             // up then move onto other child
-            if (child != size && compare(elements[child + 1], elements[child]) > 0) {
+            if (child != size && compare(elements.get(child + 1), elements.get(child)) > 0) {
                 child++;
             }
 
             // if we found resting place of bubble then terminate search
-            if (compare(elements[child], element) <= 0) {
+            if (compare(elements.get(child), element) <= 0) {
                 break;
             }
 
-            setElement( hole, elements[child] );
+            setElement( hole, elements.get(child) );
             hole = child;
         }
 
@@ -254,7 +252,7 @@ public class BinaryHeapQueue
 
 
     /**
-     * Percolates element up heap from from the position given by the index.
+     * Percolates element up heap from the position given by the index.
      * <p>
      * Assume it is a maximum heap.
      *
@@ -262,13 +260,13 @@ public class BinaryHeapQueue
      */
     protected void percolateUpMaxHeap(final int index) {
         int hole = index;
-        Activation element = elements[hole];
+        T element = elements.get(hole);
 
-        while (hole > 1 && compare(element, elements[hole / 2]) > 0) {
+        while (hole > 1 && compare(element, elements.get(hole / 2)) > 0) {
             // save element that is being pushed down
             // as the element "bubble" is percolated up
             final int next = hole / 2;
-            setElement( hole, elements[next] );
+            setElement( hole, elements.get(next) );
             hole = next;
         }
 
@@ -282,11 +280,17 @@ public class BinaryHeapQueue
      *
      * @param element the element
      */
-    protected void percolateUpMaxHeap(final Activation element) {
-        setElement( ++size, element );
+    protected void percolateUpMaxHeap(final T element) {
+        if (isFull()) {
+            elements.add(element);
+            element.setQueueIndex(++size);
+        } else {
+            elements.set(++size, element);
+            element.setQueueIndex(size);
+        }
+
         percolateUpMaxHeap(size);
     }
-
 
     /**
      * Compares two objects using the comparator if specified, or the
@@ -296,117 +300,31 @@ public class BinaryHeapQueue
      * @param b the second object
      * @return -ve if a less than b, 0 if they are equal, +ve if a greater than b
      */
-    private int compare(final Activation a,
-                        final Activation b) {
-        return this.comparator.compare( a,
-                                        b );
+    private int compare(final T a, final T b) {
+        return comparator.compare( a, b );
     }
 
     /**
      * Increases the size of the heap to support additional elements
      */
     private void grow() {
-        final Activation[] activationElements = new Activation[this.elements.length * 2];
-        System.arraycopy( this.elements,
-                          0,
-                          activationElements,
-                          0,
-                          this.elements.length );
-        this.elements = activationElements;
+        elements.ensureCapacity(elements.size() * 2);
     }
 
     private void setElement(final int index,
-                            final Activation element) {
-        this.elements[index] = element;
+                            final T element) {
+        elements.set(index, element);
         element.setQueueIndex(index);
     }
 
-    public Object[] toArray(Object[] a) {
-        if ( a.length < this.size ) {
-            a = (Object[]) java.lang.reflect.Array.newInstance( a.getClass().getComponentType(),
-                                                                this.size );
-        }
+    public Collection<T> getAll() {
+        Collection<T> subList = isEmpty() ? Collections.EMPTY_LIST : elements.subList(1, size +1); // +1 as to is exclusive (from is inclusive)
+        return subList;
 
-        System.arraycopy( this.elements,
-                          1,
-                          a,
-                          0,
-                          this.size );
-
-        if ( a.length > this.size ) {
-            a[this.size] = null;
-        }
-
-        return a;
     }
 
     @Override
     public String toString() {
         return Stream.of( elements ).filter(Objects::nonNull).collect(toList() ).toString();
-    }
-
-    public static class Synchronized extends BinaryHeapQueue {
-
-        public Synchronized() {
-            super();
-        }
-
-        public Synchronized( Comparator<Activation> comparator ) {
-            super( comparator );
-        }
-
-        public Synchronized( Comparator<Activation> comparator, int capacity ) {
-            super( comparator, capacity );
-        }
-
-        @Override
-        public synchronized void clear() {
-            super.clear();
-        }
-
-        @Override
-        public synchronized Activation[] getAndClear() {
-            return super.getAndClear();
-        }
-
-        @Override
-        public synchronized boolean isEmpty() {
-            return super.isEmpty();
-        }
-
-        @Override
-        public synchronized boolean isFull() {
-            return super.isFull();
-        }
-
-        @Override
-        public synchronized int size() {
-            return super.size();
-        }
-
-        @Override
-        public synchronized Activation peek() {
-            return super.peek();
-        }
-
-        @Override
-        public synchronized void enqueue( Activation element ) {
-            super.enqueue( element );
-        }
-
-        @Override
-        public synchronized Activation dequeue() {
-            return super.dequeue();
-        }
-
-        @Override
-        public synchronized Activation dequeue( Activation activation ) {
-            return super.dequeue( activation );
-        }
-
-        @Override
-        public synchronized Object[] toArray( Object[] a ) {
-            return super.toArray( a );
-        }
     }
 }

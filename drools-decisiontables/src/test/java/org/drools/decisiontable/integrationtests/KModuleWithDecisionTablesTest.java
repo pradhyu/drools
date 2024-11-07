@@ -1,29 +1,32 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.decisiontable.integrationtests;
 
-import org.junit.Test;
 import org.kie.api.KieBase;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieFileSystem;
 import org.kie.api.builder.Results;
 import org.kie.api.runtime.KieContainer;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 
 /**
  * Basic tests for creation of a KieBase from CSV and XLS resources.
@@ -66,9 +69,10 @@ public class KModuleWithDecisionTablesTest {
 
         KieServices ks = KieServices.Factory.get();
 
-        KieFileSystem kfs = ks.newKieFileSystem().write( "src/main/resources/r1.csv", csv );
+        KieFileSystem kfs = ks.newKieFileSystem().write( "src/main/resources/r1.drl.csv", csv );
         Results results = ks.newKieBuilder( kfs ).buildAll().getResults();
-        assertFalse(results.getMessages().isEmpty());
+        
+        assertThat(results.getMessages()).isNotEmpty();
     }
 
     private void testNonEmptyKieBase(final String kieBaseName) throws Exception {
@@ -77,8 +81,8 @@ public class KModuleWithDecisionTablesTest {
 
        KieBase kieBase = kContainer.getKieBase(kieBaseName);
 
-       assertNotNull("KieBase not found", kieBase);
-       assertFalse("Unexpected number of KiePackages in KieBase", kieBase.getKiePackages().isEmpty());
+       assertThat(kieBase).as("KieBase not found").isNotNull();
+       assertThat(kieBase.getKiePackages()).as("Unexpected number of KiePackages in KieBase").isNotEmpty();
     }
     
 }

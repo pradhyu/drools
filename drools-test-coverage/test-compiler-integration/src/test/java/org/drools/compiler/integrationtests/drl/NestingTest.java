@@ -1,63 +1,57 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.drl;
 
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-import org.drools.compiler.compiler.DrlParser;
-import org.drools.compiler.lang.descr.AttributeDescr;
-import org.drools.compiler.lang.descr.PackageDescr;
-import org.drools.compiler.lang.descr.RuleDescr;
+import org.drools.drl.parser.DrlParser;
+import org.drools.drl.ast.descr.AttributeDescr;
+import org.drools.drl.ast.descr.PackageDescr;
+import org.drools.drl.ast.descr.RuleDescr;
 import org.drools.testcoverage.common.model.Address;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.model.State;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.runtime.KieSession;
 import org.kie.internal.builder.conf.LanguageLevelOption;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class NestingTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public NestingTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test
-    public void testNesting() throws Exception {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNesting(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "\n" +
@@ -97,15 +91,15 @@ public class NestingTest {
         final DrlParser parser = new DrlParser(LanguageLevelOption.DRL5);
         final PackageDescr desc = parser.parse(new StringReader(drl));
         final List packageAttrs = desc.getAttributes();
-        assertEquals(1, desc.getRules().size());
-        assertEquals(1, packageAttrs.size());
+        assertThat(desc.getRules().size()).isEqualTo(1);
+        assertThat(packageAttrs.size()).isEqualTo(1);
 
         final RuleDescr rule = desc.getRules().get(0);
         final Map<String, AttributeDescr> ruleAttrs = rule.getAttributes();
-        assertEquals(1, ruleAttrs.size());
+        assertThat(ruleAttrs.size()).isEqualTo(1);
 
-        assertEquals("mvel", ruleAttrs.get("dialect").getValue());
-        assertEquals("dialect", ruleAttrs.get("dialect").getName());
+        assertThat(ruleAttrs.get("dialect").getValue()).isEqualTo("mvel");
+        assertThat(ruleAttrs.get("dialect").getName()).isEqualTo("dialect");
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("nesting-test", kieBaseTestConfiguration, drl);
         final KieSession ksession = kbase.newKieSession();
@@ -117,8 +111,9 @@ public class NestingTest {
         }
     }
 
-    @Test
-    public void testNestedConditionalElements() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNestedConditionalElements(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -150,12 +145,12 @@ public class NestingTest {
 
             ksession.fireAllRules();
 
-            assertEquals(0, list.size());
+            assertThat(list.size()).isEqualTo(0);
 
             ksession.insert(new Cheese(bob.getLikes(), 10));
             ksession.fireAllRules();
 
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
         } finally {
             ksession.dispose();
         }

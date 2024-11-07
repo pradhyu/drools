@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.builder.impl;
 
 import java.io.Externalizable;
@@ -30,41 +33,49 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.drools.base.base.ClassFieldInspector;
+import org.drools.base.base.CoreComponentsBuilder;
+import org.drools.base.factmodel.AnnotationDefinition;
+import org.drools.base.factmodel.ClassDefinition;
+import org.drools.base.factmodel.FieldDefinition;
+import org.drools.base.factmodel.traits.Thing;
+import org.drools.base.factmodel.traits.Trait;
+import org.drools.base.factmodel.traits.Traitable;
+import org.drools.base.factmodel.traits.TraitableBean;
+import org.drools.base.rule.TypeDeclaration;
+import org.drools.compiler.builder.impl.classbuilder.EnumClassDefinition;
+import org.drools.compiler.builder.impl.classbuilder.EnumLiteralDefinition;
 import org.drools.compiler.compiler.PackageRegistry;
 import org.drools.compiler.compiler.TypeDeclarationError;
-import org.drools.compiler.lang.descr.AbstractClassTypeDeclarationDescr;
-import org.drools.compiler.lang.descr.AnnotationDescr;
-import org.drools.compiler.lang.descr.EnumDeclarationDescr;
-import org.drools.compiler.lang.descr.EnumLiteralDescr;
-import org.drools.core.factmodel.GenericTypeDefinition;
-import org.drools.compiler.lang.descr.PatternDescr;
-import org.drools.compiler.lang.descr.QualifiedName;
-import org.drools.compiler.lang.descr.TypeDeclarationDescr;
-import org.drools.compiler.lang.descr.TypeFieldDescr;
 import org.drools.compiler.rule.builder.util.AnnotationFactory;
-import org.drools.core.addon.TypeResolver;
-import org.drools.core.factmodel.AnnotationDefinition;
-import org.drools.core.factmodel.ClassDefinition;
-import org.drools.core.factmodel.EnumClassDefinition;
-import org.drools.core.factmodel.EnumLiteralDefinition;
-import org.drools.core.factmodel.FieldDefinition;
-import org.drools.core.factmodel.traits.Thing;
-import org.drools.core.factmodel.traits.Trait;
-import org.drools.core.factmodel.traits.Traitable;
-import org.drools.core.factmodel.traits.TraitableBean;
-import org.drools.core.rule.TypeDeclaration;
-import org.drools.core.util.ClassUtils;
-import org.drools.core.util.asm.ClassFieldInspector;
+import org.drools.drl.ast.descr.AbstractClassTypeDeclarationDescr;
+import org.drools.drl.ast.descr.AnnotationDescr;
+import org.drools.drl.ast.descr.EnumDeclarationDescr;
+import org.drools.drl.ast.descr.EnumLiteralDescr;
+import org.drools.drl.ast.descr.PatternDescr;
+import org.drools.drl.ast.descr.QualifiedName;
+import org.drools.drl.ast.descr.TypeDeclarationDescr;
+import org.drools.drl.ast.descr.TypeFieldDescr;
+import org.drools.util.ClassUtils;
+import org.drools.util.TypeResolver;
 import org.kie.api.definition.type.Key;
 import org.kie.api.definition.type.Position;
 import org.kie.api.io.Resource;
+import org.kie.internal.definition.GenericTypeDefinition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.drools.compiler.rule.builder.util.AnnotationFactory.getTypedAnnotation;
 
 public class ClassDefinitionFactory {
+    private static final Logger LOG = LoggerFactory.getLogger(ClassDefinitionFactory.class);
 
-    protected KnowledgeBuilderImpl kbuilder;
+    protected TypeDeclarationContext context;
+    private final BuildResultCollector results;
 
-    public ClassDefinitionFactory(KnowledgeBuilderImpl kbuilder) {
-        this.kbuilder = kbuilder;
+    public ClassDefinitionFactory(TypeDeclarationContext context, BuildResultCollector buildResultCollector) {
+        this.context = context;
+        this.results = buildResultCollector;
     }
 
     /**
@@ -79,11 +90,9 @@ public class ClassDefinitionFactory {
 
         ClassDefinition def = createClassDefinition(typeDescr, type);
 
-        boolean success = true;
-        success &= wireAnnotationDefs(typeDescr, type, def, pkgRegistry.getTypeResolver());
-        success &= wireEnumLiteralDefs(typeDescr, type, def);
-        success &= wireFields(typeDescr, type, def, pkgRegistry, unresolvedTypeDefinitions);
-
+        boolean success = wireAnnotationDefs(typeDescr, def, pkgRegistry.getTypeResolver())
+                            && wireEnumLiteralDefs(typeDescr, type, def)
+                            && wireFields(typeDescr, def, pkgRegistry, unresolvedTypeDefinitions);
         if (!success) {
             unprocesseableDescrs.put(typeDescr.getType().getFullName(), typeDescr);
         }
@@ -100,14 +109,14 @@ public class ClassDefinitionFactory {
         if (type.getKind().equals(TypeDeclaration.Kind.CLASS)) {
             TypeDeclarationDescr tdescr = (TypeDeclarationDescr) typeDescr;
             if (tdescr.getSuperTypes().size() > 1) {
-                kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr, "Declared class " + fullName + "  - has more than one supertype;"));
+                results.addBuilderResult(new TypeDeclarationError(typeDescr, "Declared class " + fullName + "  - has more than one supertype;"));
                 return null;
             } else if (tdescr.getSuperTypes().isEmpty()) {
                 tdescr.addSuperType("java.lang.Object");
             }
         }
 
-        Traitable traitableAnn = typeDescr.getTypedAnnotation(Traitable.class);
+        Traitable traitableAnn = getTypedAnnotation(typeDescr, Traitable.class);
         boolean traitable = traitableAnn != null;
 
         String[] fullSuperTypes = new String[typeDescr.getSuperTypes().size() + 1];
@@ -117,7 +126,7 @@ public class ClassDefinitionFactory {
         }
         fullSuperTypes[j] = Thing.class.getName();
 
-        List<String> interfaceList = new ArrayList<String>();
+        List<String> interfaceList = new ArrayList<>();
         interfaceList.add(traitable ? Externalizable.class.getName() : Serializable.class.getName());
         if (traitable) {
             interfaceList.add(TraitableBean.class.getName());
@@ -148,9 +157,9 @@ public class ClassDefinitionFactory {
         return def;
     }
 
-    protected boolean wireAnnotationDefs(AbstractClassTypeDeclarationDescr typeDescr, TypeDeclaration type, ClassDefinition def, TypeResolver resolver) {
+    protected boolean wireAnnotationDefs(AbstractClassTypeDeclarationDescr typeDescr, ClassDefinition def, TypeResolver resolver) {
         for (AnnotationDescr annotationDescr : typeDescr.getAnnotations()) {
-            Class annotation = null;
+            Class annotation;
             try {
                 annotation = annotationDescr.getFullyQualifiedName() != null ? resolver.resolveType(annotationDescr.getFullyQualifiedName()) : null;
             } catch (ClassNotFoundException e) {
@@ -164,7 +173,7 @@ public class ClassDefinitionFactory {
                                                                                            resolver);
                     def.addAnnotation(annotationDefinition);
                 } catch (NoSuchMethodException nsme) {
-                    kbuilder.addBuilderResult(new TypeDeclarationError(typeDescr,
+                    results.addBuilderResult(new TypeDeclarationError(typeDescr,
                                                                        "Annotated type " + typeDescr.getType().getFullName() +
                                                                                "  - undefined property in @annotation " +
                                                                                annotationDescr.getName() + ": " +
@@ -191,7 +200,6 @@ public class ClassDefinitionFactory {
     }
 
     protected boolean wireFields(AbstractClassTypeDeclarationDescr typeDescr,
-                                 TypeDeclaration type,
                                  ClassDefinition def,
                                  PackageRegistry pkgRegistry,
                                  List<TypeDefinition> unresolvedTypeDefinitions) {
@@ -200,17 +208,15 @@ public class ClassDefinitionFactory {
         if (!typeDescr.getFields().isEmpty()) {
             if (unresolvedTypeDefinitions != null && !unresolvedTypeDefinitions.isEmpty()) {
                 for (TypeFieldDescr fld : typeDescr.getFields().values()) {
-                    if (unresolvedTypeDefinitions != null) {
-                        for (TypeDefinition typeDef : unresolvedTypeDefinitions) {
-                            if (fld.getPattern().getObjectType().equals(typeDef.getTypeClassName())) {
-                                return false;
-                            }
+                    for (TypeDefinition typeDef : unresolvedTypeDefinitions) {
+                        if (fld.getPattern().getObjectType().equals(typeDef.getTypeClassName())) {
+                            return false;
                         }
                     }
                 }
             }
 
-            List<FieldDefinition> fieldDefs = sortFields(typeDescr.getFields(), pkgRegistry.getTypeResolver(), kbuilder);
+            List<FieldDefinition> fieldDefs = sortFields(typeDescr.getFields(), pkgRegistry.getTypeResolver(), context, results);
             int i = 0;
             for (FieldDefinition fieldDef : fieldDefs) {
                 fieldDef.setIndex(i++);
@@ -222,14 +228,15 @@ public class ClassDefinitionFactory {
 
     private static List<FieldDefinition> sortFields(Map<String, TypeFieldDescr> fields,
                                                     TypeResolver typeResolver,
-                                                    KnowledgeBuilderImpl kbuilder) {
-        List<FieldDefinition> fieldDefs = new ArrayList<FieldDefinition>(fields.size());
+                                                    TypeDeclarationContext tdContext,
+                                                    BuildResultCollector results) {
+        List<FieldDefinition> fieldDefs = new ArrayList<>(fields.size());
         int maxDeclaredPos = 0;
         BitSet occupiedPositions = new BitSet(fields.size());
 
         for (TypeFieldDescr field : fields.values()) {
             GenericTypeDefinition genericType = field.getPattern().getGenericType()
-                    .map( type -> TypeDeclarationUtils.toBuildableType(type, kbuilder != null ? kbuilder.getRootClassLoader() : null) );
+                    .map( type -> TypeDeclarationUtils.toBuildableType(type, tdContext != null ? tdContext.getRootClassLoader() : null) );
 
             FieldDefinition fieldDef = new FieldDefinition(field.getFieldName(), genericType);
             fieldDefs.add(fieldDef);
@@ -247,7 +254,7 @@ public class ClassDefinitionFactory {
                 maxDeclaredPos = Math.max(maxDeclaredPos, pos);
                 fieldDef.addMetaData("position", pos);
             } else {
-                Position position = field.getTypedAnnotation(Position.class);
+                Position position = getTypedAnnotation(field, Position.class);
                 if (position != null) {
                     int pos = position.value();
                     field.setIndex(pos);
@@ -265,7 +272,7 @@ public class ClassDefinitionFactory {
             for (AnnotationDescr annotationDescr : field.getAnnotations()) {
                 if (annotationDescr.getFullyQualifiedName() == null) {
                     if (annotationDescr.isStrict()) {
-                        kbuilder.addBuilderResult(new TypeDeclarationError(field,
+                        results.addBuilderResult(new TypeDeclarationError(field,
                                                                            "Unknown annotation @" + annotationDescr.getName() + " on field " + field.getFieldName()));
                     } else {
                         // Annotation is custom metadata
@@ -281,14 +288,14 @@ public class ClassDefinitionFactory {
                                                                                                typeResolver);
                         fieldDef.addAnnotation(annotationDefinition);
                     } catch (Exception e) {
-                        kbuilder.addBuilderResult(new TypeDeclarationError(field,
+                        results.addBuilderResult(new TypeDeclarationError(field,
                                                                            "Annotated field " + field.getFieldName() +
                                                                                    "  - undefined property in @annotation " +
                                                                                    annotationDescr.getName() + ": " + e.getMessage() + ";"));
                     }
                 } else {
                     if (annotationDescr.isStrict()) {
-                        kbuilder.addBuilderResult(new TypeDeclarationError(field,
+                        results.addBuilderResult(new TypeDeclarationError(field,
                                                                            "Unknown annotation @" + annotationDescr.getName() + " on field " + field.getFieldName()));
                     }
                 }
@@ -329,16 +336,15 @@ public class ClassDefinitionFactory {
                 def.setSuperClass(concrete.getSuperclass().getName());
             }
 
-            ClassFieldInspector inspector = new ClassFieldInspector(concrete);
+            ClassFieldInspector inspector = CoreComponentsBuilder.get().createClassFieldInspector(concrete);
             Map<String, Method> methods = inspector.getGetterMethods();
             Map<String, Method> setters = inspector.getSetterMethods();
-            int j = 0;
-            Map<String, TypeFieldDescr> fields = new HashMap<String, TypeFieldDescr>();
+            Map<String, TypeFieldDescr> fields = new HashMap<>();
             for (String fieldName : methods.keySet()) {
                 if (asTrait && ("core".equals(fieldName) || "fields".equals(fieldName))) {
                     continue;
                 }
-                if (!inspector.isNonGetter(fieldName) && setters.keySet().contains(fieldName)) {
+                if (!inspector.isNonGetter(fieldName) && setters.containsKey(fieldName)) {
 
                     Position position = null;
                     if (!concrete.isInterface()) {
@@ -360,7 +366,7 @@ public class ClassDefinitionFactory {
                 }
             }
             if (!fields.isEmpty()) {
-                List<FieldDefinition> fieldDefs = sortFields(fields, null, null);
+                List<FieldDefinition> fieldDefs = sortFields(fields, null, null, null);
                 int i = 0;
                 for (FieldDefinition fieldDef : fieldDefs) {
                     fieldDef.setIndex(i++);
@@ -368,7 +374,7 @@ public class ClassDefinitionFactory {
                 }
             }
 
-            Set<String> interfaces = new HashSet<String>();
+            Set<String> interfaces = new HashSet<>();
             Collections.addAll(interfaces, def.getInterfaces());
             for (Class iKlass : ClassUtils.getAllImplementedInterfaceNames(concrete)) {
                 interfaces.add(iKlass.getName());
@@ -377,7 +383,7 @@ public class ClassDefinitionFactory {
 
             def.setDefinedClass(concrete);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.error("Exception", e);
         }
     }
 }

@@ -1,36 +1,36 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.drl;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.model.Pet;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.event.rule.ObjectDeletedEvent;
@@ -40,29 +40,20 @@ import org.kie.api.runtime.rule.FactHandle;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-@RunWith(Parameterized.class)
 public class ConsequenceTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public ConsequenceTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test
-    public void testConsequenceException() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testConsequenceException(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -83,18 +74,17 @@ public class ConsequenceTest {
                 ksession.fireAllRules();
                 fail("Should throw an Exception from the Consequence");
             } catch (final org.kie.api.runtime.rule.ConsequenceException e) {
-                assertEquals("Throw Consequence Exception",
-                             e.getMatch().getRule().getName());
-                assertEquals("this should throw an exception",
-                             e.getCause().getMessage());
+                assertThat(e.getMatch().getRule().getName()).isEqualTo("Throw Consequence Exception");
+                assertThat(e.getCause().getMessage()).isEqualTo("this should throw an exception");
             }
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testConsequenceBuilderException() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testConsequenceBuilderException(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "global java.util.List results;\n" +
                 "rule \"error compiling consequence\"\n" +
@@ -115,11 +105,12 @@ public class ConsequenceTest {
         final KieBuilder kieBuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration,
                                                                     false,
                                                                     drl);
-        Assertions.assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
+        assertThat(kieBuilder.getResults().getMessages()).isNotEmpty();
     }
 
-    @Test
-    public void testMetaConsequence() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMetaConsequence(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
                 "global java.util.List results;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -149,16 +140,17 @@ public class ConsequenceTest {
             results = (List) session.getGlobal("results");
 
             session.fireAllRules();
-            assertEquals(2, results.size());
-            assertEquals("bar", results.get(0));
-            assertEquals("bar2", results.get(1));
+            assertThat(results.size()).isEqualTo(2);
+            assertThat(results.get(0)).isEqualTo("bar");
+            assertThat(results.get(1)).isEqualTo("bar2");
         } finally {
             session.dispose();
         }
     }
 
-    @Test
-    public void testMVELConsequenceWithMapsAndArrays() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMVELConsequenceWithMapsAndArrays(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.drl;\n" +
             "import java.util.ArrayList\n" +
             "import java.util.HashMap\n" +
@@ -182,15 +174,16 @@ public class ConsequenceTest {
             session.setGlobal("list", list);
             session.fireAllRules();
 
-            assertEquals(1, ((List) session.getGlobal("list")).size());
-            assertEquals("first", ((List) session.getGlobal("list")).get(0));
+            assertThat(((List) session.getGlobal("list")).size()).isEqualTo(1);
+            assertThat(((List) session.getGlobal("list")).get(0)).isEqualTo("first");
         } finally {
             session.dispose();
         }
     }
 
-    @Test
-    public void testMVELConsequenceWithoutSemiColon1() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMVELConsequenceWithoutSemiColon1(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl =
             "package prg.drools.compiler.integrationtests.drl;\n" +
             "import " + Person.class.getCanonicalName() + ";\n" +
@@ -216,15 +209,14 @@ public class ConsequenceTest {
             final FactHandle petFH = ksession.insert(new Pet("Toni"));
 
             final int fired = ksession.fireAllRules();
-            assertEquals(1,
-                         fired);
+            assertThat(fired).isEqualTo(1);
 
             // capture the arguments and check that the retracts happened
             final ArgumentCaptor<ObjectDeletedEvent> retracts = ArgumentCaptor.forClass(ObjectDeletedEvent.class);
             verify(wml, times(2)).objectDeleted(retracts.capture());
             final List<ObjectDeletedEvent> values = retracts.getAllValues();
-            assertThat(values.get(0).getFactHandle(), is(personFH));
-            assertThat(values.get(1).getFactHandle(), is(petFH));
+            assertThat(values.get(0).getFactHandle()).isEqualTo(personFH);
+            assertThat(values.get(1).getFactHandle()).isEqualTo(petFH);
         } finally {
             ksession.dispose();
         }

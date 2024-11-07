@@ -1,7 +1,24 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.mvelcompiler;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -16,26 +33,25 @@ import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.VariableDeclarationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.TextBlockLiteralExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.Statement;
-import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import org.drools.mvel.parser.ast.expr.DrlNameExpr;
 import org.drools.mvel.parser.ast.expr.ModifyStatement;
-import org.drools.mvel.parser.ast.expr.WithStatement;
+import org.drools.mvel.parser.printer.PrintUtil;
 
-import static java.util.Optional.empty;
-import static java.util.Optional.of;
-import static org.drools.mvel.parser.printer.PrintUtil.printConstraint;
+import static com.github.javaparser.ast.NodeList.nodeList;
+import static com.github.javaparser.utils.StringEscapeUtils.escapeJava;
+import static org.drools.mvel.parser.printer.PrintUtil.printNode;
 
 /**
- * This phase transforms modify and with statements in valid Java code
+ * This phase transforms modify statements in valid Java code
  *
  * It's used both in the MVEL Compiler and also to preprocess Drools' Java consequences that
- * use modify and with blocks.
+ * use modify blocks.
  */
 public class PreprocessPhase {
 
@@ -44,20 +60,9 @@ public class PreprocessPhase {
         Set<String> getUsedBindings();
 
         PreprocessPhaseResult addUsedBinding(String bindingName);
-
-        List<Statement> getNewObjectStatements();
-
-        List<Statement> getOtherStatements();
-
-        PreprocessPhaseResult addOtherStatements(List<Statement> statements);
-
-        PreprocessPhaseResult addNewObjectStatements(ExpressionStmt expressionStmt);
     }
 
     static class PreprocessedResult implements PreprocessPhaseResult {
-
-        final List<Statement> newObjectStatements = new ArrayList<>();
-        final List<Statement> otherStatements = new ArrayList<>();
 
         final Set<String> usedBindings = new HashSet<>();
 
@@ -72,29 +77,10 @@ public class PreprocessPhase {
         public Set<String> getUsedBindings() {
             return usedBindings;
         }
-
-        public List<Statement> getNewObjectStatements() {
-            return newObjectStatements;
-        }
-
-        public List<Statement> getOtherStatements() {
-            return otherStatements;
-        }
-
-        public PreprocessPhaseResult addOtherStatements(List<Statement> statements) {
-            otherStatements.addAll(statements);
-            return this;
-        }
-
-        public PreprocessPhaseResult addNewObjectStatements(ExpressionStmt expressionStmt) {
-            newObjectStatements.add(expressionStmt);
-            return this;
-        }
     }
 
     static class StatementResult implements PreprocessPhaseResult {
 
-        final List<Statement> newObjectStatements = new ArrayList<>();
         final List<Statement> otherStatements = new ArrayList<>();
 
         @Override
@@ -106,34 +92,14 @@ public class PreprocessPhase {
         public PreprocessPhaseResult addUsedBinding(String bindingName) {
             return this;
         }
-
-        public List<Statement> getNewObjectStatements() {
-            return newObjectStatements;
-        }
-
-        public List<Statement> getOtherStatements() {
-            return otherStatements;
-        }
-
-        public PreprocessPhaseResult addOtherStatements(List<Statement> statements) {
-            otherStatements.addAll(statements);
-            return this;
-        }
-
-        public PreprocessPhaseResult addNewObjectStatements(ExpressionStmt expressionStmt) {
-            newObjectStatements.add(expressionStmt);
-            return this;
-        }
     }
 
     public PreprocessPhaseResult invoke(Statement statement) {
 
         if (statement instanceof ModifyStatement) {
             return modifyPreprocessor((ModifyStatement) statement);
-        } else if (statement instanceof WithStatement) {
-            return withPreprocessor((WithStatement) statement);
         } else {
-            return new StatementResult().addOtherStatements(Collections.singletonList(statement));
+            return new StatementResult();
         }
     }
 
@@ -143,114 +109,129 @@ public class PreprocessPhase {
         final Expression scope = modifyStatement.getModifyObject();
         modifyStatement
                 .findAll(AssignExpr.class)
-                .replaceAll(assignExpr -> assignToFieldAccess(result, scope, assignExpr));
+                .replaceAll(assignExpr -> assignToFieldAccess(scope, assignExpr));
 
         // Do not use findAll as we should only process top level expressions
         modifyStatement
                 .getExpressions()
-                .replaceAll(e -> addScopeToMethodCallExpr(result, scope, e));
+                .replaceAll(e -> addScopeToMethodCallExpr(scope, e));
 
-        List<Statement> statements = wrapToExpressionStmt(modifyStatement.getExpressions());
-        return result.addOtherStatements(statements);
-    }
+        NodeList<Statement> statements = wrapToExpressionStmt(modifyStatement.getExpressions());
+        // delete modify statement and replace its own block of statements
+        modifyStatement.replace(new BlockStmt(statements));
 
-    private PreprocessPhaseResult withPreprocessor(WithStatement withStatement) {
-        PreprocessPhaseResult result = new StatementResult();
-
-        Optional<Expression> initScope = addTypeToInitialization(withStatement, result);
-        final Expression scope = initScope.orElse(withStatement.getWithObject());
-
-        withStatement
-                .findAll(AssignExpr.class)
-                .replaceAll(assignExpr -> assignToFieldAccess(result, scope, assignExpr));
-
-        // Do not use findAll as we should only process top level expressions
-        withStatement
-                .getExpressions()
-                .replaceAll(e -> addScopeToMethodCallExpr(result, scope, e));
-
-        List<Statement> statements = wrapToExpressionStmt(withStatement.getExpressions());
-
-        return result.addOtherStatements(statements);
-    }
-
-    private Optional<Expression> addTypeToInitialization(WithStatement withStatement, PreprocessPhaseResult result) {
-        if (withStatement.getWithObject().isAssignExpr()) {
-            AssignExpr assignExpr = withStatement.getWithObject().asAssignExpr();
-            Expression assignExprValue = assignExpr.getValue();
-            Expression assignExprTarget = assignExpr.getTarget();
-
-            if (assignExprValue.isObjectCreationExpr() && assignExprTarget instanceof DrlNameExpr) {
-                ObjectCreationExpr constructor = assignExprValue.asObjectCreationExpr();
-                ClassOrInterfaceType ctorType = constructor.getType();
-
-                String targetVariableName = ((DrlNameExpr) assignExprTarget).getNameAsString();
-                VariableDeclarationExpr variableDeclarationExpr = new VariableDeclarationExpr(ctorType, targetVariableName);
-                AssignExpr withTypeAssignmentExpr = new AssignExpr(variableDeclarationExpr, assignExprValue, assignExpr.getOperator());
-                ExpressionStmt expressionStmt = new ExpressionStmt(withTypeAssignmentExpr);
-                result.addNewObjectStatements(expressionStmt);
-                return of(new DrlNameExpr(targetVariableName));
-            }
+        // even if no property is modified inside modify block, need to call update because its properties may be modified in RHS
+        if (scope.isNameExpr() || scope instanceof DrlNameExpr) {
+            result.addUsedBinding(printNode(scope));
         }
-        return empty();
+
+        return result;
     }
 
-    private List<Statement> wrapToExpressionStmt(NodeList<Statement> expressions) {
-        return expressions
+    private NodeList<Statement> wrapToExpressionStmt(NodeList<Statement> expressions) {
+        return nodeList(expressions
                 .stream()
                 .filter(Objects::nonNull)
                 .filter(Statement::isExpressionStmt)
                 .map(s -> s.asExpressionStmt().getExpression())
                 .map(ExpressionStmt::new)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
-    private Statement addScopeToMethodCallExpr(PreprocessPhaseResult result, Expression scope, Statement e) {
+    private Statement addScopeToMethodCallExpr(Expression scope, Statement e) {
         if (e != null && e.isExpressionStmt()) {
             Expression expression = e.asExpressionStmt().getExpression();
             if (expression.isMethodCallExpr()) {
                 MethodCallExpr mcExpr = expression.asMethodCallExpr();
 
-                MethodCallExpr rootMcExpr = findRootScope(mcExpr);
-                if (rootMcExpr == null) {
+                Expression rootExpr = findRootScope(mcExpr);
+                if (rootExpr == null) {
                     return e;
+                } else if (rootExpr.isMethodCallExpr()) {
+                    MethodCallExpr rootMcExpr = rootExpr.asMethodCallExpr();
+                    Expression enclosed = new EnclosedExpr(scope);
+                    rootMcExpr.setScope(enclosed);
+                    return new ExpressionStmt(mcExpr);
+                } else if (rootExpr instanceof DrlNameExpr) {
+                    throwExceptionIfSameDrlName(rootExpr, scope);
+                    // Unknown name. Assume a property of the fact
+                    replaceRootExprWithFieldAccess(scope, (DrlNameExpr) rootExpr);
                 }
-
-                Expression enclosed = new EnclosedExpr(scope);
-                rootMcExpr.setScope(enclosed);
-
-                if (scope.isNameExpr() || scope instanceof DrlNameExpr) { // some classes such "AtomicInteger" have a setter called "set"
-                    result.addUsedBinding(printConstraint(scope));
-                }
-
-                return new ExpressionStmt(mcExpr);
             }
         }
         return e;
     }
 
-    private MethodCallExpr findRootScope(MethodCallExpr mcExpr) {
-        Optional<Expression> opt = mcExpr.getScope();
-        if (!opt.isPresent()) {
-            return mcExpr;
-        } else {
-            Expression scope = opt.get();
-            if (scope.isMethodCallExpr()) {
-                return findRootScope(scope.asMethodCallExpr());
-            } else {
-                return null;
-            }
+    private void throwExceptionIfSameDrlName(Expression target, Expression scope) {
+        if (isSameDrlName(target, scope)) {
+            throw new MvelCompilerException("Invalid modify statement: " + PrintUtil.printNode(target));
         }
     }
 
-    private AssignExpr assignToFieldAccess(PreprocessPhaseResult result, Expression scope, AssignExpr assignExpr) {
-        DrlNameExpr originalFieldAccess = (DrlNameExpr) assignExpr.getTarget();
-        String propertyName = originalFieldAccess.getName().asString();
-        result.addUsedBinding(printConstraint(scope));
+    private boolean isSameDrlName(Expression target, Expression scope) {
+        return target instanceof DrlNameExpr && scope instanceof DrlNameExpr &&
+               ((DrlNameExpr) target).getName().equals(((DrlNameExpr) scope).getName());
+    }
 
+    private Expression findRootScope(Expression expr) {
+        Expression scope;
+        if (expr.isMethodCallExpr()) {
+            MethodCallExpr mcExpr = expr.asMethodCallExpr();
+            Optional<Expression> opt = mcExpr.getScope();
+            if (opt.isEmpty()) {
+                return mcExpr; // return MethodCallExpr if no scope
+            } else {
+                scope = opt.get();
+                return findRootScope(scope);
+            }
+        } else if (expr.isFieldAccessExpr()) {
+            FieldAccessExpr faExpr = expr.asFieldAccessExpr();
+            scope = faExpr.getScope(); // FieldAccessExpr must have a scope
+            return findRootScope(scope);
+        } else {
+            scope = expr;
+        }
+
+        return scope;
+    }
+
+    private AssignExpr assignToFieldAccess(Expression scope, AssignExpr assignExpr) {
+        Expression target = assignExpr.getTarget();
+
+        if (target instanceof DrlNameExpr) { // e.g. age = 10
+            return propertyNameToFieldAccess(scope, assignExpr, (DrlNameExpr) target);
+        } else if (target.isFieldAccessExpr()) { // e.g. address.city = 10
+            Expression rootScope = findRootScope(target);
+            throwExceptionIfSameDrlName(rootScope, scope);
+            replaceRootExprWithFieldAccess(scope, (DrlNameExpr) rootScope);
+            return assignExpr;
+        } else {
+            throw new MvelCompilerException("Unexpected target: " + target.getClass() + ", assignExpr: " + PrintUtil.printNode(assignExpr));
+        }
+    }
+
+    private void replaceRootExprWithFieldAccess(Expression scope, DrlNameExpr rootExpr) {
+        String propertyName = rootExpr.getName().asString();
+        FieldAccessExpr fieldAccessWithScope = new FieldAccessExpr(scope, propertyName);
+        Optional<Node> optRootParent = rootExpr.getParentNode();
+        if (optRootParent.isPresent()) {
+            Node rootParent = optRootParent.get();
+            if (rootParent instanceof FieldAccessExpr) {
+                ((FieldAccessExpr)rootParent).setScope(fieldAccessWithScope);
+            } else if (rootParent instanceof MethodCallExpr) {
+                ((MethodCallExpr)rootParent).setScope(fieldAccessWithScope);
+            } else {
+                throw new MvelCompilerException(String.format("Unexpected rootParent: %s, rootExpr: %s", rootParent.getClass(), PrintUtil.printNode(rootExpr)));
+            }
+        } else {
+            throw new MvelCompilerException(String.format("rootExpr doesn't have a parent: %s, rootExpr: %s", rootExpr.getClass(), PrintUtil.printNode(rootExpr)));
+        }
+    }
+
+    private AssignExpr propertyNameToFieldAccess(Expression scope, AssignExpr assignExpr, DrlNameExpr originalFieldAccess) {
+        String propertyName = originalFieldAccess.getName().asString();
         FieldAccessExpr fieldAccessWithScope = new FieldAccessExpr(scope, propertyName);
         assignExpr.setTarget(fieldAccessWithScope);
-
         return assignExpr;
     }
 
@@ -258,5 +239,10 @@ public class PreprocessPhase {
         blockStmt
                 .findAll(EmptyStmt.class)
                 .forEach(Node::remove);
+    }
+
+    public StringLiteralExpr replaceTextBlockWithConcatenatedStrings(TextBlockLiteralExpr textBlockLiteralExpr) {
+        // In TextBlocks the `"` character is allowed so it needs to be escaped
+        return new StringLiteralExpr(escapeJava(textBlockLiteralExpr.stripIndent()));
     }
 }

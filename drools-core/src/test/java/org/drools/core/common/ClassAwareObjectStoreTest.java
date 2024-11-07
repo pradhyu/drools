@@ -1,19 +1,37 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.common;
 
-import org.drools.core.ObjectFilter;
-import org.drools.core.RuleBaseConfiguration;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
-
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(Parameterized.class)
 public class ClassAwareObjectStoreTest {
@@ -29,7 +47,7 @@ public class ClassAwareObjectStoreTest {
         insertObjectWithFactHandle(bigDecimalValue);
 
         Collection<Object> result = collect(underTest.iterateObjects());
-        assertThat(result.size(), is(equalTo(2)));
+        assertThat(result).hasSize(2);
     }
 
     @Test
@@ -40,8 +58,8 @@ public class ClassAwareObjectStoreTest {
         insertObjectWithFactHandle(object);
         Collection<Object> results = collect(underTest.iterateObjects(SimpleClass.class));
 
-        assertThat(results.size(), is(equalTo(1)));
-        assertThat(results, hasItem(object));
+        assertThat(results).hasSize(1);
+        assertThat(results).contains(object);
     }
 
     @Test
@@ -51,9 +69,9 @@ public class ClassAwareObjectStoreTest {
 
         Collection<Object> result = collect(underTest.iterateObjects(SuperClass.class));
 
-        assertThat(result.size(), is(equalTo(2)));
-        assertThat(result, hasItem(isA(SubClass.class)));
-        assertThat(result, hasItem(isA(SuperClass.class)));
+        assertThat(result).hasSize(2);
+        assertThat(result).hasAtLeastOneElementOfType(SubClass.class);
+        assertThat(result).hasAtLeastOneElementOfType(SuperClass.class);
     }
 
     @Test
@@ -63,8 +81,8 @@ public class ClassAwareObjectStoreTest {
 
         Collection<Object> result = collect(underTest.iterateObjects(SubClass.class));
 
-        assertThat(result.size(), is(equalTo(1)));
-        assertThat(result, hasItem(isA(SubClass.class)));
+        assertThat(result).hasSize(1);
+        assertThat(result).hasAtLeastOneElementOfType(SubClass.class);
     }
 
     /**
@@ -78,9 +96,9 @@ public class ClassAwareObjectStoreTest {
 
         Collection<Object> result = collect(underTest.iterateObjects(SuperClass.class));
 
-        assertThat(result.size(), is(equalTo(2)));
-        assertThat(result, hasItem(isA(SubClass.class)));
-        assertThat(result, hasItem(isA(SuperClass.class)));
+        assertThat(result).hasSize(2);
+        assertThat(result).hasAtLeastOneElementOfType(SubClass.class);
+        assertThat(result).hasAtLeastOneElementOfType(SuperClass.class);
     }
 
     @Test
@@ -89,8 +107,8 @@ public class ClassAwareObjectStoreTest {
 
         Collection<Object> result = collect(underTest.iterateObjects(SuperClass.class));
 
-        assertThat(result.size(), is(equalTo(1)));
-        assertThat(result, hasItem(isA(SubClass.class)));
+        assertThat(result).hasSize(1);
+        assertThat(result).hasAtLeastOneElementOfType(SubClass.class);
     }
 
     @Test
@@ -101,14 +119,14 @@ public class ClassAwareObjectStoreTest {
 
         Collection<Object> result = collect(underTest.iterateObjects(SuperClass.class));
 
-        assertThat(result.size(), is(equalTo(2)));
+        assertThat(result).hasSize(2);
         // Check there's no duplication of results
-        assertThat(new HashSet<Object>(result).size(), is(equalTo(2)));
+        assertThat(new HashSet<Object>(result)).hasSize(2);
     }
 
     @Test
     public void onceSuperClassIsSetUpForReadingItCanBecomeSetUpForWritingWithoutGettingDuplicateQueryReturns() throws Exception {
-        assertTrue(collect(underTest.iterateObjects(SuperClass.class)).isEmpty());
+        assertThat(collect(underTest.iterateObjects(SuperClass.class)).isEmpty()).isTrue();
 
         insertObjectWithFactHandle(new SubClass());
         insertObjectWithFactHandle(new SuperClass());
@@ -116,19 +134,19 @@ public class ClassAwareObjectStoreTest {
 
         Collection<Object> result = collect(underTest.iterateObjects(SuperClass.class));
 
-        assertThat(result.size(), is(equalTo(2)));
+        assertThat(result).hasSize(2);
         // Check there's no duplication of results
-        assertThat(new HashSet<Object>(result).size(), is(equalTo(2)));
+        assertThat(new HashSet<Object>(result)).hasSize(2);
     }
 
     @Test
     public void clearRemovesInsertedObjects() throws Exception {
         insertObjectWithFactHandle(new SimpleClass());
-        assertThat(collect(underTest.iterateObjects()).size(), is(equalTo(1)));
+        assertThat(collect(underTest.iterateObjects())).hasSize(1);
 
         underTest.clear();
 
-        assertThat(collect(underTest.iterateObjects()).size(), is(equalTo(0)));
+        assertThat(collect(underTest.iterateObjects())).hasSize(0);
     }
 
     @Test
@@ -136,15 +154,10 @@ public class ClassAwareObjectStoreTest {
         insertObjectWithFactHandle(new SuperClass());
         insertObjectWithFactHandle(new SubClass());
 
-        Collection<Object> result = collect(underTest.iterateObjects(new ObjectFilter() {
-            @Override
-            public boolean accept(Object o) {
-                return SubClass.class.isInstance(o);
-            }
-        }));
+        Collection<Object> result = collect(underTest.iterateObjects(SubClass.class::isInstance));
 
-        assertThat(result.size(), is(equalTo(1)));
-        assertThat(result, hasItem(isA(SubClass.class)));
+        assertThat(result).hasSize(1);
+        assertThat(result).hasAtLeastOneElementOfType(SubClass.class);
     }
 
     @Test
@@ -152,8 +165,8 @@ public class ClassAwareObjectStoreTest {
         insertObjectWithFactHandle(new SuperClass());
         insertObjectWithFactHandle(new SubClass());
 
-        assertThat(collect(underTest.iterateFactHandles(SubClass.class)).size(), is(equalTo(1)));
-        assertThat(collect(underTest.iterateFactHandles(SuperClass.class)).size(), is(equalTo(2)));
+        assertThat(collect(underTest.iterateFactHandles(SubClass.class))).hasSize(1);
+        assertThat(collect(underTest.iterateFactHandles(SuperClass.class))).hasSize(2);
     }
 
 
@@ -173,19 +186,15 @@ public class ClassAwareObjectStoreTest {
         return result;
     }
 
-    public ClassAwareObjectStoreTest(RuleBaseConfiguration ruleBaseConfiguration) {
-        underTest = new ClassAwareObjectStore(ruleBaseConfiguration, new ReentrantLock());
+    public ClassAwareObjectStoreTest(boolean isEqualityBehaviour) {
+        underTest = new ClassAwareObjectStore(isEqualityBehaviour, new ReentrantLock());
     }
 
     @Parameterized.Parameters
     public static Collection<Object[]> ruleBaseConfigurations() {
         List<Object[]> configurations = new ArrayList<Object[]>(2);
-        configurations.add(new Object[]{new RuleBaseConfiguration() {{
-            setAssertBehaviour(AssertBehaviour.EQUALITY);
-        }}});
-        configurations.add(new Object[]{new RuleBaseConfiguration() {{
-            setAssertBehaviour(AssertBehaviour.IDENTITY);
-        }}});
+        configurations.add(new Object[]{true});
+        configurations.add(new Object[]{false});
         return configurations;
     }
 

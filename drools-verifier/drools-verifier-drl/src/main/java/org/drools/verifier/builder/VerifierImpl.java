@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.builder;
 
 import java.text.ParseException;
@@ -22,7 +24,7 @@ import java.util.List;
 import java.util.jar.JarInputStream;
 
 import org.drools.compiler.compiler.PackageBuilderErrors;
-import org.drools.compiler.lang.descr.PackageDescr;
+import org.drools.drl.ast.descr.PackageDescr;
 import org.drools.verifier.DefaultVerifierConfiguration;
 import org.drools.verifier.Verifier;
 import org.drools.verifier.VerifierConfiguration;
@@ -40,6 +42,8 @@ import org.kie.api.io.ResourceConfiguration;
 import org.kie.api.io.ResourceType;
 import org.kie.api.runtime.KieSession;
 import org.kie.internal.builder.KnowledgeBuilderError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is the main user class for verifier. This will use rules to validate
@@ -49,16 +53,18 @@ public class VerifierImpl
     implements
     Verifier {
 
+    private static final Logger LOG = LoggerFactory.getLogger(VerifierImpl.class);
+
     private KieBase verifierKnowledgeBase;
     private KieSession    ksession;
 
     private final VerifierConfiguration conf;
 
-    private List<VerifierError>         errors                 = new ArrayList<VerifierError>();
+    private List<VerifierError>         errors                 = new ArrayList<>();
 
     private VerifierReport              result                 = VerifierReportFactory.newVerifierReport();
 
-    private List<JarInputStream>        jars                   = new ArrayList<JarInputStream>();
+    private List<JarInputStream>        jars                   = new ArrayList<>();
 
     private VerifierPackageBuilder      verifierPackageBuilder = new VerifierPackageBuilder();
 
@@ -89,7 +95,7 @@ public class VerifierImpl
             ruleFlattener.visitPackageDescr( descr );
 
         } catch ( Throwable t ) {
-            t.printStackTrace();
+            LOG.error("Exception", t);
         }
     }
 

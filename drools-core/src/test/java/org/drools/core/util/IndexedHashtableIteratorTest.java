@@ -1,32 +1,34 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.util;
-
-import org.drools.core.reteoo.LeftTupleImpl;
-import org.drools.core.reteoo.RightTuple;
-import org.drools.core.reteoo.RightTupleImpl;
-import org.drools.core.util.index.TupleIndexHashTable;
-import org.drools.core.util.index.TupleList;
-import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import org.drools.core.reteoo.TupleImpl;
+import org.drools.core.reteoo.LeftTuple;
+import org.drools.core.reteoo.RightTuple;
+import org.drools.core.util.index.TupleIndexHashTable;
+import org.drools.core.util.index.TupleList;
+import org.junit.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class IndexedHashtableIteratorTest {
 
@@ -39,7 +41,7 @@ public class IndexedHashtableIteratorTest {
         TupleList rtList = new TupleList();
         table[0] = rtList;        
         for ( int i = 0; i < numEntries; i++ ) {
-            RightTuple rightTuple = new RightTupleImpl();
+            TupleImpl rightTuple = new RightTuple();
             rightTuple.setMemory( rtList );
             rtList.add( rightTuple );
         }
@@ -47,7 +49,7 @@ public class IndexedHashtableIteratorTest {
         rtList = new TupleList();
         table[2] = rtList;
         for ( int i = 0; i < numEntries; i++ ) {
-            RightTuple rightTuple = new RightTupleImpl();
+            TupleImpl rightTuple = new RightTuple();
             rightTuple.setMemory( rtList );
             rtList.add( rightTuple );
         }
@@ -55,16 +57,16 @@ public class IndexedHashtableIteratorTest {
         rtList = new TupleList();
         table[2].setNext( rtList );
         for ( int i = 0; i < numEntries; i++ ) {
-            RightTuple rightTuple = new RightTupleImpl();
+            TupleImpl rightTuple = new RightTuple();
             rightTuple.setMemory( rtList );
             rtList.add( rightTuple );
         }
 
         // test fast
         TupleIndexHashTable.FullFastIterator iter = new TupleIndexHashTable.FullFastIterator( table );
-        List<RightTuple> list = new ArrayList<RightTuple>();
-        for ( RightTuple rightTuple = (RightTuple) iter.next( null ); rightTuple != null; rightTuple = (RightTuple) iter.next( rightTuple ) ) {
-            assertFalse( contains( list, rightTuple ) ); // ensure no duplicate
+        List<RightTuple>                     list = new ArrayList<>();
+        for (RightTuple rightTuple = (RightTuple) iter.next(null); rightTuple != null; rightTuple = (RightTuple) iter.next(rightTuple) ) {
+            assertThat(contains(list, rightTuple)).isFalse(); // ensure no duplicate
             list.add( rightTuple );
         }
         
@@ -72,13 +74,13 @@ public class IndexedHashtableIteratorTest {
         TupleIndexHashTable rthTable = new TupleIndexHashTable();
         rthTable.init( table, 3, numEntries * 3 );
         TupleIndexHashTable.FieldIndexHashTableFullIterator iter2 = new TupleIndexHashTable.FieldIndexHashTableFullIterator( rthTable );
-        list = new ArrayList<RightTuple>();
-        for ( RightTuple rightTuple = (RightTuple) iter2.next( ); rightTuple != null; rightTuple = (RightTuple) iter2.next( ) ) {
-            assertFalse( contains( list, rightTuple ) ); // ensure no duplicate
+        list = new ArrayList<>();
+        for (RightTuple rightTuple = (RightTuple) iter2.next(); rightTuple != null; rightTuple = (RightTuple) iter2.next() ) {
+            assertThat(contains(list, rightTuple)).isFalse(); // ensure no duplicate
             list.add( rightTuple );
         }
-        
-        assertEquals( numEntries * 3, list.size() );
+
+        assertThat(list).hasSize(numEntries * 3);
     }
 
     @Test
@@ -90,7 +92,7 @@ public class IndexedHashtableIteratorTest {
         TupleList rtList = new TupleList();
         table[0] = rtList;        
         for ( int i = 0; i < numEntries; i++ ) {
-            LeftTupleImpl  leftTuple = new LeftTupleImpl();
+            LeftTuple  leftTuple = new LeftTuple();
             leftTuple.setMemory( rtList );
             rtList.add( leftTuple );
         }
@@ -98,7 +100,7 @@ public class IndexedHashtableIteratorTest {
         rtList = new TupleList();
         table[2] = rtList;
         for ( int i = 0; i < numEntries; i++ ) {
-            LeftTupleImpl leftTuple = new LeftTupleImpl();
+            LeftTuple leftTuple = new LeftTuple();
             leftTuple.setMemory( rtList );
             rtList.add( leftTuple );
         }
@@ -106,32 +108,32 @@ public class IndexedHashtableIteratorTest {
         rtList = new TupleList();
         table[2].setNext( rtList );
         for ( int i = 0; i < numEntries; i++ ) {
-            LeftTupleImpl leftTuple = new LeftTupleImpl();
+            LeftTuple leftTuple = new LeftTuple();
             leftTuple.setMemory( rtList );
             rtList.add( leftTuple );
         }
 
         // test fast
         TupleIndexHashTable.FullFastIterator iter = new TupleIndexHashTable.FullFastIterator( table );
-        List<LeftTupleImpl> list = new ArrayList<LeftTupleImpl>();
-        for ( LeftTupleImpl leftTuple = (LeftTupleImpl) iter.next( null ); leftTuple != null; leftTuple = (LeftTupleImpl) iter.next( leftTuple ) ) {
-            assertFalse( contains( list, leftTuple ) ); // ensure no duplicate
+        List<LeftTuple> list = new ArrayList<LeftTuple>();
+        for ( LeftTuple leftTuple = (LeftTuple) iter.next( null ); leftTuple != null; leftTuple = (LeftTuple) iter.next( leftTuple ) ) {
+            assertThat(contains(list, leftTuple)).isFalse(); // ensure no duplicate
             list.add( leftTuple );
         }
 
-        assertEquals( numEntries * 3, list.size() );
+        assertThat(list).hasSize(numEntries * 3);
         
         // test normal
         TupleIndexHashTable lthTable = new TupleIndexHashTable();
         lthTable.init( table, 3, numEntries * 3 );
         TupleIndexHashTable.FieldIndexHashTableFullIterator iter2 = new TupleIndexHashTable.FieldIndexHashTableFullIterator( lthTable );
-        list = new ArrayList<LeftTupleImpl>();
-        for ( LeftTupleImpl leftTuple = (LeftTupleImpl) iter2.next( ); leftTuple != null; leftTuple = (LeftTupleImpl) iter2.next( ) ) {
-            assertFalse( contains( list, leftTuple ) ); // ensure no duplicate
+        list = new ArrayList<LeftTuple>();
+        for ( LeftTuple leftTuple = (LeftTuple) iter2.next( ); leftTuple != null; leftTuple = (LeftTuple) iter2.next( ) ) {
+            assertThat(contains(list, leftTuple)).isFalse(); // ensure no duplicate
             list.add( leftTuple );
         }
-        
-        assertEquals( numEntries * 3, list.size() );        
+
+        assertThat(list).hasSize(numEntries * 3);        
     }
     
     public static boolean contains(List list,

@@ -1,21 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.mvel.parser.printer;
 
 import java.util.Iterator;
@@ -31,15 +31,21 @@ import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.nodeTypes.NodeWithTypeArguments;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.printer.PrettyPrintVisitor;
-import com.github.javaparser.printer.PrettyPrinterConfiguration;
+import com.github.javaparser.printer.DefaultPrettyPrinterVisitor;
+import com.github.javaparser.printer.configuration.ConfigurationOption;
+import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
+import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
+import com.github.javaparser.printer.configuration.PrinterConfiguration;
 import org.drools.mvel.parser.ast.expr.BigDecimalLiteralExpr;
 import org.drools.mvel.parser.ast.expr.BigIntegerLiteralExpr;
 import org.drools.mvel.parser.ast.expr.DrlNameExpr;
 import org.drools.mvel.parser.ast.expr.DrlxExpression;
+import org.drools.mvel.parser.ast.expr.FullyQualifiedInlineCastExpr;
 import org.drools.mvel.parser.ast.expr.HalfBinaryExpr;
 import org.drools.mvel.parser.ast.expr.HalfPointFreeExpr;
 import org.drools.mvel.parser.ast.expr.InlineCastExpr;
+import org.drools.mvel.parser.ast.expr.ListCreationLiteralExpression;
+import org.drools.mvel.parser.ast.expr.ListCreationLiteralExpressionElement;
 import org.drools.mvel.parser.ast.expr.MapCreationLiteralExpression;
 import org.drools.mvel.parser.ast.expr.MapCreationLiteralExpressionKeyValuePair;
 import org.drools.mvel.parser.ast.expr.ModifyStatement;
@@ -58,11 +64,11 @@ import org.drools.mvel.parser.ast.expr.WithStatement;
 import org.drools.mvel.parser.ast.visitor.DrlVoidVisitor;
 
 import static com.github.javaparser.utils.Utils.isNullOrEmpty;
-import static org.drools.mvel.parser.printer.PrintUtil.printConstraint;
+import static org.drools.mvel.parser.printer.PrintUtil.printNode;
 
-public class ConstraintPrintVisitor extends PrettyPrintVisitor implements DrlVoidVisitor<Void> {
+public class ConstraintPrintVisitor extends DefaultPrettyPrinterVisitor implements DrlVoidVisitor<Void> {
 
-    public ConstraintPrintVisitor(PrettyPrinterConfiguration prettyPrinterConfiguration) {
+    public ConstraintPrintVisitor(PrinterConfiguration prettyPrinterConfiguration) {
         super(prettyPrinterConfiguration);
     }
 
@@ -92,6 +98,19 @@ public class ConstraintPrintVisitor extends PrettyPrintVisitor implements DrlVoi
         inlineCastExpr.getExpression().accept( this, arg );
         printer.print( "#" );
         inlineCastExpr.getType().accept( this, arg );
+    }
+
+    @Override
+    public void visit( FullyQualifiedInlineCastExpr inlineCastExpr, Void arg ) {
+        printComment(inlineCastExpr.getComment(), arg);
+        inlineCastExpr.getScope().accept( this, arg );
+        printer.print( "#" );
+        inlineCastExpr.getName().accept( this, arg );
+        if (inlineCastExpr.hasArguments()) {
+            printer.print( "(" );
+            inlineCastExpr.getArguments().accept( this, arg );
+            printer.print( ")" );
+        }
     }
 
     @Override
@@ -207,12 +226,17 @@ public class ConstraintPrintVisitor extends PrettyPrintVisitor implements DrlVoi
     @Override
     public void visit(OOPathExpr oopathExpr, Void arg ) {
         printComment(oopathExpr.getComment(), arg);
-        printer.print("/");
         NodeList<OOPathChunk> chunks = oopathExpr.getChunks();
         for (int i = 0; i <  chunks.size(); i++) {
             final OOPathChunk chunk = chunks.get(i);
+            printer.print(chunk.isSingleValue() ? "." : "/");
             chunk.accept(this, arg);
             printer.print(chunk.getField().toString());
+
+            if (chunk.getInlineCast() != null) {
+                printer.print("#");
+                chunk.getInlineCast().accept( this, arg );
+            }
 
             List<DrlxExpression> condition = chunk.getConditions();
             final Iterator<DrlxExpression> iterator = condition.iterator();
@@ -225,10 +249,6 @@ public class ConstraintPrintVisitor extends PrettyPrintVisitor implements DrlVoi
                     iterator.next().accept(this, arg);
                 }
                 printer.print("]");
-            }
-
-            if(i != chunks.size() - 1) { // Avoid printing last /
-                printer.print("/");
             }
         }
     }
@@ -302,7 +322,7 @@ public class ConstraintPrintVisitor extends PrettyPrintVisitor implements DrlVoi
                 .stream()
                 .filter(Objects::nonNull)
                 .filter(Statement::isExpressionStmt)
-                .map(n -> printConstraint(n.asExpressionStmt().getExpression()))
+                .map(n -> printNode(n.asExpressionStmt().getExpression()))
                 .collect(Collectors.joining(", "));
 
         printer.print(expressionWithComma);
@@ -321,7 +341,7 @@ public class ConstraintPrintVisitor extends PrettyPrintVisitor implements DrlVoi
                 .stream()
                 .filter(Objects::nonNull)
                 .filter(Statement::isExpressionStmt)
-                .map(n -> printConstraint(n.asExpressionStmt().getExpression()))
+                .map(n -> printNode(n.asExpressionStmt().getExpression()))
                 .collect(Collectors.joining(", "));
 
         printer.print(expressionWithComma);
@@ -354,7 +374,9 @@ public class ConstraintPrintVisitor extends PrettyPrintVisitor implements DrlVoi
     public void printArguments(final NodeList<Expression> args, final Void arg) {
         printer.print("(");
         if (!isNullOrEmpty(args)) {
-            boolean columnAlignParameters = (args.size() > 1) && configuration.isColumnAlignParameters();
+            boolean columnAlignParameters = (args.size() > 1) &&
+                    configuration.get(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.COLUMN_ALIGN_PARAMETERS))
+                                    .map(ConfigurationOption::asBoolean).orElse(false);
             if (columnAlignParameters) {
                 printer.indentWithAlignTo(printer.getCursor().column);
             }
@@ -402,6 +424,25 @@ public class ConstraintPrintVisitor extends PrettyPrintVisitor implements DrlVoi
     public void visit(MapCreationLiteralExpressionKeyValuePair n, Void arg) {
         n.getKey().accept(this, arg);
         printer.print(" : ");
+        n.getValue().accept(this, arg);
+    }
+
+    @Override
+    public void visit(ListCreationLiteralExpression n, Void arg) {
+        printer.print("[");
+
+        Iterator<Expression> expressions = n.getExpressions().iterator();
+        while(expressions.hasNext()) {
+            expressions.next().accept(this, arg);
+            if(expressions.hasNext()) {
+                printer.print(", ");
+            }
+        }
+        printer.print("]");
+    }
+
+    @Override
+    public void visit(ListCreationLiteralExpressionElement n, Void arg) {
         n.getValue().accept(this, arg);
     }
 }

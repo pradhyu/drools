@@ -1,19 +1,21 @@
-/*
- * Copyright 2018 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.verifier.core.maps;
 
 import java.util.Collection;
@@ -26,10 +28,10 @@ import org.drools.verifier.core.index.keys.UUIDKey;
 import org.drools.verifier.core.index.keys.Value;
 import org.drools.verifier.core.index.matchers.Matcher;
 import org.drools.verifier.core.maps.util.HasKeys;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class KeyTreeMapMergeTest {
 
@@ -49,25 +51,18 @@ public class KeyTreeMapMergeTest {
     private Matcher nameMatcher = new Matcher(NAME_KEY_DEFINITION);
     private AnalyzerConfigurationMock configuration;
 
-    @Before
-    public void setUp() throws
-            Exception {
+    @BeforeEach
+    public void setUp() throws Exception {
 
         configuration = new AnalyzerConfigurationMock();
 
-        treeMap = new KeyTreeMap<>(NAME_KEY_DEFINITION,
-                                   AGE_KEY_DEFINITION);
-        pat = new Person("Pat",
-                         10);
-        add(treeMap,
-            pat);
+        treeMap = new KeyTreeMap<>(NAME_KEY_DEFINITION, AGE_KEY_DEFINITION);
+        pat = new Person("Pat", 10);
+        add(treeMap, pat);
 
-        otherKeyTreeMap = new KeyTreeMap<>(NAME_KEY_DEFINITION,
-                                           AGE_KEY_DEFINITION);
-        mat = new Person("mat",
-                         15);
-        add(otherKeyTreeMap,
-            mat);
+        otherKeyTreeMap = new KeyTreeMap<>(NAME_KEY_DEFINITION, AGE_KEY_DEFINITION);
+        mat = new Person("mat", 15);
+        add(otherKeyTreeMap, mat);
     }
 
     private void add(final KeyTreeMap<Person> treeMap,
@@ -76,63 +71,47 @@ public class KeyTreeMapMergeTest {
     }
 
     @Test
-    public void testMergeToEmptyMap() throws
-            Exception {
+    void testMergeToEmptyMap() throws Exception {
         final KeyTreeMap<Person> empty = new KeyTreeMap<>(UUIDKey.UNIQUE_UUID,
-                                                          NAME_KEY_DEFINITION,
-                                                          AGE_KEY_DEFINITION);
+                NAME_KEY_DEFINITION,
+                AGE_KEY_DEFINITION);
         empty.merge(otherKeyTreeMap);
 
-        assertEquals(1,
-                     empty.get(nameMatcher.getKeyDefinition())
-                             .allValues()
-                             .size());
+        assertThat(empty.get(nameMatcher.getKeyDefinition()).allValues()).hasSize(1);
     }
 
     @Test
-    public void testNames() throws
-            Exception {
+    void testNames() throws Exception {
         treeMap.merge(otherKeyTreeMap);
 
         final MultiMap<Value, Person, List<Person>> multiMap = treeMap.get(nameMatcher.getKeyDefinition());
 
-        assertEquals(2,
-                     multiMap.allValues()
-                             .size());
+        assertThat(multiMap.allValues()).hasSize(2);
     }
 
     @Test
-    public void testAge() throws
-            Exception {
+    void testAge() throws Exception {
         treeMap.merge(otherKeyTreeMap);
 
-        assertEquals(2,
-                     allPersons(treeMap).size());
+        assertThat(allPersons(treeMap)).hasSize(2);
     }
 
     @Test
-    public void testRetract() throws
-            Exception {
+    void testRetract() throws Exception {
         KeyTreeMap<Person> thirdKeyTreeMap = new KeyTreeMap<>(NAME_KEY_DEFINITION,
-                                                              AGE_KEY_DEFINITION);
+                AGE_KEY_DEFINITION);
         thirdKeyTreeMap.merge(treeMap);
         thirdKeyTreeMap.merge(otherKeyTreeMap);
 
-        assertEquals(2,
-                     allPersons(thirdKeyTreeMap).size());
-        assertEquals(1,
-                     allPersons(treeMap).size());
-        assertEquals(1,
-                     allPersons(otherKeyTreeMap).size());
+        assertThat(allPersons(thirdKeyTreeMap)).hasSize(2);
+        assertThat(allPersons(treeMap)).hasSize(1);
+        assertThat(allPersons(otherKeyTreeMap)).hasSize(1);
 
         pat.uuidKey.retract();
 
-        assertEquals(1,
-                     allPersons(thirdKeyTreeMap).size());
-        assertEquals(0,
-                     allPersons(treeMap).size());
-        assertEquals(1,
-                     allPersons(otherKeyTreeMap).size());
+        assertThat(allPersons(thirdKeyTreeMap)).hasSize(1);
+        assertThat(allPersons(treeMap)).isEmpty();
+        assertThat(allPersons(otherKeyTreeMap)).hasSize(1);
     }
 
     private Collection<Person> allPersons(final KeyTreeMap<Person> personKeyTreeMap) {
@@ -154,8 +133,7 @@ public class KeyTreeMapMergeTest {
         private Integer age;
         private UUIDKey uuidKey = configuration.getUUID(this);
 
-        public Person(final String name,
-                      final Integer age) {
+        public Person(final String name, final Integer age) {
             this.name = name;
             this.age = age;
         }

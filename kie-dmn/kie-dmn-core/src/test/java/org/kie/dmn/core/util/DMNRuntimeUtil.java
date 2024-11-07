@@ -1,28 +1,30 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.util;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.drools.compiler.kie.builder.impl.InternalKieModule;
-import org.junit.Assert;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
@@ -48,8 +50,7 @@ import org.kie.internal.builder.InternalKieBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A type-check safe runtime creation helper.
@@ -63,7 +64,7 @@ public final class DMNRuntimeUtil {
         final KieContainer kieContainer = KieHelper.getKieContainer(
         ks.newReleaseId("org.kie", "dmn-test-"+UUID.randomUUID(), "1.0"));
         final DMNRuntime runtime = typeSafeGetKieRuntime(kieContainer);
-        Assert.assertNotNull(runtime);
+        assertThat(runtime).isNotNull();
         return runtime;
     }
 
@@ -72,10 +73,15 @@ public final class DMNRuntimeUtil {
         final KieContainer kieContainer = KieHelper.getKieContainer(
                 ks.newReleaseId("org.kie", "dmn-test-"+UUID.randomUUID(), "1.0"),
                 ks.getResources().newClassPathResource(resourceName, testClass));
+        return createRuntime(kieContainer);
+    }
 
-        final DMNRuntime runtime = typeSafeGetKieRuntime(kieContainer);
-        Assert.assertNotNull(runtime);
-        return runtime;
+    public static DMNRuntime createRuntime(final File resourceFile) {
+        final KieServices ks = KieServices.Factory.get();
+        final KieContainer kieContainer = KieHelper.getKieContainer(
+                ks.newReleaseId("org.kie", "dmn-test-"+UUID.randomUUID(), "1.0"),
+                ks.getResources().newFileSystemResource(resourceFile));
+        return createRuntime(kieContainer);
     }
     
     public static List<DMNMessage> createExpectingDMNMessages(final String resourceName, final Class testClass) {
@@ -90,7 +96,7 @@ public final class DMNRuntimeUtil {
                                                    .filter(DMNMessage.class::isInstance)
                                                    .map(DMNMessage.class::cast)
                                                    .collect(Collectors.toList());
-        assertThat(dmnMessages.isEmpty(), is(false));
+        assertThat(dmnMessages).isNotEmpty();;
         return dmnMessages;
     }
 
@@ -107,7 +113,24 @@ public final class DMNRuntimeUtil {
                 totalResources.toArray(new Resource[] {}));
 
         final DMNRuntime runtime = typeSafeGetKieRuntime(kieContainer);
-        Assert.assertNotNull(runtime);
+        assertThat(runtime).isNotNull();
+        return runtime;
+    }
+
+    public static DMNRuntime createRuntimeWithAdditionalResources(final File resourceFile, final File... additionalResourceFiles) {
+        final KieServices ks = KieServices.Factory.get();
+        Resource mainResource = ks.getResources().newFileSystemResource(resourceFile);
+        List<Resource> totalResources = new ArrayList<>();
+        totalResources.add(mainResource);
+        for ( File add : additionalResourceFiles ) {
+            totalResources.add( ks.getResources().newFileSystemResource(add) );
+        }
+        final KieContainer kieContainer = KieHelper.getKieContainer(
+                ks.newReleaseId("org.kie", "dmn-test-"+UUID.randomUUID(), "1.0"),
+                totalResources.toArray(new Resource[] {}));
+
+        final DMNRuntime runtime = typeSafeGetKieRuntime(kieContainer);
+        assertThat(runtime).isNotNull();
         return runtime;
     }
 
@@ -191,5 +214,11 @@ public final class DMNRuntimeUtil {
 
         byte[] jar = kieModule.getBytes();
         return jar;
+    }
+
+    static DMNRuntime createRuntime(KieContainer kieContainer) {
+        final DMNRuntime runtime = typeSafeGetKieRuntime(kieContainer);
+        assertThat(runtime).isNotNull();
+        return runtime;
     }
 }

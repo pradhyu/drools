@@ -1,22 +1,25 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- *
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.model.patterns;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +33,8 @@ import org.drools.model.consequences.ConditionalNamedConsequenceImpl;
 import org.drools.model.consequences.NamedConsequenceImpl;
 import org.drools.model.impl.ModelComponent;
 import org.drools.model.impl.RuleImpl;
+
+import static java.util.stream.Collectors.toList;
 
 public class CompositePatterns implements Condition, View, ModelComponent {
 
@@ -68,6 +73,10 @@ public class CompositePatterns implements Condition, View, ModelComponent {
     @Override
     public List<Condition> getSubConditions() {
         return patterns;
+    }
+
+    public void addCondition(Condition condition) {
+        patterns.add(condition);
     }
 
     public void addCondition(int index, Condition condition) {
@@ -126,5 +135,11 @@ public class CompositePatterns implements Condition, View, ModelComponent {
                 "vars: " + usedVars + ", " +
                 "patterns: " + patterns + ", " +
                 "consequences: " + consequences + ")";
+    }
+
+    @Override
+    public CompositePatterns cloneCondition() {
+        return new CompositePatterns( type, patterns.stream().map( Condition::cloneCondition ).collect( toList() ),
+                usedVars == null ? null : new HashSet<>(usedVars), consequences == null ? null : new HashMap<>(consequences) );
     }
 }

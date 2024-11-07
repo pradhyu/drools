@@ -1,22 +1,22 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.backend.marshalling.v1_2.xstream;
-
-import javax.xml.namespace.QName;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.MarshallingContext;
@@ -61,7 +61,7 @@ public class DMNShapeConverter extends ShapeConverter {
         super.assignAttributes(reader, parent);
         DMNShape style = (DMNShape) parent;
 
-        style.setDmnElementRef(new QName(reader.getAttribute("dmnElementRef")));
+        style.setDmnElementRef(MarshallingUtils.parseQNameString(reader.getAttribute("dmnElementRef")));
         
         String isListedInputData = reader.getAttribute("isListedInputData");
         String isCollapsed = reader.getAttribute("isCollapsed");
@@ -92,7 +92,7 @@ public class DMNShapeConverter extends ShapeConverter {
         super.writeAttributes(writer, parent);
         DMNShape style = (DMNShape) parent;
 
-        writer.addAttribute("dmnElementRef", style.getDmnElementRef().toString());
+        writer.addAttribute("dmnElementRef", MarshallingUtils.formatQName(style.getDmnElementRef(), style));
 
         if (style.isIsListedInputData() != null) {
             writer.addAttribute("isListedInputData", style.isIsListedInputData().toString());

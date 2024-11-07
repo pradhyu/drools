@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.compiler;
 
 import java.util.Arrays;
@@ -21,17 +23,14 @@ import java.util.List;
 
 import javax.xml.namespace.QName;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.kie.dmn.model.api.ItemDefinition;
 import org.kie.dmn.model.v1_1.TItemDefinition;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 
-public class ItemDefinitionDependenciesTest {
+class ItemDefinitionDependenciesTest {
     
     private static final String TEST_NS = "https://www.drools.org/";
 
@@ -39,20 +38,24 @@ public class ItemDefinitionDependenciesTest {
         final ItemDefinition res = new TItemDefinition();
         res.setName(name);
         for ( final ItemDefinition ic : components ) {
-            final ItemDefinition c = new TItemDefinition();
-            c.setName("_" + name + "-" + ic.getName());
-            c.setTypeRef(new QName(TEST_NS, ic.getName()));
-            res.getItemComponent().add(c);
+            addComponent(res, ic.getName());
         }
         return res;
     }
     
+    private void addComponent(ItemDefinition i, String componentName) {
+        final ItemDefinition c = new TItemDefinition();
+        c.setName("_" + i.getName() + "-" + componentName);
+        c.setTypeRef(new QName(TEST_NS, componentName));
+        i.getItemComponent().add(c);
+    }
+
     private List<ItemDefinition> orderingStrategy(final List<ItemDefinition> ins) {
         return new ItemDefinitionDependenciesSorter(TEST_NS).sort(ins);
     }
-    
+
     @Test
-    public void testGeneric() {
+    void generic() {
         final ItemDefinition a = build("a");
         
         final ItemDefinition b = build("b");
@@ -65,12 +68,12 @@ public class ItemDefinitionDependenciesTest {
         
         final List<ItemDefinition> orderedList = orderingStrategy(originalList);
 
-        assertThat(orderedList.subList(0, 2), containsInAnyOrder(a,b));
-        assertThat(orderedList.subList(2, 4), contains(c,d));
+        assertThat(orderedList.subList(0, 2)).contains(a,b);
+        assertThat(orderedList.subList(2, 4)).contains(c,d);
     }
-    
+
     @Test
-    public void testGeneric2() {
+    void generic2() {
         final ItemDefinition z = build("z");
         
         final ItemDefinition b = build("b");
@@ -81,11 +84,11 @@ public class ItemDefinitionDependenciesTest {
         
         final List<ItemDefinition> orderedList = orderingStrategy(originalList);
 
-        assertTrue("Index of z < a", orderedList.indexOf(z) < orderedList.indexOf(a));
+        assertThat(orderedList.indexOf(z) < orderedList.indexOf(a)).as("Index of z < a").isTrue();
     }
-    
+
     @Test
-    public void testOrdering1() {
+    void ordering1() {
         final ItemDefinition tCollateralRiskCategory = build("tCollateralRiskCategory");
         final ItemDefinition tCreditRiskCategory     = build("tCreditRiskCategory");
         final ItemDefinition tAffordabilityCategory  = build("tAffordabilityCategory");
@@ -113,13 +116,13 @@ public class ItemDefinitionDependenciesTest {
                                                                 tPrequalification);
         
         final List<ItemDefinition> orderedList = orderingStrategy(originalList);
-        
-        assertTrue("Index of tAge < tBorrowe", orderedList.indexOf(tAge) < orderedList.indexOf(tBorrowe));
-        assertTrue("Index of temploementStatus < tBorrowe", orderedList.indexOf(temploementStatus) < orderedList.indexOf(tBorrowe));
+
+        assertThat(orderedList.indexOf(tAge) < orderedList.indexOf(tBorrowe)).as("Index of tAge < tBorrowe").isTrue();
+        assertThat(orderedList.indexOf(temploementStatus) < orderedList.indexOf(tBorrowe)).as("Index of temploementStatus < tBorrowe").isTrue();
     }
-    
+
     @Test
-    public void testOrdering2() {
+    void ordering2() {
         final ItemDefinition tMortgageType      = build("tMortgageType");
         final ItemDefinition tObjective         = build("tObjective");
         final ItemDefinition tRequested         = build("tRequested", tMortgageType, tObjective);
@@ -137,18 +140,18 @@ public class ItemDefinitionDependenciesTest {
                                                                 tLoanTypes);
         
         final List<ItemDefinition> orderedList = orderingStrategy(originalList);
-        
-        assertTrue("Index of tMortgageType < tRequested", orderedList.indexOf(tMortgageType) < orderedList.indexOf(tRequested));
-        assertTrue("Index of tObjective < tRequested", orderedList.indexOf(tObjective) < orderedList.indexOf(tRequested));
 
-        assertTrue("Index of tProduct < tProductCollection", orderedList.indexOf(tProduct) < orderedList.indexOf(tProductCollection));
-        
-        assertTrue("Index of tMortgageType < tLoanTypes", orderedList.indexOf(tMortgageType) < orderedList.indexOf(tLoanTypes));
-        assertTrue("Index of tConformanceType < tLoanTypes", orderedList.indexOf(tConformanceType) < orderedList.indexOf(tLoanTypes));
+        assertThat(orderedList.indexOf(tMortgageType) < orderedList.indexOf(tRequested)).as("Index of tMortgageType < tRequested").isTrue();
+        assertThat(orderedList.indexOf(tObjective) < orderedList.indexOf(tRequested)).as("Index of tObjective < tRequested").isTrue();
+
+        assertThat(orderedList.indexOf(tProduct) < orderedList.indexOf(tProductCollection)).as("Index of tProduct < tProductCollection").isTrue();
+
+        assertThat(orderedList.indexOf(tMortgageType) < orderedList.indexOf(tLoanTypes)).as("Index of tMortgageType < tLoanTypes").isTrue();
+        assertThat(orderedList.indexOf(tConformanceType) < orderedList.indexOf(tLoanTypes)).as("Index of tConformanceType < tLoanTypes").isTrue();
     }
-    
+
     @Test
-    public void testOrdering3() {
+    void ordering3() {
         final ItemDefinition tNumberList = build("tNumberList");
         final ItemDefinition tTax        = build("tTax");
         final ItemDefinition tStateModel = build("tStateModel");
@@ -168,16 +171,16 @@ public class ItemDefinitionDependenciesTest {
                                                                 tTaxList);
         
         final List<ItemDefinition> orderedList = orderingStrategy(originalList);
-        
-        assertTrue("Index of tCategory < tItem", orderedList.indexOf(tCategory) < orderedList.indexOf(tItem));
-        assertTrue("Index of tItem < tItemList", orderedList.indexOf(tItem) < orderedList.indexOf(tItemList));
-        assertTrue("Index of tItemList < tOrder", orderedList.indexOf(tItemList) < orderedList.indexOf(tOrder));
-        
-        assertTrue("Index of tTax < tTaxList", orderedList.indexOf(tTax) < orderedList.indexOf(tTaxList));
+
+        assertThat(orderedList.indexOf(tCategory) < orderedList.indexOf(tItem)).as("Index of tCategory < tItem").isTrue();
+        assertThat(orderedList.indexOf(tItem) < orderedList.indexOf(tItemList)).as("Index of tItem < tItemList").isTrue();
+        assertThat(orderedList.indexOf(tItemList) < orderedList.indexOf(tOrder)).as("Index of tItemList < tOrder").isTrue();
+
+        assertThat(orderedList.indexOf(tTax) < orderedList.indexOf(tTaxList)).as("Index of tTax < tTaxList").isTrue();
     }
 
     @Test
-    public void testOrdering4() {
+    void ordering4() {
         final ItemDefinition _TypeDecisionA1   = build("TypeDecisionA1");
         final ItemDefinition _TypeDecisionA2_x = build("TypeDecisionA2.x", _TypeDecisionA1);
         final ItemDefinition _TypeDecisionA3   = build("TypeDecisionA3", _TypeDecisionA2_x);
@@ -198,13 +201,30 @@ public class ItemDefinitionDependenciesTest {
 
         final List<ItemDefinition> orderedList = orderingStrategy(originalList);
 
-        assertTrue("Index of _TypeDecisionA1 < _TypeDecisionA2_x", orderedList.indexOf(_TypeDecisionA1) < orderedList.indexOf(_TypeDecisionA2_x));
-        assertTrue("Index of _TypeDecisionA2_x < _TypeDecisionA3", orderedList.indexOf(_TypeDecisionA2_x) < orderedList.indexOf(_TypeDecisionA3));
-        assertTrue("Index of _TypeDecisionA3 < _TypeDecisionB3", orderedList.indexOf(_TypeDecisionA3) < orderedList.indexOf(_TypeDecisionB3));
-        assertTrue("Index of _TypeDecisionA3 < _TypeDecisionC1", orderedList.indexOf(_TypeDecisionA3) < orderedList.indexOf(_TypeDecisionC1));
+        assertThat(orderedList.indexOf(_TypeDecisionA1) < orderedList.indexOf(_TypeDecisionA2_x)).as("Index of _TypeDecisionA1 < _TypeDecisionA2_x").isTrue();
+        assertThat(orderedList.indexOf(_TypeDecisionA2_x) < orderedList.indexOf(_TypeDecisionA3)).as("Index of _TypeDecisionA2_x < _TypeDecisionA3").isTrue();
+        assertThat(orderedList.indexOf(_TypeDecisionA3) < orderedList.indexOf(_TypeDecisionB3)).as("Index of _TypeDecisionA3 < _TypeDecisionB3").isTrue();
+        assertThat(orderedList.indexOf(_TypeDecisionA3) < orderedList.indexOf(_TypeDecisionC1)).as("Index of _TypeDecisionA3 < _TypeDecisionC1").isTrue();
 
-        assertTrue("Index of _TypeDecisionB1 < _TypeDecisionB2_x", orderedList.indexOf(_TypeDecisionB1) < orderedList.indexOf(_TypeDecisionB2_x));
-        assertTrue("Index of _TypeDecisionB2_x < _TypeDecisionB3", orderedList.indexOf(_TypeDecisionB2_x) < orderedList.indexOf(_TypeDecisionB3));
-        assertTrue("Index of _TypeDecisionB3 < _TypeDecisionC1", orderedList.indexOf(_TypeDecisionB3) < orderedList.indexOf(_TypeDecisionC1));
+        assertThat(orderedList.indexOf(_TypeDecisionB1) < orderedList.indexOf(_TypeDecisionB2_x)).as("Index of _TypeDecisionB1 < _TypeDecisionB2_x").isTrue();
+        assertThat(orderedList.indexOf(_TypeDecisionB2_x) < orderedList.indexOf(_TypeDecisionB3)).as("Index of _TypeDecisionB2_x < _TypeDecisionB3").isTrue();
+        assertThat(orderedList.indexOf(_TypeDecisionB3) < orderedList.indexOf(_TypeDecisionC1)).as("Index of _TypeDecisionB3 < _TypeDecisionC1").isTrue();
+    }
+
+    @Test
+    void circular3() {
+        final ItemDefinition fhirAge = build("fhirAge");
+        addComponent(fhirAge, "fhirExtension");
+
+        final ItemDefinition fhirExtension = build("fhirExtension", fhirAge);
+
+        final ItemDefinition fhirT1 = build("fhirT1", fhirAge);
+
+        final List<ItemDefinition> originalList = Arrays.asList(fhirT1, fhirAge, fhirExtension);
+
+        final List<ItemDefinition> orderedList = orderingStrategy(originalList);
+
+        assertThat(orderedList.subList(0, 2)).contains(fhirAge, fhirExtension);
+        assertThat(orderedList.subList(2, 3)).contains(fhirT1);
     }
 }

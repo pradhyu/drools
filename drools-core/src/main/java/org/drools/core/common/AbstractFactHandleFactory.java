@@ -1,36 +1,35 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.common;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.drools.core.WorkingMemoryEntryPoint;
 import org.drools.core.reteoo.ObjectTypeConf;
-import org.drools.core.spi.FactHandleFactory;
+import org.drools.core.rule.accessor.FactHandleFactory;
 
 import static java.util.stream.Collectors.toCollection;
 
-public abstract class AbstractFactHandleFactory
-    implements
-    FactHandleFactory  {
+public abstract class AbstractFactHandleFactory implements FactHandleFactory  {
 
     /** The fact id. */
     private IdsGenerator idGen;
@@ -50,45 +49,58 @@ public abstract class AbstractFactHandleFactory
         this.counter = new AtomicLong( counter );
     }
 
-    /* (non-Javadoc)
-    * @see org.kie.reteoo.FactHandleFactory#newFactHandle()
-    */
     public final InternalFactHandle newFactHandle(Object object,
                                                   ObjectTypeConf conf,
-                                                  InternalWorkingMemory workingMemory,
+                                                  ReteEvaluator reteEvaluator,
                                                   WorkingMemoryEntryPoint wmEntryPoint) {
         return newFactHandle( getNextId(),
                               object,
                               conf,
-                              workingMemory,
+                              reteEvaluator,
                               wmEntryPoint );
     }
 
-    /* (non-Javadoc)
-     * @see org.kie.reteoo.FactHandleFactory#newFactHandle(long)
-     */
     public final InternalFactHandle newFactHandle(long id,
                                                   Object object,
                                                   ObjectTypeConf conf,
-                                                  InternalWorkingMemory workingMemory,
+                                                  ReteEvaluator reteEvaluator,
                                                   WorkingMemoryEntryPoint wmEntryPoint) {
         return newFactHandle( id,
                               object,
                               getNextRecency(),
                               conf,
-                              workingMemory,
+                              reteEvaluator,
                               wmEntryPoint );
     }
 
-    /* (non-Javadoc)
-     * @see org.kie.reteoo.FactHandleFactory#newFactHandle(long)
-     */
-    public abstract InternalFactHandle newFactHandle(long id,
-                                                     Object object,
-                                                     long recency,
-                                                     ObjectTypeConf conf,
-                                                     InternalWorkingMemory workingMemory,
-                                                     WorkingMemoryEntryPoint wmEntryPoint );
+    public final InternalFactHandle newFactHandle( final long id,
+                                                   final Object object,
+                                                   final long recency,
+                                                   final ObjectTypeConf conf,
+                                                   final ReteEvaluator reteEvaluator,
+                                                   final WorkingMemoryEntryPoint wmEntryPoint ) {
+        WorkingMemoryEntryPoint entryPoint = getWmEntryPoint(reteEvaluator, wmEntryPoint);
+        return conf == null ?
+            createDefaultFactHandle(id, object, recency, entryPoint) :
+            conf.createFactHandle(this, id, object, recency, reteEvaluator, entryPoint);
+    }
+
+    @Override
+    public DefaultFactHandle createDefaultFactHandle(long id, Object object, long recency, WorkingMemoryEntryPoint entryPoint) {
+        return new DefaultFactHandle(id, object, recency, entryPoint);
+    }
+
+    @Override
+    public DefaultEventHandle createEventFactHandle(long id, Object object, long recency, WorkingMemoryEntryPoint entryPoint, long timestamp, long duration) {
+        return new DefaultEventHandle(id, object, recency, timestamp, duration, entryPoint);
+    }
+
+    protected WorkingMemoryEntryPoint getWmEntryPoint(ReteEvaluator reteEvaluator, WorkingMemoryEntryPoint wmEntryPoint) {
+        if (wmEntryPoint != null) {
+            return wmEntryPoint;
+        }
+        return reteEvaluator != null ? reteEvaluator.getDefaultEntryPoint() : null;
+    }
 
     public final void increaseFactHandleRecency(final InternalFactHandle factHandle) {
         factHandle.setRecency( getNextRecency() );
@@ -98,9 +110,6 @@ public abstract class AbstractFactHandleFactory
         factHandle.invalidate();
     }
 
-    /* (non-Javadoc)
-     * @see org.kie.reteoo.FactHandleFactory#newInstance()
-     */
     public abstract FactHandleFactory newInstance();
 
     public long getNextId() {
@@ -118,7 +127,7 @@ public abstract class AbstractFactHandleFactory
     public long getRecency() {
         return this.counter.get();
     }
-    
+
     public void clear(long id, long counter) {
         this.idGen = new IdsGenerator( id );
         this.counter = new AtomicLong( counter );
@@ -169,7 +178,7 @@ public abstract class AbstractFactHandleFactory
         }
 
         public void doRecycle(Collection<Long> usedIds) {
-            this.usedIds = usedIds.stream().sorted().collect( toCollection( LinkedList::new ) );
+            this.usedIds = usedIds.stream().sorted().collect( toCollection( ArrayDeque::new ) );
             this.usedIds.add( id.get()+1 );
             this.recycledId = 1;
         }

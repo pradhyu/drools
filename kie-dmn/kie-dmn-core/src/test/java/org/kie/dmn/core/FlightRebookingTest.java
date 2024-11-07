@@ -1,19 +1,21 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core;
 
 import java.math.BigDecimal;
@@ -23,7 +25,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.dmn.api.core.DMNContext;
 import org.kie.dmn.api.core.DMNDecisionResult;
 import org.kie.dmn.api.core.DMNModel;
@@ -32,22 +36,18 @@ import org.kie.dmn.api.core.DMNRuntime;
 import org.kie.dmn.core.api.DMNFactory;
 import org.kie.dmn.core.util.DMNRuntimeUtil;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class FlightRebookingTest extends BaseInterpretedVsCompiledTest {
-
-    public FlightRebookingTest(final boolean useExecModelCompiler ) {
-        super( useExecModelCompiler );
-    }
-
-    @Test
-    public void testSolution1() {
+    
+    @ParameterizedTest
+    @MethodSource("params")
+    void solution1(boolean useExecModelCompiler) {
+        init(useExecModelCompiler);
         final DMNRuntime runtime = DMNRuntimeUtil.createRuntime("0019-flight-rebooking.dmn", this.getClass() );
         final DMNModel dmnModel = runtime.getModel("https://www.drools.org/kie-dmn", "0019-flight-rebooking" );
-        assertThat( dmnModel, notNullValue() );
-        assertThat( DMNRuntimeUtil.formatMessages( dmnModel.getMessages() ), dmnModel.hasErrors(), is(false) ); // need proper type support to enable this
+        assertThat(dmnModel).isNotNull();
+        assertThat(dmnModel.hasErrors()).as(DMNRuntimeUtil.formatMessages(dmnModel.getMessages())).isFalse();// need proper type support to enable this
 
         final DMNContext context = DMNFactory.newContext();
 
@@ -61,15 +61,17 @@ public class FlightRebookingTest extends BaseInterpretedVsCompiledTest {
 
         final DMNContext result = dmnResult.getContext();
 
-        assertThat( result.get( "Rebooked Passengers" ), is( loadExpectedResult() ) );
+        assertThat(result.get( "Rebooked Passengers")).isEqualTo(loadExpectedResult());
     }
 
-    @Test
-    public void testSolutionAlternate() {
+    @ParameterizedTest
+    @MethodSource("params")
+    void solutionAlternate(boolean useExecModelCompiler) {
+        init(useExecModelCompiler);
         final DMNRuntime runtime = DMNRuntimeUtil.createRuntime("0019-flight-rebooking-alternative.dmn", this.getClass() );
         final DMNModel dmnModel = runtime.getModel("https://www.drools.org/kie-dmn", "0019-flight-rebooking" );
-        assertThat( dmnModel, notNullValue() );
-        assertThat( DMNRuntimeUtil.formatMessages( dmnModel.getMessages() ), dmnModel.hasErrors(), is(false) );
+        assertThat(dmnModel).isNotNull();
+        assertThat(dmnModel.hasErrors()).as(DMNRuntimeUtil.formatMessages(dmnModel.getMessages())).isFalse();
 
         final DMNContext context = DMNFactory.newContext();
 
@@ -83,15 +85,17 @@ public class FlightRebookingTest extends BaseInterpretedVsCompiledTest {
 
         final DMNContext result = dmnResult.getContext();
 
-        assertThat( result.get( "Rebooked Passengers" ), is( loadExpectedResult() ) );
+        assertThat(result.get( "Rebooked Passengers")).isEqualTo(loadExpectedResult());
     }
 
-    @Test
-    public void testSolutionSingletonLists() {
+    @ParameterizedTest
+    @MethodSource("params")
+    void solutionSingletonLists(boolean useExecModelCompiler) {
+        init(useExecModelCompiler);
         final DMNRuntime runtime = DMNRuntimeUtil.createRuntime("0019-flight-rebooking-singleton-lists.dmn", this.getClass() );
         final DMNModel dmnModel = runtime.getModel("https://www.drools.org/kie-dmn", "0019-flight-rebooking" );
-        assertThat( dmnModel, notNullValue() );
-        assertThat( DMNRuntimeUtil.formatMessages( dmnModel.getMessages() ), dmnModel.hasErrors(), is(false) );
+        assertThat(dmnModel).isNotNull();
+        assertThat(dmnModel.hasErrors()).as(DMNRuntimeUtil.formatMessages(dmnModel.getMessages())).isFalse();
         
         final DMNContext context = DMNFactory.newContext();
 
@@ -105,15 +109,17 @@ public class FlightRebookingTest extends BaseInterpretedVsCompiledTest {
 
         final DMNContext result = dmnResult.getContext();
 
-        assertThat( result.get( "Rebooked Passengers" ), is( loadExpectedResult() ) );
+        assertThat(result.get("Rebooked Passengers")).isEqualTo(loadExpectedResult());
     }
 
-    @Test
-    public void testSolutionBadExample() {
+    @ParameterizedTest
+    @MethodSource("params")
+    void solutionBadExample(boolean useExecModelCompiler) {
+        init(useExecModelCompiler);
         final DMNRuntime runtime = DMNRuntimeUtil.createRuntime("0019-flight-rebooking-bad-example.dmn", this.getClass() );
         final DMNModel dmnModel = runtime.getModel("https://www.drools.org/kie-dmn", "0019-flight-rebooking" );
-        assertThat( dmnModel, notNullValue() );
-        assertThat( DMNRuntimeUtil.formatMessages( dmnModel.getMessages() ), dmnModel.hasErrors(), is(false) );
+        assertThat(dmnModel).isNotNull();
+        assertThat(dmnModel.hasErrors()).as(DMNRuntimeUtil.formatMessages(dmnModel.getMessages())).isFalse();
 
         final DMNContext context = DMNFactory.newContext();
 
@@ -127,16 +133,18 @@ public class FlightRebookingTest extends BaseInterpretedVsCompiledTest {
 
         final DMNContext result = dmnResult.getContext();
 
-        assertThat( result.get( "Rebooked Passengers" ), is( loadExpectedResult() ) );
+        assertThat(result.get( "Rebooked Passengers")).isEqualTo(loadExpectedResult());
     }
 
-    @Test
-    public void testUninterpreted() {
+    @ParameterizedTest
+    @MethodSource("params")
+    void uninterpreted(boolean useExecModelCompiler) {
+        init(useExecModelCompiler);
         final DMNRuntime runtime = DMNRuntimeUtil.createRuntime("0019-flight-rebooking-uninterpreted.dmn", this.getClass() );
         final DMNModel dmnModel = runtime.getModel("http://www.trisotech.com/dmn/definitions/_188d6caf-a355-49b5-a692-bd6ce713da08", "0019-flight-rebooking" );
         runtime.addListener( DMNRuntimeUtil.createListener() );
-        assertThat( dmnModel, notNullValue() );
-        assertThat( DMNRuntimeUtil.formatMessages( dmnModel.getMessages() ), dmnModel.hasErrors(), is(false) );
+        assertThat(dmnModel).isNotNull();
+        assertThat(dmnModel.hasErrors()).as(DMNRuntimeUtil.formatMessages(dmnModel.getMessages())).isFalse();
 
         final DMNContext context = DMNFactory.newContext();
 
@@ -148,7 +156,7 @@ public class FlightRebookingTest extends BaseInterpretedVsCompiledTest {
 
         final DMNResult dmnResult = runtime.evaluateAll(dmnModel, context );
 
-        assertThat( dmnResult.getDecisionResultByName( "Rebooked Passengers" ).getEvaluationStatus(), is( DMNDecisionResult.DecisionEvaluationStatus.SKIPPED ) );
+        assertThat(dmnResult.getDecisionResultByName("Rebooked Passengers").getEvaluationStatus()).isEqualTo(DMNDecisionResult.DecisionEvaluationStatus.SKIPPED);
     }
 
     private List loadPassengerList() {

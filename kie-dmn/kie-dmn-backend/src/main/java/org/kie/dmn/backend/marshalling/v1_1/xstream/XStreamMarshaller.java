@@ -1,23 +1,23 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.backend.marshalling.v1_1.xstream;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
@@ -28,28 +28,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.XMLStreamWriter;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Source;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.sax.SAXSource;
-import javax.xml.transform.sax.SAXTransformerFactory;
-import javax.xml.transform.stream.StreamResult;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.xml.AbstractPullReader;
 import com.thoughtworks.xstream.io.xml.QNameMap;
 import com.thoughtworks.xstream.io.xml.StaxDriver;
 import com.thoughtworks.xstream.io.xml.StaxWriter;
+import com.thoughtworks.xstream.security.TypeHierarchyPermission;
 import org.kie.dmn.api.marshalling.DMNExtensionRegister;
-import org.kie.dmn.api.marshalling.v1_1.DMNMarshaller;
+import org.kie.dmn.api.marshalling.DMNMarshaller;
 import org.kie.dmn.backend.marshalling.CustomStaxReader;
 import org.kie.dmn.backend.marshalling.CustomStaxWriter;
+import org.kie.dmn.backend.marshalling.v1x.DMNXStream;
 import org.kie.dmn.model.api.DMNModelInstrumentedBase;
 import org.kie.dmn.model.api.Definitions;
 import org.kie.dmn.model.v1_1.KieDMNModelInstrumentedBase;
@@ -89,11 +83,9 @@ import org.kie.dmn.model.v1_1.TPerformanceIndicator;
 import org.kie.dmn.model.v1_1.TRelation;
 import org.kie.dmn.model.v1_1.TTextAnnotation;
 import org.kie.dmn.model.v1_1.TUnaryTests;
+import org.kie.utll.xml.XStreamUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.InputSource;
-
-import static org.kie.soup.commons.xstream.XStreamUtils.createTrustingXStream;
 
 public class XStreamMarshaller
         implements DMNMarshaller {
@@ -204,32 +196,14 @@ public class XStreamMarshaller
             OutputStreamWriter ows = new OutputStreamWriter(out, "UTF-8");
             xStream.toXML(o, ows);
         } catch ( Exception e ) {
-            e.printStackTrace();
+            logger.error("Exception", e);
         }
     }
     
-    /** 
-     * Unnecessary as the stax driver custom anon as static definition is embedding the indentation.
-     */
-    @Deprecated
-    public static String formatXml(String xml){
-        try{
-           TransformerFactory transformerFactory = SAXTransformerFactory.newInstance();
-           transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-           Transformer serializer = transformerFactory.newTransformer();
-           serializer.setOutputProperty(OutputKeys.INDENT, "yes");         
-           serializer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-           Source xmlSource=new SAXSource(new InputSource(new ByteArrayInputStream(xml.getBytes())));
-           StreamResult res =  new StreamResult(new ByteArrayOutputStream());            
-           serializer.transform(xmlSource, res);
-           return new String(((ByteArrayOutputStream)res.getOutputStream()).toByteArray());
-        }catch(Exception e){   
-           return xml;
-        }
-     }
-    
     private XStream newXStream() {
-        XStream xStream = createTrustingXStream( staxDriver, Definitions.class.getClassLoader() );
+        XStream xStream = XStreamUtils.createNonTrustingXStream(staxDriver, Definitions.class.getClassLoader(), DMNXStream::from);
+        xStream.addPermission(new TypeHierarchyPermission(QName.class));
+        xStream.addPermission(new TypeHierarchyPermission(KieDMNModelInstrumentedBase.class));
         
         xStream.alias("artifact", TArtifact.class);
         xStream.alias("definitions", TDefinitions.class);

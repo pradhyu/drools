@@ -1,25 +1,27 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.compiler.extensions;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
@@ -36,56 +38,50 @@ import org.kie.dmn.model.api.InputData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class DMNExtensionRegisterTest {
+class DMNExtensionRegisterTest {
     private static final Logger LOG = LoggerFactory.getLogger(DMNExtensionRegisterTest.class);
 
     @Test
-    public void testUsingSystemProperty() {
+    void usingSystemProperty() {
         try {
             System.setProperty("org.kie.dmn.profiles.FirstNameLastNameProfile", FirstNameLastNameProfile.class.getCanonicalName());
-            assertEquals(FirstNameLastNameProfile.class.getCanonicalName(), System.getProperty("org.kie.dmn.profiles.FirstNameLastNameProfile"));
+            assertThat(System.getProperty("org.kie.dmn.profiles.FirstNameLastNameProfile")).isEqualTo(FirstNameLastNameProfile.class.getCanonicalName());
             
             final DMNRuntime runtime = DMNRuntimeUtil.createRuntime("0001-input-data-string-with-extensions.dmn", this.getClass() );
             final DMNModel dmnModel = runtime.getModel("https://github.com/kiegroup/kie-dmn", "0001-input-data-string" );
-            assertThat( dmnModel, notNullValue() );
-            assertThat( formatMessages( dmnModel.getMessages() ), dmnModel.hasErrors(), is( false ) );
-            
-            assertEquals(3, dmnModel.getDefinitions().getDrgElement().size());
+            assertThat(dmnModel).isNotNull();
+            assertThat(dmnModel.hasErrors()).as(DMNRuntimeUtil.formatMessages(dmnModel.getMessages())).isFalse();
+
+            assertThat(dmnModel.getDefinitions().getDrgElement()).hasSize(3);
             
             final InputData inputData1 = (InputData) dmnModel.getDefinitions().getDrgElement().get(1);
-            assertEquals("First Name", inputData1.getName());
+            assertThat(inputData1.getName()).isEqualTo("First Name");
             final DMNElement.ExtensionElements id1elements = inputData1.getExtensionElements();
-            assertNotNull(id1elements);
-            assertEquals(1, id1elements.getAny().size());
+            assertThat(id1elements).isNotNull();
+            assertThat(id1elements.getAny()).hasSize(1);
             final FirstNameDescription firstNameDescription = (FirstNameDescription) id1elements.getAny().get(0);
-            assertEquals("First name in latin characters", firstNameDescription.getContent());
+            assertThat(firstNameDescription.getContent()).isEqualTo("First name in latin characters");
             
             final InputData inputData2 = (InputData) dmnModel.getDefinitions().getDrgElement().get(2);
-            assertEquals("Last Name", inputData2.getName());
+            assertThat(inputData2.getName()).isEqualTo("Last Name");
             final DMNElement.ExtensionElements id2elements = inputData2.getExtensionElements();
-            assertNotNull(id2elements);
-            assertEquals(1, id2elements.getAny().size());
+            assertThat(id2elements).isNotNull();
+            assertThat(id2elements.getAny()).hasSize(1);
             final LastNameDescription lastNameDescription = (LastNameDescription) id2elements.getAny().get(0);
-            assertEquals("Last name in latin characters", lastNameDescription.getContent());
+            assertThat(lastNameDescription.getContent()).isEqualTo("Last name in latin characters");
         } catch (final Exception e) {
             LOG.error("{}", e.getLocalizedMessage(), e);
             throw e;
         } finally {
             System.clearProperty("org.kie.dmn.profiles.FirstNameLastNameProfile");
-            assertNull(System.getProperty("org.kie.dmn.profiles.FirstNameLastNameProfile"));
+            assertThat(System.getProperty("org.kie.dmn.profiles.FirstNameLastNameProfile")).isNull();
         }
     }
 
     @Test
-    public void testUsingKModuleProperty() {
+    void usingKModuleProperty() {
         final KieServices ks = KieServices.Factory.get();
         final KieFileSystem kfs = ks.newKieFileSystem();
         
@@ -101,36 +97,36 @@ public class DMNExtensionRegisterTest {
         
         LOG.info("buildAll() completed.");
         results.getMessages(Level.WARNING).forEach( e -> LOG.warn("{}", e));
-        assertEquals(0, results.getMessages(Level.WARNING).size());
+        assertThat(results.getMessages(Level.WARNING)).hasSize(0);
 
         final KieContainer kieContainer = ks.newKieContainer(ks.getRepository().getDefaultReleaseId());
         
         final DMNRuntime runtime = kieContainer.newKieSession().getKieRuntime(DMNRuntime.class);
         final DMNModel dmnModel = runtime.getModel("https://github.com/kiegroup/kie-dmn", "0001-input-data-string" );
-        assertThat( dmnModel, notNullValue() );
-        assertThat( formatMessages( dmnModel.getMessages() ), dmnModel.hasErrors(), is( false ) );
-        
-        assertEquals(3, dmnModel.getDefinitions().getDrgElement().size());
+        assertThat(dmnModel).isNotNull();
+        assertThat(dmnModel.hasErrors()).as(DMNRuntimeUtil.formatMessages(dmnModel.getMessages())).isFalse();
+
+        assertThat(dmnModel.getDefinitions().getDrgElement()).hasSize(3);
         
         final InputData inputData1 = (InputData) dmnModel.getDefinitions().getDrgElement().get(1);
-        assertEquals("First Name", inputData1.getName());
+        assertThat(inputData1.getName()).isEqualTo("First Name");
         final DMNElement.ExtensionElements id1elements = inputData1.getExtensionElements();
-        assertNotNull(id1elements);
-        assertEquals(1, id1elements.getAny().size());
+        assertThat(id1elements).isNotNull();
+        assertThat(id1elements.getAny()).hasSize(1);
         final FirstNameDescription firstNameDescription = (FirstNameDescription) id1elements.getAny().get(0);
-        assertEquals("First name in latin characters", firstNameDescription.getContent());
+        assertThat(firstNameDescription.getContent()).isEqualTo("First name in latin characters");
         
         final InputData inputData2 = (InputData) dmnModel.getDefinitions().getDrgElement().get(2);
-        assertEquals("Last Name", inputData2.getName());
+        assertThat(inputData2.getName()).isEqualTo("Last Name");
         final DMNElement.ExtensionElements id2elements = inputData2.getExtensionElements();
-        assertNotNull(id2elements);
-        assertEquals(1, id2elements.getAny().size());
+        assertThat(id2elements).isNotNull();
+        assertThat(id2elements.getAny()).hasSize(1);
         final LastNameDescription lastNameDescription = (LastNameDescription) id2elements.getAny().get(0);
-        assertEquals("Last name in latin characters", lastNameDescription.getContent());
+        assertThat(lastNameDescription.getContent()).isEqualTo("Last name in latin characters");
     }
 
     @Test
-    public void testUsingKModuleProperty_WrongClasses() {
+    void usingKModulePropertyWrongClasses() {
         final KieServices ks = KieServices.Factory.get();
         final KieFileSystem kfs = ks.newKieFileSystem();
         
@@ -146,27 +142,27 @@ public class DMNExtensionRegisterTest {
         
         LOG.info("buildAll() completed.");
         results.getMessages(Level.WARNING).forEach( e -> LOG.warn("{}", e));
-        assertTrue( results.getMessages(Level.WARNING).size() > 0 );
+        assertThat(results.getMessages(Level.WARNING)).hasSizeGreaterThan(0);
 
         final KieContainer kieContainer = ks.newKieContainer(ks.getRepository().getDefaultReleaseId());
         
         final DMNRuntime runtime = kieContainer.newKieSession().getKieRuntime(DMNRuntime.class);
         final DMNModel dmnModel = runtime.getModel("https://github.com/kiegroup/kie-dmn", "0001-input-data-string" );
-        assertThat( dmnModel, notNullValue() );
-        assertThat( formatMessages( dmnModel.getMessages() ), dmnModel.hasErrors(), is( false ) );
-        
-        assertEquals(3, dmnModel.getDefinitions().getDrgElement().size());
+        assertThat(dmnModel).isNotNull();
+        assertThat(dmnModel.hasErrors()).as(DMNRuntimeUtil.formatMessages(dmnModel.getMessages())).isFalse();
+
+        assertThat(dmnModel.getDefinitions().getDrgElement()).hasSize(3);
         final InputData inputData1 = (InputData) dmnModel.getDefinitions().getDrgElement().get(1);
-        assertEquals("First Name", inputData1.getName());
+        assertThat(inputData1.getName()).isEqualTo("First Name");
         final DMNElement.ExtensionElements id1elements = inputData1.getExtensionElements();
-        assertNotNull(id1elements);
-        assertEquals(0, id1elements.getAny().size());
+        assertThat(id1elements).isNotNull();
+        assertThat(id1elements.getAny()).hasSize(0);
         
         final InputData inputData2 = (InputData) dmnModel.getDefinitions().getDrgElement().get(2);
-        assertEquals("Last Name", inputData2.getName());
+        assertThat(inputData2.getName()).isEqualTo("Last Name");
         final DMNElement.ExtensionElements id2elements = inputData2.getExtensionElements();
-        assertNotNull(id2elements);
-        assertEquals(0, id2elements.getAny().size());
+        assertThat(id2elements).isNotNull();
+        assertThat(id2elements.getAny()).hasSize(0);
     }
 
     private String formatMessages(final List<DMNMessage> messages) {

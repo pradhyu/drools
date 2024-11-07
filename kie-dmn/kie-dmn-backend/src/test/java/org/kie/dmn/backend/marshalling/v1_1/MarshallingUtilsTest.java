@@ -1,35 +1,36 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.backend.marshalling.v1_1;
 
 import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.kie.dmn.backend.marshalling.v1_1.xstream.MarshallingUtils;
 import org.kie.dmn.model.api.DMNModelInstrumentedBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 
-public class MarshallingUtilsTest {
+class MarshallingUtilsTest {
 
     protected static final Logger logger = LoggerFactory.getLogger(MarshallingUtilsTest.class);
 
@@ -50,46 +51,46 @@ public class MarshallingUtilsTest {
      */
     private void checkAndRoundTrip(QName qname, String formatQName) {
         String formatted = MarshallingUtils.formatQName(qname);
-        assertThat(formatted, is(formatQName));
+        assertThat(formatted).isEqualTo(formatQName);
 
         QName roundTrip = MarshallingUtils.parseQNameString(formatted);
-        assertThat(roundTrip.getLocalPart(), is(qname.getLocalPart()));
+        assertThat(roundTrip.getLocalPart()).isEqualTo(qname.getLocalPart());
 
         if (roundTrip.getPrefix() != XMLConstants.DEFAULT_NS_PREFIX) {
-            assertThat(roundTrip.getPrefix(), is(qname.getPrefix()));
+            assertThat(roundTrip.getPrefix()).isEqualTo(qname.getPrefix());
         }
 
         if (roundTrip.getNamespaceURI() != XMLConstants.NULL_NS_URI) {
-            assertThat(roundTrip.getNamespaceURI(), is(qname.getNamespaceURI()));
+            assertThat(roundTrip.getNamespaceURI()).isEqualTo(qname.getNamespaceURI());
         }
     }
 
-    @Test 
-    public void testLocal() throws Exception {
+    @Test
+    void local() throws Exception {
         QName qname = new QName("local1");
         checkAndRoundTrip(qname, "local1");
     }
 
     @Test
-    public void testPrefixLocal() throws Exception {
+    void prefixLocal() throws Exception {
         QName qname = new QName(XMLConstants.NULL_NS_URI, "local2", "prefix");
         checkAndRoundTrip(qname, "prefix:local2");
     }
 
     @Test
-    public void testNamespaceLocal() throws Exception {
+    void namespaceLocal() throws Exception {
         QName qname = new QName("http://namespace", "local3");
         checkAndRoundTrip(qname, "{http://namespace}local3");
     }
 
     @Test
-    public void testNamespaceLocal_b() throws Exception {
+    void namespaceLocalB() throws Exception {
         QName qname = new QName("http://namespace", "local3", XMLConstants.DEFAULT_NS_PREFIX);
         checkAndRoundTrip(qname, "{http://namespace}local3");
     }
 
     @Test
-    public void testNamespacePrefixLocal() throws Exception {
+    void namespacePrefixLocal() throws Exception {
         QName qname = new QName("http://namespace", "local4", "prefix");
         checkAndRoundTrip(qname, "prefix:local4");
     }

@@ -1,32 +1,22 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.benchmark.waltzdb;
-
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseFactory;
-import org.drools.core.util.IoUtils;
-import org.kie.api.KieBaseConfiguration;
-import org.kie.api.definition.KiePackage;
-import org.kie.internal.builder.KnowledgeBuilder;
-import org.kie.internal.builder.KnowledgeBuilderFactory;
-import org.kie.internal.io.ResourceFactory;
-import org.kie.internal.runtime.StatefulKnowledgeSession;
-import org.kie.api.io.ResourceType;
-import org.kie.api.runtime.KieSession;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -36,6 +26,18 @@ import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
+import org.drools.core.impl.RuleBaseFactory;
+import org.drools.util.IoUtils;
+import org.drools.kiesession.rulebase.KnowledgeBaseFactory;
+import org.kie.api.KieBaseConfiguration;
+import org.kie.api.definition.KiePackage;
+import org.kie.api.io.ResourceType;
+import org.kie.api.runtime.KieSession;
+import org.kie.internal.builder.KnowledgeBuilder;
+import org.kie.internal.builder.KnowledgeBuilderFactory;
+import org.kie.internal.io.ResourceFactory;
 
 /**
  * This example is incomplete, it run's, but is no way near correct.
@@ -48,11 +50,11 @@ public class WaltzDbBenchmark {
                               ResourceType.DRL );
         Collection<KiePackage> pkgs = kbuilder.getKnowledgePackages();
 
-        KieBaseConfiguration kbaseConfiguration = KnowledgeBaseFactory.newKnowledgeBaseConfiguration();
+        KieBaseConfiguration kbaseConfiguration = RuleBaseFactory.newKnowledgeBaseConfiguration();
         kbaseConfiguration.setProperty( "drools.removeIdentities",
                                         "true" );
 
-        final InternalKnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase( kbaseConfiguration );
+        final InternalKnowledgeBase kbase = KnowledgeBaseFactory.newKnowledgeBase(kbaseConfiguration);
         //                final RuleBase ruleBase = RuleBaseFactory.newRuleBase( RuleBase.RETEOO,
         //                                                               conf );
 
@@ -81,7 +83,7 @@ public class WaltzDbBenchmark {
     }
 
     private static List<Line> loadLines(String filename) {
-        List<Line> result = new ArrayList<Line>();
+        List<Line> result = new ArrayList<>();
         try {
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader( WaltzDbBenchmark.class.getResourceAsStream( "data/" + filename ),
@@ -105,7 +107,7 @@ public class WaltzDbBenchmark {
     }
 
     private static List<Label> loadLabels(String filename) {
-        List<Label> result = new ArrayList<Label>();
+        List<Label> result = new ArrayList<>();
         try {
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader( WaltzDbBenchmark.class.getResourceAsStream( "data/" + filename ),

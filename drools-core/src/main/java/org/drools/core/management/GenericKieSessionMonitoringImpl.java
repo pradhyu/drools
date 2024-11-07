@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.management;
 
 import java.util.Collections;
@@ -46,7 +48,7 @@ public abstract class GenericKieSessionMonitoringImpl implements GenericKieSessi
 
     private static final long NANO_TO_MILLISEC = 1000000;
     
-    protected List<KieRuntimeEventManager> ksessions = new CopyOnWriteArrayList<KieRuntimeEventManager>();
+    protected List<KieRuntimeEventManager> ksessions = new CopyOnWriteArrayList<>();
 
     public AgendaStats agendaStats;
     public ProcessStats processStats;
@@ -158,7 +160,7 @@ public abstract class GenericKieSessionMonitoringImpl implements GenericKieSessi
     public static class AgendaStats implements org.kie.api.event.rule.AgendaEventListener {
         
         private AgendaStatsData consolidated = new AgendaStatsData();
-        private ConcurrentHashMap<String, AgendaStatsData> ruleStats = new ConcurrentHashMap<String, AgendaStatsData>();
+        private ConcurrentHashMap<String, AgendaStatsData> ruleStats = new ConcurrentHashMap<>();
 
         public AgendaStats() {
         }
@@ -238,7 +240,7 @@ public abstract class GenericKieSessionMonitoringImpl implements GenericKieSessi
                 this.matchesCreated = new AtomicLong(0);
                 this.matchesCancelled = new AtomicLong(0);
                 this.firingTime = new AtomicLong(0);
-                this.lastReset = new AtomicReference<Date>(new Date());
+                this.lastReset = new AtomicReference<>(new Date());
             }
             
             @Override
@@ -305,7 +307,7 @@ public abstract class GenericKieSessionMonitoringImpl implements GenericKieSessi
     public static class ProcessStats implements org.kie.api.event.process.ProcessEventListener {
         
         private GlobalProcessStatsData consolidated = new GlobalProcessStatsData();
-        private ConcurrentHashMap<String, ProcessStatsData> processStats = new ConcurrentHashMap<String, ProcessStatsData>();
+        private ConcurrentHashMap<String, ProcessStatsData> processStats = new ConcurrentHashMap<>();
 
         public GlobalProcessStatsData getConsolidatedStats() {
             return this.consolidated;
@@ -389,7 +391,7 @@ public abstract class GenericKieSessionMonitoringImpl implements GenericKieSessi
             public GlobalProcessStatsData() {
                 this.processInstancesStarted = new AtomicLong(0);
                 this.processInstancesCompleted = new AtomicLong(0);
-                this.lastReset = new AtomicReference<Date>(new Date());
+                this.lastReset = new AtomicReference<>(new Date());
             }
             
             @Override

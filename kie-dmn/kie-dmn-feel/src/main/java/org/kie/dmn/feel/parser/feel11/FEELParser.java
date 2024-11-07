@@ -1,19 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.feel.parser.feel11;
 
 import java.util.ArrayList;
@@ -44,7 +46,6 @@ import org.kie.dmn.feel.lang.FEELProfile;
 import org.kie.dmn.feel.lang.Scope;
 import org.kie.dmn.feel.lang.Type;
 import org.kie.dmn.feel.lang.impl.FEELEventListenersManager;
-import org.kie.dmn.feel.lang.types.BuiltInTypeSymbol;
 import org.kie.dmn.feel.lang.types.FEELTypeRegistry;
 import org.kie.dmn.feel.runtime.FEELFunction;
 import org.kie.dmn.feel.runtime.events.SyntaxErrorEvent;
@@ -94,11 +95,15 @@ public class FEELParser {
         return isVariableNameValid(namePart);
     }
 
+    public static boolean isVariableNameEmpty( String source ) {
+        return checkVariableNameEmpty( source ).isEmpty();
+    }
+
     public static boolean isVariableNameValid( String source ) {
         return checkVariableName( source ).isEmpty();
     }
 
-    public static List<FEELEvent> checkVariableName( String source ) {
+    public static List<FEELEvent> checkVariableNameEmpty( String source ) {
         if( source == null || source.isEmpty() ) {
             return Collections.singletonList( new SyntaxErrorEvent( FEELEvent.Severity.ERROR,
                                                                     Msg.createMessage( Msg.INVALID_VARIABLE_NAME_EMPTY ),
@@ -106,6 +111,15 @@ public class FEELParser {
                                                                     0,
                                                                     0,
                                                                     null ) );
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    public static List<FEELEvent> checkVariableName( String source ) {
+        if( source == null || source.isEmpty() ) {
+            // We check validity of empty name with checkVariableNameEmpty
+            return Collections.emptyList();
         }
         CharStream input = CharStreams.fromString(source);
         FEEL_1_1Lexer lexer = new FEEL_1_1Lexer( input );
@@ -119,8 +133,8 @@ public class FEELParser {
         FEEL_1_1Parser.NameDefinitionWithEOFContext nameDef = parser.nameDefinitionWithEOF(); // be sure to align below parser.getRuleInvocationStack().contains("nameDefinition...
 
         if( ! errorChecker.hasErrors() &&
-            nameDef != null &&
-            source.trim().equals( parser.getHelper().getOriginalText( nameDef ) ) ) {
+                nameDef != null &&
+                source.trim().equals( parser.getHelper().getOriginalText( nameDef ) ) ) {
             return Collections.emptyList();
         }
         return errorChecker.getErrors();
@@ -129,9 +143,6 @@ public class FEELParser {
     public static void defineVariables(Map<String, Type> inputVariableTypes, Map<String, Object> inputVariables, FEEL_1_1Parser parser) {
         inputVariableTypes.forEach( (name, type) -> {
             parser.getHelper().defineVariable( name, type );
-            if (type.getName() != null) {
-                parser.getHelper().getSymbolTable().getGlobalScope().define(new BuiltInTypeSymbol(type.getName(), type));
-            }
         } );
         
         inputVariables.forEach( (name, value) -> {

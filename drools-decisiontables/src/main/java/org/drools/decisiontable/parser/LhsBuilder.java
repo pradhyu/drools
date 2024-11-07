@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.decisiontable.parser;
 
 import java.util.ArrayList;
@@ -52,8 +55,10 @@ public class LhsBuilder implements SourceBuilder {
 
     private static Set<String> operators;
 
+    private static Set<String> annotations;
+
     static {
-        operators = new HashSet<String>();
+        operators = new HashSet<>();
         operators.add( "==" );
         operators.add( "=" );
         operators.add( "!=" );
@@ -67,6 +72,9 @@ public class LhsBuilder implements SourceBuilder {
         operators.add( "str[startsWith]" );
         operators.add( "str[endsWith]" );
         operators.add( "str[length]" );
+
+        annotations = new HashSet<>();
+        annotations.add( "@watch" );
     }
 
     private static final Pattern patParFrm = Pattern.compile( "\\(\\s*\\)\\s*from\\b" );
@@ -84,12 +92,19 @@ public class LhsBuilder implements SourceBuilder {
                        String colDefinition ) {
         this.headerRow = row;
         this.headerCol = column;
-        this.constraints = new HashMap<Integer, String>();
+        this.constraints = new HashMap<>();
         this.fieldTypes = new HashMap<>();
-        this.values = new ArrayList<String>();
+        this.values = new ArrayList<>();
         this.forAll = false;
 
         String colDef = colDefinition == null ? "" : colDefinition;
+        String annDef = "";
+        int annPos = findFirstAnnotationPos(colDef);
+        if (annPos > 0) {
+            annDef = " " + colDef.substring( annPos );
+            colDef = colDef.substring( 0, annPos ).trim();
+        }
+
         if ( "".equals( colDef ) ) {
             colDefPrefix = colDefSuffix = "";
             multiple = false;
@@ -112,7 +127,7 @@ public class LhsBuilder implements SourceBuilder {
         Matcher matParFrm = patParFrm.matcher( colDef );
         if ( matParFrm.find() ) {
             colDefPrefix = colDef.substring( 0, matParFrm.start() ) + '(';
-            colDefSuffix = ") from" + colDef.substring( matParFrm.end() );
+            colDefSuffix = ") from" + colDef.substring( matParFrm.end() ) + annDef;
             return;
         }
 
@@ -120,7 +135,7 @@ public class LhsBuilder implements SourceBuilder {
         Matcher matFrm = patFrm.matcher( colDef );
         if ( matFrm.find() ) {
             colDefPrefix = colDef.substring( 0, matFrm.start() ) + "(";
-            colDefSuffix = ") from " + colDef.substring( matFrm.end() );
+            colDefSuffix = ") from " + colDef.substring( matFrm.end() ) + annDef;
             return;
         }
 
@@ -128,19 +143,35 @@ public class LhsBuilder implements SourceBuilder {
         Matcher matPar = patPar.matcher( colDef );
         if ( matPar.find() ) {
             colDefPrefix = colDef.substring( 0, matPar.start() ) + '(';
-            colDefSuffix = ")" + colDef.substring( matPar.end() );
+            colDefSuffix = ")" + colDef.substring( matPar.end() ) + annDef;
             return;
         }
 
         if ( patOopath.matcher( colDef ).matches() ) {
             colDefPrefix = colDef + '[';
-            colDefSuffix = "]";
+            colDefSuffix = "]" + annDef;
             return;
         }
 
         // <a>
-        colDefPrefix = colDef + '(';
-        colDefSuffix = ")";
+        if (colDef.endsWith( ")" )) {
+            colDefPrefix = colDef;
+            colDefSuffix = annDef;
+        } else {
+            colDefPrefix = colDef + '(';
+            colDefSuffix = ")" + annDef;
+        }
+    }
+
+    private int findFirstAnnotationPos(String colDef) {
+        int pos = -1;
+        for (String annotation : annotations) {
+            int annPos = colDef.indexOf( annotation );
+            if (annPos > 0) {
+                pos = pos < 0 ? annPos : Math.min( pos, annPos );
+            }
+        }
+        return pos;
     }
 
     public ActionType.Code getActionTypeCode() {
@@ -161,24 +192,28 @@ public class LhsBuilder implements SourceBuilder {
         //we can wrap all values in quotes, it all works
         final FieldType fieldType = calcFieldType( content );
         if ( !isMultipleConstraints() ) {
-            constraints.put( column,
-                             content );
-        } else if ( fieldType == FieldType.FORALL_FIELD ) {
-            forAll = true;
-            constraints.put( column,
-                             content );
-        } else if ( fieldType == FieldType.NORMAL_FIELD ) {
-            constraints.put( column,
-                             content );
-        } else if ( fieldType == FieldType.SINGLE_FIELD ) {
-            constraints.put( column,
-                             content + " == \"" + SnippetBuilder.PARAM_STRING + "\"" );
-        } else if ( fieldType == FieldType.OPERATOR_FIELD ) {
-            constraints.put( column,
-                             content + " \"" + SnippetBuilder.PARAM_STRING + "\"" );
+            constraints.put( column, content );
+        } else {
+            switch (fieldType) {
+                case FORALL_FIELD:
+                    forAll = true;
+                    constraints.put( column, content );
+                    break;
+                case NORMAL_FIELD:
+                    constraints.put( column, content );
+                    break;
+                case SINGLE_FIELD:
+                    constraints.put( column, content + " == \"" + SnippetBuilder.PARAM_STRING + "\"" );
+                    break;
+                case OPERATOR_FIELD:
+                    constraints.put( column, content + " \"" + SnippetBuilder.PARAM_STRING + "\"" );
+                    break;
+                case QUESTION_FIELD:
+                    constraints.put( column, content.substring( 0, content.length()-1 ) );
+                    break;
+            }
         }
-        this.fieldTypes.put( column,
-                             fieldType );
+        this.fieldTypes.put( column, fieldType );
     }
 
     public void clearValues() {
@@ -192,15 +227,17 @@ public class LhsBuilder implements SourceBuilder {
 
     public void addCellValue( int row, int column, String value, boolean trim) {
         this.hasValues = true;
-        Integer key = new Integer( column );
+        if (this.constraints.isEmpty()) {
+            return;
+        }
+        Integer key = Integer.valueOf( column );
         String content = this.constraints.get( key );
         if ( content == null ) {
             throw new DecisionTableParseException( "No code snippet for CONDITION in cell " +
                                                            RuleSheetParserUtil.rc2name( this.headerRow + 2, this.headerCol ) );
         }
         SnippetBuilder snip = new SnippetBuilder( content, trim );
-        String result = snip.build( fixValue( column,
-                                              value ) );
+        String result = snip.build( fixValue( column, value ) );
         this.values.add( result );
     }
 
@@ -227,7 +264,7 @@ public class LhsBuilder implements SourceBuilder {
     }
 
     public String getResult() {
-        StringBuffer buf = new StringBuffer();
+        StringBuilder buf = new StringBuilder();
         if ( !isMultipleConstraints() ) {
             String nl = "";
             for ( String content : values ) {
@@ -278,10 +315,9 @@ public class LhsBuilder implements SourceBuilder {
      */
     public FieldType calcFieldType( String content ) {
         final SnippetBuilder.SnippetType snippetType = SnippetBuilder.getType( content );
-        if ( snippetType.equals( SnippetBuilder.SnippetType.FORALL ) ) {
+        if ( snippetType == SnippetBuilder.SnippetType.FORALL ) {
             return FieldType.FORALL_FIELD;
-        } else if ( !snippetType.equals(
-                SnippetBuilder.SnippetType.SINGLE ) ) {
+        } else if ( snippetType != SnippetBuilder.SnippetType.SINGLE ) {
             return FieldType.NORMAL_FIELD;
         }
         for ( String op : operators ) {
@@ -289,24 +325,11 @@ public class LhsBuilder implements SourceBuilder {
                 return FieldType.OPERATOR_FIELD;
             }
         }
-        return FieldType.SINGLE_FIELD;
+        return content.endsWith( "?" ) ? FieldType.QUESTION_FIELD : FieldType.SINGLE_FIELD;
     }
 
-    static class FieldType {
-
-        //This is only used to aid debugging
-        @SuppressWarnings("unused")
-        private String fieldType;
-
-        private FieldType( final String fieldType ) {
-            this.fieldType = fieldType;
-        }
-
-        public static final FieldType SINGLE_FIELD = new FieldType( "single" );
-        public static final FieldType OPERATOR_FIELD = new FieldType( "operator" );
-        public static final FieldType NORMAL_FIELD = new FieldType( "normal" );
-        public static final FieldType FORALL_FIELD = new FieldType( "forall" );
-
+    enum FieldType {
+        SINGLE_FIELD, OPERATOR_FIELD, NORMAL_FIELD, QUESTION_FIELD, FORALL_FIELD;
     }
 
     public boolean hasValues() {

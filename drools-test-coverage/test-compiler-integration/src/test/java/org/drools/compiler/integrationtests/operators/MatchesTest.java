@@ -1,56 +1,50 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.operators;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.drools.testcoverage.common.model.Cheese;
 import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.runtime.KieSession;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class MatchesTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public MatchesTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test
-    public void testMatchesMVEL() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMatchesMVEL(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import java.util.Map;\n" +
@@ -76,7 +70,7 @@ public class MatchesTest {
 
             session.fireAllRules();
 
-            assertEquals(1, results.size());
+            assertThat(results.size()).isEqualTo(1);
         } finally {
             session.dispose();
         }
@@ -105,8 +99,9 @@ public class MatchesTest {
                 "end";
     }
 
-    @Test
-    public void testMatchesMVEL2() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMatchesMVEL2(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("matches-test",
                                                                          kieBaseTestConfiguration,
                                                                          getMatchesDRL());
@@ -117,14 +112,15 @@ public class MatchesTest {
             ksession.insert(map);
             final int fired = ksession.fireAllRules();
 
-            assertEquals(2, fired);
+            assertThat(fired).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testMatchesMVEL3() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMatchesMVEL3(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("matches-test",
                                                                          kieBaseTestConfiguration,
                                                                          getMatchesDRL());
@@ -135,14 +131,15 @@ public class MatchesTest {
             ksession.insert(map);
             final int fired = ksession.fireAllRules();
 
-            assertEquals(1, fired);
+            assertThat(fired).isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testMatchesNotMatchesCheese() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testMatchesNotMatchesCheese(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -209,30 +206,32 @@ public class MatchesTest {
 
             ksession.fireAllRules();
 
-            assertEquals(4, list.size());
+            assertThat(list.size()).isEqualTo(4);
 
-            assertEquals(stilton, list.get(0));
-            assertEquals(brie, list.get(1));
-            assertEquals(agedStilton, list.get(2));
-            assertEquals(provolone, list.get(3));
+            assertThat(list.get(0)).isEqualTo(stilton);
+            assertThat(list.get(1)).isEqualTo(brie);
+            assertThat(list.get(2)).isEqualTo(agedStilton);
+            assertThat(list.get(3)).isEqualTo(provolone);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testNotMatchesSucceeds() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNotMatchesSucceeds(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-2914: Rule misfires due to "not matches" not working
-        testMatchesSuccessFail("-..x..xrwx", 0);
+        testMatchesSuccessFail(kieBaseTestConfiguration, "-..x..xrwx", 0);
     }
 
-    @Test
-    public void testNotMatchesFails() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testNotMatchesFails(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-2914: Rule misfires due to "not matches" not working
-        testMatchesSuccessFail("d..x..xrwx", 1);
+        testMatchesSuccessFail(kieBaseTestConfiguration, "d..x..xrwx", 1);
     }
 
-    private void testMatchesSuccessFail(final String personName, final int expectedFireCount) {
+    private void testMatchesSuccessFail(KieBaseTestConfiguration kieBaseTestConfiguration, final String personName, final int expectedFireCount) {
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
                 "rule NotMatches\n" +
@@ -250,7 +249,7 @@ public class MatchesTest {
             ksession.insert(p);
 
             final int rules = ksession.fireAllRules();
-            assertEquals(expectedFireCount, rules);
+            assertThat(rules).isEqualTo(expectedFireCount);
         } finally {
             ksession.dispose();
         }

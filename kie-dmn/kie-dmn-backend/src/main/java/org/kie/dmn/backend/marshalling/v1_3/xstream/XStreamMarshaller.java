@@ -1,19 +1,21 @@
-/*
- * Copyright 2019 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.backend.marshalling.v1_3.xstream;
 
 import java.io.Reader;
@@ -23,7 +25,6 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -34,10 +35,12 @@ import com.thoughtworks.xstream.io.xml.AbstractPullReader;
 import com.thoughtworks.xstream.io.xml.QNameMap;
 import com.thoughtworks.xstream.io.xml.StaxDriver;
 import com.thoughtworks.xstream.io.xml.StaxWriter;
+import com.thoughtworks.xstream.security.TypeHierarchyPermission;
 import org.kie.dmn.api.marshalling.DMNExtensionRegister;
 import org.kie.dmn.api.marshalling.DMNMarshaller;
 import org.kie.dmn.backend.marshalling.CustomStaxReader;
 import org.kie.dmn.backend.marshalling.CustomStaxWriter;
+import org.kie.dmn.backend.marshalling.v1x.DMNXStream;
 import org.kie.dmn.model.api.DMNModelInstrumentedBase;
 import org.kie.dmn.model.api.Definitions;
 import org.kie.dmn.model.v1_3.KieDMNModelInstrumentedBase;
@@ -93,10 +96,9 @@ import org.kie.dmn.model.v1_3.dmndi.DMNStyle;
 import org.kie.dmn.model.v1_3.dmndi.DiagramElement;
 import org.kie.dmn.model.v1_3.dmndi.Dimension;
 import org.kie.dmn.model.v1_3.dmndi.Point;
+import org.kie.utll.xml.XStreamUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.kie.soup.commons.xstream.XStreamUtils.createTrustingXStream;
 
 public class XStreamMarshaller
         implements DMNMarshaller {
@@ -190,7 +192,9 @@ public class XStreamMarshaller
     }
 
     private XStream newXStream() {
-        XStream xStream = createTrustingXStream( staxDriver, Definitions.class.getClassLoader() );
+        XStream xStream = XStreamUtils.createNonTrustingXStream(staxDriver, Definitions.class.getClassLoader(), DMNXStream::from);
+        xStream.addPermission(new TypeHierarchyPermission(QName.class));
+        xStream.addPermission(new TypeHierarchyPermission(KieDMNModelInstrumentedBase.class));
         
         xStream.alias("artifact", TArtifact.class);
         xStream.alias("definitions", TDefinitions.class);
@@ -365,12 +369,12 @@ public class XStreamMarshaller
         xStream.registerConverter(new ExtensionElementsConverter( xStream, extensionRegisters ) );
         xStream.registerConverter(new DiagramElementExtensionConverter(xStream, extensionRegisters));
         
-        xStream.ignoreUnknownElements();
 
         for(DMNExtensionRegister extensionRegister : extensionRegisters) {
             extensionRegister.registerExtensionConverters(xStream);
         }
 
+        xStream.ignoreUnknownElements();
         return xStream;
     }
 

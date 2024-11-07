@@ -1,18 +1,38 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.compiler.rule.builder.util;
 
-import org.drools.compiler.lang.descr.BaseDescr;
-import org.drools.compiler.lang.descr.OperatorDescr;
-import org.drools.compiler.lang.descr.RelationalExprDescr;
-import org.drools.core.base.ClassObjectType;
-import org.drools.core.rule.Pattern;
-import org.drools.core.util.index.IndexUtil;
-import org.mvel2.util.PropertyTools;
+import org.drools.base.base.ClassObjectType;
+import org.drools.base.base.ObjectType;
+import org.drools.base.rule.Pattern;
+import org.drools.base.util.index.ConstraintTypeOperator;
+import org.drools.drl.ast.descr.BaseDescr;
+import org.drools.drl.ast.descr.OperatorDescr;
+import org.drools.drl.ast.descr.RelationalExprDescr;
+
+import static org.drools.util.Config.getConfig;
 
 public class ConstraintUtil {
 
     public static final String DROOLS_NORMALIZE_CONSTRAINT = "drools.normalize.constraint";
 
-    private static final boolean ENABLE_NORMALIZE = Boolean.parseBoolean(System.getProperty(DROOLS_NORMALIZE_CONSTRAINT, "true"));
+    static boolean ENABLE_NORMALIZE = Boolean.parseBoolean(getConfig(DROOLS_NORMALIZE_CONSTRAINT, "true"));
 
     private ConstraintUtil() {}
 
@@ -31,16 +51,15 @@ public class ConstraintUtil {
         if (!ENABLE_NORMALIZE) {
             return expression;
         }
-        Class<?> clazz = pattern.getObjectType().getClassType();
 
         String leftProp = getFirstProp(leftValue);
         String rightProp = getFirstProp(rightValue);
 
         OperatorDescr operatorDescr = relDescr.getOperatorDescr();
 
-        if (canInverse(pattern, operator, operatorDescr, leftProp, rightProp) && isPropertyOnRight(clazz, leftProp, rightProp)) {
+        if (canInverse(pattern, operator, operatorDescr, leftProp, rightProp) && isPropertyOnRight(pattern.getObjectType(), leftProp, rightProp)) {
             boolean negate = false;
-            if (isNagatedExpression(expression, leftValue, rightValue, operator)) {
+            if ( isNegatedExpression(expression, leftValue, rightValue, operator)) {
                 if (relDescr.getOperatorDescr().isNegated()) {
                     negate = true;
                 } else {
@@ -53,12 +72,11 @@ public class ConstraintUtil {
             relDescr.setLeft(relDescr.getRight());
             relDescr.setRight(left);
 
-            String inversedOperator = IndexUtil.ConstraintType.decode(operator).inverse().getOperator();
+            String inversedOperator = ConstraintTypeOperator.decode(operator).inverse().getOperator();
 
             operatorDescr.setOperator(inversedOperator);
 
-            StringBuilder sb = new StringBuilder();
-            String inversedExpression = sb.append(rightValue).append(" ").append(inversedOperator).append(" ").append(leftValue).toString();
+            String inversedExpression = rightValue + " " + inversedOperator + " " + leftValue;
             if (negate) {
                 inversedExpression = "!( " + inversedExpression + " )";
             }
@@ -70,8 +88,8 @@ public class ConstraintUtil {
         return expression;
     }
 
-    private static boolean isPropertyOnRight(Class<?> clazz, String leftProp, String rightProp) {
-        return (PropertyTools.getFieldOrAccessor(clazz, leftProp) == null) && ((PropertyTools.getFieldOrAccessor(clazz, rightProp) != null) || (rightProp.equals("this")));
+    private static boolean isPropertyOnRight(ObjectType objectType, String leftProp, String rightProp) {
+        return !objectType.hasField(leftProp) && ( objectType.hasField(rightProp) || "this".equals(rightProp) );
     }
 
     private static boolean canInverse(Pattern pattern, String operator, OperatorDescr operatorDescr, String leftProp, String rightProp) {
@@ -84,7 +102,7 @@ public class ConstraintUtil {
         if (leftProp.isEmpty() || rightProp.isEmpty()) {
             return false;
         }
-        return IndexUtil.ConstraintType.decode(operator).canInverse();
+        return ConstraintTypeOperator.decode(operator).canInverse();
     }
 
     private static String getFirstProp(String str) {
@@ -99,7 +117,7 @@ public class ConstraintUtil {
         }
     }
 
-    private static boolean isNagatedExpression(String expression, String leftValue, String rightValue, String operator) {
-        return expression.matches("^!\\s*\\(\\s*" + leftValue + "\\s*" + operator + "\\s*" + rightValue + "\\s*\\)$");
+    private static boolean isNegatedExpression( String expression, String leftValue, String rightValue, String operator ) {
+        return expression.matches("^!\\s*\\(\\s*\\Q" + leftValue + "\\E\\s*" + operator + "\\s*\\Q" + rightValue + "\\E\\s*\\)$");
     }
 }

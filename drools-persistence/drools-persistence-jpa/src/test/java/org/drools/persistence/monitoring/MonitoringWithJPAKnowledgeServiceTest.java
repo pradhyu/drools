@@ -1,17 +1,21 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.persistence.monitoring;
 
 import org.drools.compiler.kie.builder.impl.KieServicesImpl;
@@ -40,9 +44,9 @@ import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.drools.persistence.util.DroolsPersistenceUtil.DROOLS_PERSISTENCE_UNIT_NAME;
 import static org.drools.persistence.util.DroolsPersistenceUtil.createEnvironment;
-import static org.junit.Assert.assertEquals;
 
 public class MonitoringWithJPAKnowledgeServiceTest {
     private static Logger LOG = LoggerFactory.getLogger(MonitoringWithJPAKnowledgeServiceTest.class);
@@ -105,10 +109,10 @@ public class MonitoringWithJPAKnowledgeServiceTest {
                 mbserver,
                 DroolsManagementAgent.createObjectNameBy(containerId, "org.kie.monitoring.kbase1", KieSessionType.STATEFUL, "persistent"),
                 KieSessionMonitoringMXBean.class);
-        assertEquals(1, statefulKieSessionMonitor.getTotalMatchesFired() );
-        
+        assertThat(statefulKieSessionMonitor.getTotalMatchesFired()).isEqualTo(1);
+
         // There should be 3 mbeans for KieContainer, KieBase and KieSession.
-        assertEquals(3, mbserver.queryNames(new ObjectName("org.kie:kcontainerId="+ObjectName.quote(containerId)+",*"), null).size());
+        assertThat(mbserver.queryNames(new ObjectName("org.kie:kcontainerId=" + ObjectName.quote(containerId) + ",*"), null).size()).isEqualTo(3);
         
         // needs to be done separately:
         statefulKieSession.dispose();
@@ -116,9 +120,9 @@ public class MonitoringWithJPAKnowledgeServiceTest {
         StatefulKnowledgeSession deserialized = JPAKnowledgeService.loadStatefulKnowledgeSession(sessionIdentifier, kb, null, createEnvironment(context));
         deserialized.insert("String2");
         deserialized.fireAllRules();
-        
+
         // the mbean does not persist state, but in this case consolidate by grouping the fire of the former session and the deserialized one 
-        assertEquals(2, statefulKieSessionMonitor.getTotalMatchesFired() );
+        assertThat(statefulKieSessionMonitor.getTotalMatchesFired()).isEqualTo(2);
         
         kc.dispose();
     }

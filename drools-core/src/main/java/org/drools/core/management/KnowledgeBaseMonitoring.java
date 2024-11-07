@@ -1,21 +1,24 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.management;
 
+import java.lang.reflect.Type;
 import java.util.Map;
 
 import javax.management.Attribute;
@@ -49,11 +52,10 @@ import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
 import javax.management.openmbean.TabularType;
 
-import org.drools.core.base.ClassObjectType;
-import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.base.RuleBase;
+import org.drools.core.impl.InternalRuleBase;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.ObjectTypeNode;
-import org.kie.api.builder.ReleaseId;
 import org.kie.api.management.KieBaseConfigurationMonitorMBean;
 import org.kie.api.management.ObjectTypeNodeMonitorMBean;
 import org.slf4j.Logger;
@@ -79,8 +81,8 @@ public class KnowledgeBaseMonitoring
     // ************************************************************************************************
     // MBean attributes
     //
-    private InternalKnowledgeBase kbase;
-    private ObjectName     name;
+    private InternalRuleBase kbase;
+    private ObjectName name;
 
     private OpenMBeanInfoSupport info;
 
@@ -106,15 +108,15 @@ public class KnowledgeBaseMonitoring
                                                globalsType,
                                                index);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Exception", e);
         }
     }
 
     // ************************************************************************************************
 
     // Constructor
-    public KnowledgeBaseMonitoring(InternalKnowledgeBase kbase) {
-        this.kbase = kbase;
+    public KnowledgeBaseMonitoring(RuleBase kbase) {
+        this.kbase = (InternalRuleBase) kbase;
         this.name = DroolsManagementAgent.createObjectNameFor(kbase);
 
         initOpenMBeanInfo();
@@ -181,7 +183,7 @@ public class KnowledgeBaseMonitoring
                                              operations,
                                              notifications );
         } catch ( Exception e ) {
-            e.printStackTrace();
+            logger.error("Exception", e);
         }
     }
 
@@ -195,8 +197,8 @@ public class KnowledgeBaseMonitoring
     @SuppressWarnings("unchecked")
     public TabularData getGlobals() throws OpenDataException {
         TabularDataSupport globalsTable = new TabularDataSupport( globalsTableType );
-        for ( Map.Entry<String, Class< ? >> global : ((Map<String, Class< ? >>) kbase.getGlobals()).entrySet() ) {
-            Object[] itemValues = {global.getKey(), global.getValue().getName()};
+        for ( Map.Entry<String, Type> global : kbase.getGlobals().entrySet() ) {
+            Object[] itemValues = {global.getKey(), global.getValue().getTypeName()};
             CompositeData result = new CompositeDataSupport( globalsType,
                                                              globalsColNames,
                                                              itemValues );
@@ -232,7 +234,7 @@ public class KnowledgeBaseMonitoring
                 ObjectTypeNodeMonitor otnm = new ObjectTypeNodeMonitor( otn );
                 try {
                     final StandardMBean adapter = new StandardMBean(otnm, ObjectTypeNodeMonitorMBean.class);
-                    ObjectName name = DroolsManagementAgent.createObjectName( this.name.toString() + ",group=EntryPoints,EntryPoint=" + otnm.getNameSufix() + ",ObjectType=" + ((ClassObjectType) otn.getObjectType()).getClassName() );
+                    ObjectName name = DroolsManagementAgent.createObjectName( this.name.toString() + ",group=EntryPoints,EntryPoint=" + otnm.getNameSufix() + ",ObjectType=" + otn.getObjectType().getClassName());
                     DroolsManagementAgent.getInstance().registerMBean( kbase,
                                                                        adapter,
                                                                        name );
@@ -241,7 +243,7 @@ public class KnowledgeBaseMonitoring
                 }
             }
         }
-        final KieBaseConfigurationMonitor kbcm = new KieBaseConfigurationMonitor( kbase.getConfiguration() );
+        final KieBaseConfigurationMonitor kbcm = new KieBaseConfigurationMonitor(kbase.getRuleBaseConfiguration(), kbase.getConfiguration());
         try {
             final StandardMBean adapter = new StandardMBean(kbcm, KieBaseConfigurationMonitorMBean.class);
             ObjectName name = DroolsManagementAgent.createObjectName( this.name.toString() + ",group=Configuration" );
@@ -283,14 +285,16 @@ public class KnowledgeBaseMonitoring
 
     public AttributeList getAttributes(String[] attributeNames) {
         AttributeList resultList = new AttributeList();
-        if ( attributeNames.length == 0 ) return resultList;
+        if ( attributeNames.length == 0 ) {
+            return resultList;
+        }
         for ( int i = 0; i < attributeNames.length; i++ ) {
             try {
                 Object value = getAttribute( attributeNames[i] );
                 resultList.add( new Attribute( attributeNames[i],
                                                value ) );
             } catch ( Exception e ) {
-                e.printStackTrace();
+                logger.error("Exception", e);
             }
         }
         return (resultList);

@@ -1,19 +1,21 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.decisiontable.parser;
 
 import java.util.EnumSet;
@@ -89,7 +91,7 @@ public class ActionType {
 
     public static final EnumSet<Code> ATTRIBUTE_CODE_SET = EnumSet.range( Code.SALIENCE, Code.DATEEXPIRES );
 
-    private static final Map<String, Code> tag2code = new HashMap<String, Code>();
+    private static final Map<String, Code> tag2code = new HashMap<>();
 
     static {
         for ( Code code : EnumSet.allOf( Code.class ) ) {
@@ -163,7 +165,7 @@ public class ActionType {
                                                                code.getColHeader() + "/" + code.getColShort() + " columns is " +
                                                                code.getMaxCount() + ", in cell " + RuleSheetParserUtil.rc2name( row, column ) );
             }
-            actionTypeMap.put( new Integer( column ), new ActionType( code ) );
+            actionTypeMap.put( Integer.valueOf( column ), new ActionType( code ) );
         } else {
             throw new DecisionTableParseException(
                     "Invalid column header: " + value + ", should be CONDITION, ACTION or attribute, " +

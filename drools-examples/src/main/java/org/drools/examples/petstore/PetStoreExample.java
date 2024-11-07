@@ -1,19 +1,21 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.examples.petstore;
 
 import java.awt.BorderLayout;
@@ -24,7 +26,6 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Vector;
 
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
@@ -64,7 +65,7 @@ public class PetStoreExample {
 
     public void init(KieContainer kc, boolean exitOnClose) {
         //RuleB
-        Vector<Product> stock = new Vector<Product>();
+        List<Product> stock = new ArrayList<>();
         stock.add( new Product( "Gold Fish",
                                 5 ) );
         stock.add( new Product( "Fish Tank",
@@ -102,7 +103,7 @@ public class PetStoreExample {
          * @param listData
          * @param callback
          */
-        public PetStoreUI(Vector<Product> items,
+        public PetStoreUI(List<Product> items,
                           CheckoutCallback callback) {
             super( new BorderLayout() );
             this.callback = callback;
@@ -142,7 +143,7 @@ public class PetStoreExample {
 
             //Create JList for items, add to scroll pane and then add to parent
             // container
-            JList list = new JList( items );
+            JList list = new JList( items.toArray() );
             ListSelectionModel listSelectionModel = list.getSelectionModel();
             listSelectionModel.setSelectionMode( ListSelectionModel.SINGLE_SELECTION );
             //handler adds item to shopping cart
@@ -322,7 +323,7 @@ public class PetStoreExample {
 
         public TableModel() {
             super();
-            items = new ArrayList<Product>();
+            items = new ArrayList<>();
         }
 
         public int getColumnCount() {
@@ -445,7 +446,7 @@ public class PetStoreExample {
         private static String newline         = System.getProperty( "line.separator" );
 
         public Order() {
-            this.items = new ArrayList<Purchase>();
+            this.items = new ArrayList<>();
         }
 
         public void addItem(Purchase item) {
@@ -473,7 +474,7 @@ public class PetStoreExample {
         }
 
         public String toString() {
-            StringBuffer buf = new StringBuffer();
+            StringBuilder buf = new StringBuilder();
 
             buf.append( "ShoppingCart:" + newline );
 

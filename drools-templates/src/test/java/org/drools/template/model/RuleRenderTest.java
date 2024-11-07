@@ -1,24 +1,26 @@
-/*
- * Copyright 2005 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.template.model;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests how the rule parse tree renders itself to a rule XML fragment.
@@ -28,8 +30,8 @@ public class RuleRenderTest {
     @Test
     public void testRuleRender() {
         final Rule rule = new Rule("myrule",
-                                   new Integer(42),
-                                   1);
+                42,
+                1);
         rule.setComment("rule comments");
 
         final Condition cond = new Condition();
@@ -46,25 +48,25 @@ public class RuleRenderTest {
         final DRLOutput out = new DRLOutput();
         rule.renderDRL(out);
         final String drl = out.getDRL();
-        assertNotNull(drl);
+        assertThat(drl).isNotNull();
 
-        assertTrue(drl.indexOf("cond snippet") != -1);
-        assertTrue(drl.indexOf("cons snippet") != -1);
-        assertTrue(drl.indexOf("salience 42") != -1);
-        assertTrue(drl.indexOf("salience 42") < drl.indexOf("when"));
-        assertTrue(drl.indexOf("cond snippet") < drl.indexOf("then"));
-        assertTrue(drl.indexOf("cons snippet;") > drl.indexOf("then"));
-        assertTrue(drl.indexOf("rule") != -1);
-        assertTrue(drl.indexOf("end") > drl.indexOf("rule "));
-        assertTrue(drl.indexOf("//rule comments") > -1);
+        assertThat(drl.indexOf("cond snippet") != -1).isTrue();
+        assertThat(drl.indexOf("cons snippet") != -1).isTrue();
+        assertThat(drl.indexOf("salience 42") != -1).isTrue();
+        assertThat(drl.indexOf("salience 42") < drl.indexOf("when")).isTrue();
+        assertThat(drl.indexOf("cond snippet") < drl.indexOf("then")).isTrue();
+        assertThat(drl.indexOf("cons snippet;") > drl.indexOf("then")).isTrue();
+        assertThat(drl.indexOf("rule") != -1).isTrue();
+        assertThat(drl.indexOf("end") > drl.indexOf("rule ")).isTrue();
+        assertThat(drl.indexOf("//rule comments") > -1).isTrue();
 
     }
 
     @Test
     public void testAttributes() throws Exception {
         Rule rule = new Rule("la",
-                             new Integer(42),
-                             2);
+                42,
+                2);
 
         rule.setActivationGroup("foo");
         rule.setNoLoop(true);
@@ -75,16 +77,16 @@ public class RuleRenderTest {
 
         String result = out.toString();
 
-        assertTrue(result.indexOf("ruleflow-group \"ruleflowgroup\"") > -1);
-        assertTrue(result.indexOf("no-loop true") > -1);
-        assertTrue(result.indexOf("activation-group \"foo\"") > -1);
-        assertTrue(result.indexOf("duration 42") > -1);
+        assertThat(result.indexOf("ruleflow-group \"ruleflowgroup\"") > -1).isTrue();
+        assertThat(result.indexOf("no-loop true") > -1).isTrue();
+        assertThat(result.indexOf("activation-group \"foo\"") > -1).isTrue();
+        assertThat(result.indexOf("duration 42") > -1).isTrue();
 
     }
 
     @Test
     public void testMetadata() throws Exception {
-        Rule rule = new Rule("la", new Integer(42), 2);
+        Rule rule = new Rule("la", 42, 2);
 
         rule.addMetadata("Author( A. U. Thor )");
         rule.addMetadata("Revision( 42 )");
@@ -92,8 +94,8 @@ public class RuleRenderTest {
         rule.renderDRL(out);
 
         String result = out.toString();
-        assertTrue(result.contains("@Author( A. U. Thor )"));
-        assertTrue(result.contains("@Revision( 42 )"));
+        assertThat(result.contains("@Author( A. U. Thor )")).isTrue();
+        assertThat(result.contains("@Revision( 42 )")).isTrue();
 
     }
 
@@ -105,7 +107,7 @@ public class RuleRenderTest {
         final DRLOutput out = new DRLOutput();
         cond.renderDRL(out);
 
-        assertTrue(out.toString().indexOf("a < b") != -1);
+        assertThat(out.toString().indexOf("a < b") != -1).isTrue();
 
     }
 
@@ -117,24 +119,23 @@ public class RuleRenderTest {
     @Test
     public void testNilSalience() {
         Rule rule = new Rule("MyRule",
-                             null,
-                             1);
+                null,
+                1);
 
         DRLOutput out = new DRLOutput();
         rule.renderDRL(out);
         String xml = out.toString();
         int idx = xml.indexOf("salience");
-        assertEquals(-1,
-                     idx);
+        assertThat(idx).isEqualTo(-1);
 
         rule = new Rule("MyRule",
-                        new Integer(42),
-                        1);
+                42,
+                1);
         out = new DRLOutput();
         rule.renderDRL(out);
         xml = out.toString();
         idx = xml.indexOf("salience");
-        assertTrue(idx > -1);
+        assertThat(idx > -1).isTrue();
     }
 
 }

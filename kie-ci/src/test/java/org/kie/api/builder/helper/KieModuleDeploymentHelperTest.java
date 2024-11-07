@@ -1,33 +1,35 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.kie.api.builder.helper;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import org.drools.core.impl.EnvironmentImpl;
+import org.drools.core.test.model.Cheese;
 import org.junit.After;
 import org.junit.Test;
 import org.kie.api.builder.KieModule;
@@ -35,11 +37,11 @@ import org.kie.api.builder.model.KieBaseModel;
 import org.kie.api.conf.EqualityBehaviorOption;
 import org.kie.api.conf.EventProcessingOption;
 import org.kie.api.runtime.conf.ClockTypeOption;
-import org.appformer.maven.integration.MavenRepository;
+import org.kie.maven.integration.MavenRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class KieModuleDeploymentHelperTest {
 
@@ -76,7 +78,7 @@ public class KieModuleDeploymentHelperTest {
         numDirs += 5; // org.kie.api.builder.helper
         kjarClasses.add(EnvironmentImpl.class);
         numDirs += 3; // (org.)drools.core.impl
-        kjarClasses.add(org.drools.compiler.Cheese.class);
+        kjarClasses.add( Cheese.class);
         numDirs += 1; // (org.drools.)compiler
         numFiles += 3;
 
@@ -119,8 +121,7 @@ public class KieModuleDeploymentHelperTest {
             }
             ze = zip.getNextEntry();
         }
-        assertEquals("Num files in kjar", numFiles, jarFiles.size());
-        assertEquals("Num dirs in kjar", numDirs, jarDirs.size());
+        assertThat(jarFiles.size()).as("Num files in kjar").isEqualTo(numFiles);
     }
 
     @Test
@@ -140,7 +141,7 @@ public class KieModuleDeploymentHelperTest {
                 .addResourceFilePath("/META-INF/WorkDefinitions.conf") // from the drools-core jar
                 .addClass(KieModuleDeploymentHelperTest.class)
                 .addClass(KieModule.class)
-                .addClass(org.drools.compiler.Cheese.class);
+                .addClass(Cheese.class);
         // class dirs
         numDirs += 5; // org.kie.api.builder.helper
         numDirs += 2; // (org.)drools.compiler
@@ -165,7 +166,7 @@ public class KieModuleDeploymentHelperTest {
         
         KieBaseModel kbaseModel = deploymentHelper.getKieModuleModel().newKieBaseModel("otherKieBase");
         kbaseModel.setEqualsBehavior(EqualityBehaviorOption.EQUALITY).setEventProcessingMode(EventProcessingOption.STREAM);
-        kbaseModel.newKieSessionModel("otherKieSession").setClockType(ClockTypeOption.get("realtime"));
+        kbaseModel.newKieSessionModel("otherKieSession").setClockType(ClockTypeOption.REALTIME);
         // META-INF/otherKieBase
         ++numDirs;
 
@@ -198,7 +199,6 @@ public class KieModuleDeploymentHelperTest {
             }
             ze = zip.getNextEntry();
         }
-        assertEquals("Num files in kjar", numFiles, jarFiles.size());
-        assertEquals("Num dirs in kjar", numDirs, jarDirs.size());
+        assertThat(jarFiles.size()).as("Num files in kjar").isEqualTo(numFiles);
     }
 }

@@ -1,36 +1,38 @@
-/*
- * Copyright 2020 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.kie.dmn.core.impl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.drools.compiler.kie.builder.impl.KieContainerImpl;
 import org.drools.compiler.kproject.models.KieBaseModelImpl;
-import org.drools.core.definitions.InternalKnowledgePackage;
-import org.drools.core.definitions.ResourceTypePackageRegistry;
-import org.drools.core.impl.InternalKnowledgeBase;
-import org.drools.core.impl.KnowledgeBaseImpl;
+import org.drools.base.definitions.InternalKnowledgePackage;
+import org.drools.base.definitions.ResourceTypePackageRegistry;
+import org.drools.kiesession.rulebase.InternalKnowledgeBase;
 import org.kie.api.io.ResourceType;
 import org.kie.dmn.api.core.DMNModel;
 import org.kie.dmn.api.core.DMNPackage;
@@ -40,13 +42,14 @@ import org.kie.dmn.core.compiler.DMNProfile;
 import org.kie.dmn.core.util.Msg;
 import org.kie.dmn.core.util.MsgUtil;
 import org.kie.dmn.feel.util.ClassLoaderUtil;
+import org.kie.internal.utils.ChainedProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DMNRuntimeKBWrappingIKB implements DMNRuntimeKB {
     private static final Logger logger = LoggerFactory.getLogger( DMNRuntimeKBWrappingIKB.class );
 
-    private final InternalKnowledgeBase        knowledgeBase;
+    private final InternalKnowledgeBase knowledgeBase;
 
     public DMNRuntimeKBWrappingIKB(InternalKnowledgeBase knowledgeBase) {
         this.knowledgeBase = knowledgeBase;
@@ -54,13 +57,20 @@ public class DMNRuntimeKBWrappingIKB implements DMNRuntimeKB {
 
     @Override
     public List<DMNRuntimeEventListener> getListeners() {
-        if (knowledgeBase != null && knowledgeBase instanceof KnowledgeBaseImpl && ((KnowledgeBaseImpl) knowledgeBase).getKieContainer() instanceof KieContainerImpl) {
-            KieBaseModelImpl kieBaseModel = (KieBaseModelImpl) ((KieContainerImpl) ((KnowledgeBaseImpl) knowledgeBase).getKieContainer()).getKieProject().getKieBaseModel(knowledgeBase.getId());
-            return kieBaseModel.getKModule().getConfigurationProperties().entrySet().stream()
-                               .filter(kv -> kv.getKey() != null && kv.getKey().startsWith(DMNAssemblerService.DMN_RUNTIME_LISTENER_PREFIX))
-                               .map(Entry::getValue)
+        if (knowledgeBase != null && knowledgeBase.getKieContainer() instanceof KieContainerImpl) {
+            KieBaseModelImpl kieBaseModel = (KieBaseModelImpl) ((KieContainerImpl) knowledgeBase.getKieContainer()).getKieProject().getKieBaseModel(knowledgeBase.getId());
+            ChainedProperties cp = ChainedProperties.getChainedProperties(getRootClassLoader());
+            Properties kmoduleProperties = new Properties();
+            kmoduleProperties.putAll(kieBaseModel.getKModule().getConfigurationProperties());
+            cp.addProperties(kmoduleProperties);
+
+            Map<String, String> listenersMap = new HashMap<>();
+            cp.mapStartsWith(listenersMap, DMNAssemblerService.DMN_RUNTIME_LISTENER_PREFIX, true);
+            logger.debug("{}", listenersMap);
+
+            return listenersMap.values().stream()
                                .map(this::loadEventListener)
-                               .flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty))
+                               .flatMap(o -> o.stream())
                                .collect(Collectors.toList());
         } else {
             logger.warn("No DMNRuntime Listener can be provided, as created without a reference to KnowledgeBase");
@@ -89,7 +99,7 @@ public class DMNRuntimeKBWrappingIKB implements DMNRuntimeKB {
         knowledgeBase.getKiePackages().forEach( kpkg -> {
             DMNPackage dmnPkg = (DMNPackage) ((InternalKnowledgePackage) kpkg).getResourceTypePackages().get( ResourceType.DMN );
             if( dmnPkg != null ) {
-                dmnPkg.getAllModels().values().forEach( model -> models.add( model ) );
+                models.addAll(dmnPkg.getAllModels().values());
             }
         } );
         return models;

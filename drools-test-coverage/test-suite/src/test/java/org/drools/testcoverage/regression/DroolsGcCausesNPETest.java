@@ -1,23 +1,27 @@
-/*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.testcoverage.regression;
 
-import org.assertj.core.api.Assertions;
-import org.kie.api.time.SessionPseudoClock;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -35,13 +39,13 @@ import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.ClockTypeOption;
+import org.kie.api.time.SessionPseudoClock;
 import org.kie.test.testcategory.TurtleTestCategory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Reproducer for BZ 1181584, by Mike Wilson.
@@ -79,7 +83,7 @@ public class DroolsGcCausesNPETest {
         final List<Message> errors = builder.buildAll().getResults()
                 .getMessages(Message.Level.ERROR);
 
-        Assertions.assertThat(errors).as("Unexpected errors building drl: " + errors).isEmpty();
+        assertThat(errors).as("Unexpected errors building drl: " + errors).isEmpty();
 
         SERVICES.getRepository().addKieModule(builder.getKieModule());
     }
@@ -87,7 +91,7 @@ public class DroolsGcCausesNPETest {
     @Before
     public void setUp() throws Exception {
         final KieSessionConfiguration conf = SERVICES.newKieSessionConfiguration();
-        conf.setOption(ClockTypeOption.get("pseudo"));
+        conf.setOption(ClockTypeOption.PSEUDO);
         conf.setProperty("type", "stateful");
         final KieContainer container = SERVICES.newKieContainer(RELEASE_ID);
         session = container.getKieBase(KIE_BASE_NAME).newKieSession(conf,
@@ -113,7 +117,7 @@ public class DroolsGcCausesNPETest {
             LOGGER.warn("failed at i = " + i);
             LOGGER.warn("fact count: " + session.getFactCount());
             logActiveFacts();
-            Assertions.fail("NPE thrown - consider reopening BZ 1181584", e);
+            fail("NPE thrown - consider reopening BZ 1181584", e);
         }
     }
 

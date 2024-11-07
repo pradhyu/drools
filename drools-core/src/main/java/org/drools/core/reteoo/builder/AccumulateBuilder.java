@@ -1,37 +1,36 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo.builder;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.drools.base.rule.Accumulate;
+import org.drools.base.rule.GroupElement;
+import org.drools.base.rule.RuleConditionElement;
+import org.drools.base.rule.constraint.AlphaNodeFieldConstraint;
 import org.drools.core.common.BetaConstraints;
-import org.drools.core.common.TupleStartEqualsConstraint;
 import org.drools.core.reteoo.AccumulateNode;
+import org.drools.core.reteoo.CoreComponentFactory;
 import org.drools.core.reteoo.LeftTupleSource;
 import org.drools.core.reteoo.RightInputAdapterNode;
-import org.drools.core.rule.Accumulate;
-import org.drools.core.rule.GroupElement;
-import org.drools.core.rule.RuleConditionElement;
-import org.drools.core.spi.AlphaNodeFieldConstraint;
-import org.drools.core.spi.BetaNodeFieldConstraint;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.drools.base.rule.constraint.BetaConstraint;
 
 public class AccumulateBuilder
         implements
@@ -44,10 +43,9 @@ public class AccumulateBuilder
                       final BuildUtils utils,
                       final RuleConditionElement rce) {
         final Accumulate accumulate = (Accumulate) rce;
-        boolean existSubNetwort = false;
         context.pushRuleComponent( accumulate );
 
-        final List<BetaNodeFieldConstraint> resultBetaConstraints = context.getBetaconstraints();
+        final List<BetaConstraint>           resultBetaConstraints  = context.getBetaconstraints();
         final List<AlphaNodeFieldConstraint> resultAlphaConstraints = context.getAlphaConstraints();
 
         RuleConditionElement source = accumulate.getSource();
@@ -63,7 +61,6 @@ public class AccumulateBuilder
 
         // save tuple source and current pattern offset for later if needed
         LeftTupleSource tupleSource = context.getTupleSource();
-        final int currentPatternIndex = context.getCurrentPatternOffset();
 
         // builds the source pattern
         builder.build( context,
@@ -73,7 +70,7 @@ public class AccumulateBuilder
         // if object source is null, then we need to adapt tuple source into a subnetwork
         if ( context.getObjectSource() == null ) {
             // attach right input adapter node to convert tuple source into an object source
-            RightInputAdapterNode riaNode = context.getComponentFactory().getNodeFactoryService().buildRightInputNode( context.getNextId(),
+            RightInputAdapterNode riaNode = CoreComponentFactory.get().getNodeFactoryService().buildRightInputNode( context.getNextNodeId(),
                                                                                                                        context.getTupleSource(),
                                                                                                                        tupleSource,
                                                                                                                        context );
@@ -85,14 +82,11 @@ public class AccumulateBuilder
             context.setTupleSource( tupleSource );
 
             // create a tuple start equals constraint and set it in the context
-            final TupleStartEqualsConstraint constraint = TupleStartEqualsConstraint.getInstance();
-            final List<BetaNodeFieldConstraint> betaConstraints = new ArrayList<BetaNodeFieldConstraint>();
-            betaConstraints.add( constraint );
-            context.setBetaconstraints( betaConstraints );
-            existSubNetwort = true;
+            final List<BetaConstraint> betaConstraints = new ArrayList<>();
+            context.setBetaconstraints( betaConstraints ); // Empty list ensures EmptyBetaConstraints is assigned
         }
 
-        NodeFactory nfactory = context.getComponentFactory().getNodeFactoryService();
+        NodeFactory nfactory = CoreComponentFactory.get().getNodeFactoryService();
 
         final BetaConstraints resultsBinder = utils.createBetaNodeConstraint( context,
                                                                               resultBetaConstraints,
@@ -101,21 +95,19 @@ public class AccumulateBuilder
                                                                              context.getBetaconstraints(),
                                                                              false );
 
-        AccumulateNode accNode = nfactory.buildAccumulateNode(context.getNextId(),
+        AccumulateNode accNode = nfactory.buildAccumulateNode(context.getNextNodeId(),
                                                               context.getTupleSource(),
                                                               context.getObjectSource(),
                                                               resultAlphaConstraints.toArray(new AlphaNodeFieldConstraint[resultAlphaConstraints.size()]),
                                                               sourceBinder,
                                                               resultsBinder,
                                                               accumulate,
-                                                              existSubNetwort,
                                                               context);
 
         context.setTupleSource( utils.attachNode( context, accNode ) );
 
         // source pattern was bound, so nulling context
         context.setObjectSource( null );
-        context.setCurrentPatternOffset( currentPatternIndex );
         context.popRuleComponent();
     }
 

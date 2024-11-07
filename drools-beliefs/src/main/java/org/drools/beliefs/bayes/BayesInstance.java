@@ -1,35 +1,39 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.beliefs.bayes;
 
 import org.drools.beliefs.graph.Graph;
 import org.drools.beliefs.graph.GraphNode;
-import org.drools.core.util.BitMaskUtil;
-import org.kie.api.runtime.rule.FactHandle;
+import org.drools.util.bitmask.BitMaskUtil;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 public class BayesInstance<T> {
+    private static final SecureRandom randomGenerator = new SecureRandom();
+
     private Graph<BayesVariable>       graph;
     private JunctionTree               tree;
     private Map<String, BayesVariable> variables;
@@ -59,8 +63,8 @@ public class BayesInstance<T> {
     public BayesInstance(JunctionTree tree) {
         this.graph = tree.getGraph();
         this.tree = tree;
-        variables = new HashMap<String, BayesVariable>();
-        fieldNames = new HashMap<String, BayesVariable>();
+        variables = new HashMap<>();
+        fieldNames = new HashMap<>();
         likelyhoods = new BayesLikelyhood[graph.size()];
 
         cliqueStates = new CliqueState[tree.getJunctionTreeNodes().length];
@@ -118,33 +122,31 @@ public class BayesInstance<T> {
 
     public  void buildParameterMapping(Class<T> target) {
         Constructor[] cons = target.getConstructors();
-        if ( cons != null ) {
-            for ( Constructor con : cons ) {
-                for ( Annotation ann : con.getDeclaredAnnotations() ) {
-                    if ( ann.annotationType() == BayesVariableConstructor.class ) {
-                        Class[] paramTypes = con.getParameterTypes();
+        for ( Constructor con : cons ) {
+            for ( Annotation ann : con.getDeclaredAnnotations() ) {
+                if ( ann.annotationType() == BayesVariableConstructor.class ) {
+                    Class[] paramTypes = con.getParameterTypes();
 
-                        targetParameterMap = new int[paramTypes.length];
-                        if ( paramTypes[0] != BayesInstance.class ) {
-                            throw new RuntimeException( "First Argument must be " + BayesInstance.class.getSimpleName() );
-                        }
-                        Annotation[][] paramAnns = con.getParameterAnnotations();
-                        for ( int j = 1; j < paramAnns.length; j++ ) {
-                            if ( paramAnns[j][0].annotationType() == VarName.class ) {
-                                String varName = ((VarName)paramAnns[j][0]).value();
-                                BayesVariable var = variables.get(varName);
-                                Object[] outcomes = new Object[ var.getOutcomes().length ];
-                                if ( paramTypes[j].isAssignableFrom( Boolean.class) || paramTypes[j].isAssignableFrom( boolean.class) ) {
-                                    for ( int k = 0; k < var.getOutcomes().length; k++ ) {
-                                        outcomes[k] = Boolean.valueOf( (String) var.getOutcomes()[k]);
-                                    }
-                                }
-                                varStates[var.getId()].setOutcomes( outcomes );
-                                targetParameterMap[j] = var.getId();
-                            }
-                        }
-                        targetConstructor = con;
+                    targetParameterMap = new int[paramTypes.length];
+                    if ( paramTypes[0] != BayesInstance.class ) {
+                        throw new RuntimeException( "First Argument must be " + BayesInstance.class.getSimpleName() );
                     }
+                    Annotation[][] paramAnns = con.getParameterAnnotations();
+                    for ( int j = 1; j < paramAnns.length; j++ ) {
+                        if ( paramAnns[j][0].annotationType() == VarName.class ) {
+                            String varName = ((VarName)paramAnns[j][0]).value();
+                            BayesVariable var = variables.get(varName);
+                            Object[] outcomes = new Object[ var.getOutcomes().length ];
+                            if ( paramTypes[j].isAssignableFrom( Boolean.class) || paramTypes[j].isAssignableFrom( boolean.class) ) {
+                                for ( int k = 0; k < var.getOutcomes().length; k++ ) {
+                                    outcomes[k] = Boolean.valueOf( (String) var.getOutcomes()[k]);
+                                }
+                            }
+                            varStates[var.getId()].setOutcomes( outcomes );
+                            targetParameterMap[j] = var.getId();
+                        }
+                    }
+                    targetConstructor = con;
                 }
             }
         }
@@ -444,7 +446,7 @@ public class BayesInstance<T> {
             }
             if ( maximalCounts > 1 ) {
                 // have maximal conflict, so choose random one
-                int picked = new Random().nextInt( maximalCounts );
+                int picked = randomGenerator.nextInt( maximalCounts );
                 int count = 0;
                 for (int j = 0, length = varState.getDistribution().length;j < length; j++ ){
                     if ( varState.getDistribution()[j] == highestValue ) {

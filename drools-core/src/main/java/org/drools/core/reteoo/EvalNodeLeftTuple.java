@@ -1,27 +1,27 @@
-/*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.core.reteoo;
 
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.common.PropagationContext;
 
-import java.util.Arrays;
-
-public class EvalNodeLeftTuple extends BaseLeftTuple {
+public class EvalNodeLeftTuple extends LeftTuple {
 
     private static final long serialVersionUID = 540l;
 
@@ -47,12 +47,12 @@ public class EvalNodeLeftTuple extends BaseLeftTuple {
     }
 
     public EvalNodeLeftTuple(final InternalFactHandle factHandle,
-                             final LeftTuple leftTuple,
+                             final TupleImpl leftTuple,
                              final Sink sink) {
         super( factHandle, leftTuple, sink );
     }
 
-    public EvalNodeLeftTuple(final LeftTuple leftTuple,
+    public EvalNodeLeftTuple(final TupleImpl leftTuple,
                              final Sink sink,
                              final PropagationContext pctx,
                              final boolean leftTupleMemoryEnabled) {
@@ -62,16 +62,16 @@ public class EvalNodeLeftTuple extends BaseLeftTuple {
               leftTupleMemoryEnabled);
     }
 
-    public EvalNodeLeftTuple(final LeftTuple leftTuple,
-                             RightTuple rightTuple,
+    public EvalNodeLeftTuple(final TupleImpl leftTuple,
+                             TupleImpl rightTuple,
                              Sink sink) {
         super(leftTuple,
               rightTuple,
               sink);
     }
 
-    public EvalNodeLeftTuple(final LeftTuple leftTuple,
-                             final RightTuple rightTuple,
+    public EvalNodeLeftTuple(final TupleImpl leftTuple,
+                             final TupleImpl rightTuple,
                              final Sink sink,
                              final boolean leftTupleMemoryEnabled) {
         this(leftTuple,
@@ -82,10 +82,10 @@ public class EvalNodeLeftTuple extends BaseLeftTuple {
              leftTupleMemoryEnabled);
     }
 
-    public EvalNodeLeftTuple(final LeftTuple leftTuple,
-                             final RightTuple rightTuple,
-                             final LeftTuple currentLeftChild,
-                             final LeftTuple currentRightChild,
+    public EvalNodeLeftTuple(final TupleImpl leftTuple,
+                             final TupleImpl rightTuple,
+                             final TupleImpl currentLeftChild,
+                             final TupleImpl currentRightChild,
                              final Sink sink,
                              final boolean leftTupleMemoryEnabled) {
         super(leftTuple,
@@ -159,39 +159,4 @@ public class EvalNodeLeftTuple extends BaseLeftTuple {
     public void setBlockedNext(LeftTuple blockerNext) {
         this.blockedNext = blockerNext;
     }
-
-    /* (non-Javadoc)
-     * @see org.kie.reteoo.LeftTuple#toString()
-     */
-    public String toString() {
-        final StringBuilder buffer = new StringBuilder();
-
-        LeftTuple entry = this;
-        while (entry != null) {
-            //buffer.append( entry.handle );
-            buffer.append(entry.getFactHandle()).append("\n");
-            entry = entry.getParent();
-        }
-        return buffer.toString();
-    }
-
-    protected String toExternalString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append(String.format("%08X",
-                                     System.identityHashCode(this))).append(":");
-        long[] ids = new long[getIndex() + 1];
-        LeftTuple entry = this;
-        while (entry != null) {
-            ids[entry.getIndex()] = entry.getFactHandle().getId();
-            entry = entry.getParent();
-        }
-        builder.append(Arrays.toString(ids))
-               .append(" activation=")
-               .append( getContextObject() != null ? getContextObject() : "null")
-               .append(" sink=")
-               .append( getTupleSink().getClass().getSimpleName())
-               .append("(").append( getTupleSink().getId()).append(")");
-        return builder.toString();
-    }
-
 }

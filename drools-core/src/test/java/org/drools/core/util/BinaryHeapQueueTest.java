@@ -1,48 +1,46 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.core.util;
 
-import org.drools.core.beliefsystem.ModedAssertion;
-import org.drools.core.beliefsystem.simple.SimpleMode;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
+import org.drools.base.definitions.rule.impl.RuleImpl;
+import org.drools.base.rule.consequence.ConflictResolver;
+import org.drools.base.rule.consequence.Consequence;
 import org.drools.core.common.ActivationGroupNode;
 import org.drools.core.common.ActivationNode;
 import org.drools.core.common.InternalAgendaGroup;
 import org.drools.core.common.InternalFactHandle;
 import org.drools.core.common.InternalRuleFlowGroup;
-import org.drools.core.common.LogicalDependency;
-import org.drools.core.definitions.rule.impl.RuleImpl;
-import org.drools.core.reteoo.LeftTupleImpl;
-import org.drools.core.rule.GroupElement;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.ConflictResolver;
-import org.drools.core.spi.Consequence;
-import org.drools.core.spi.PropagationContext;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
-import org.hamcrest.Factory;
-import org.hamcrest.Matcher;
+import org.drools.core.common.PropagationContext;
+import org.drools.core.phreak.RuleAgendaItem;
+import org.drools.core.reteoo.TerminalNode;
+import org.drools.core.reteoo.Tuple;
+import org.drools.core.reteoo.TupleImpl;
+import org.drools.core.rule.consequence.InternalMatch;
 import org.junit.Before;
 import org.junit.Test;
 import org.kie.api.runtime.rule.FactHandle;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /**
  * Thes test class uses auxiliary test classes in org.kie.util:
@@ -53,13 +51,13 @@ import static org.junit.Assert.assertTrue;
  * position. Finally, Items are retrieved and the order is checked.
  * 
  * Experience has shown that at least 6 Items are required to demonstrate
- * a certain bug, so don't reduce the max parameter. 
- *
+ * a certain bug, so don't reduce the max parameter.
+ * 
  */
 public class BinaryHeapQueueTest {
 
     private List<Integer[]>  perms = new ArrayList<Integer[]>();
-    private final static int max   = 6;
+    private final static int max   = 20;
 
     // NOT really permutations, just some shuffling
     private void shuffle(Integer[] a,
@@ -78,6 +76,45 @@ public class BinaryHeapQueueTest {
         }
     }
 
+    @Test
+    public void testShuffled() {
+
+        long time = System.currentTimeMillis();
+        for (int k = 0; k < 10; k++) {
+            for (Integer[] perm : perms) {
+                Group group = new Group("group");
+
+                for (Integer i : perm) {
+                    Item item = new Item(group,
+                                         i);
+                    group.add(item);
+                }
+
+                InternalMatch[] elems = group.getQueue().toArray(new InternalMatch[0]);
+                for (InternalMatch elem : elems) {
+                    Item item = (Item) elem;
+                    //        System.out.print( " " + item.getSalience() + "/"  + item.getActivationNumber() + "/" + item.getQueueIndex() );
+                    if (item.getQueueIndex() % 2 == 0) {
+                        group.remove(item);
+                        group.add(item);
+                    }
+                }
+                boolean ok = true;
+                StringBuilder sb = new StringBuilder("queue:");
+                for (int i = max - 1; i >= 0; i--) {
+                    int sal = group.getNext().getSalience();
+                    sb.append(" ").append(sal);
+                    if (sal != i) {
+                        ok = false;
+                    }
+                }
+                assertThat(ok).as("incorrect order in " + sb.toString()).isTrue();
+                //      System.out.println( sb.toString() );
+            }
+        }
+        System.out.println("time:" + (System.currentTimeMillis() - time));
+    }
+
     @Before
     public void setup() {
         System.out.println( "Running setup" );
@@ -85,43 +122,8 @@ public class BinaryHeapQueueTest {
         for ( int i = 0; i < max; i++ ) {
             a[i] = i;
         }
-        shuffle( a,
-                 max - 1 );
+        shuffle( a,max - 1 );
         //    System.out.println( "The size is " + perms.size() );
-    }
-
-    @Test
-    public void testShuffled() {
-
-        for ( Integer[] perm : perms ) {
-            Group group = new Group( "group" );
-
-            for ( Integer i : perm ) {
-                Item item = new Item( group,
-                                      i );
-                group.add( item );
-            }
-
-            Activation[] elems = group.getQueue();
-            for (Activation elem : elems ) {
-                Item item = (Item) elem;
-                //        System.out.print( " " + item.getSalience() + "/"  + item.getActivationNumber() + "/" + item.getQueueIndex() );
-                if ( item.getQueueIndex() % 2 == 0 ) {
-                    group.remove( item );
-                    group.add( item );
-                }
-            }
-            boolean ok = true;
-            StringBuilder sb = new StringBuilder( "queue:" );
-            for ( int i = max - 1; i >= 0; i-- ) {
-                int sal = group.getNext().getSalience();
-                sb.append( " " ).append( sal );
-                if ( sal != i ) ok = false;
-            }
-            assertTrue( "incorrect order in " + sb.toString(),
-                        ok );
-            //      System.out.println( sb.toString() );
-        }
     }
 
     public static class Group {
@@ -131,7 +133,7 @@ public class BinaryHeapQueueTest {
         private String            name;
 
         /** Items in the agenda. */
-        private BinaryHeapQueue   queue;
+        private Queue<Item>      queue;
 
         /**
          * Construct an <code>AgendaGroup</code> with the given name.
@@ -143,7 +145,7 @@ public class BinaryHeapQueueTest {
 
         public Group(final String name) {
             this.name = name;
-            this.queue = new BinaryHeapQueue( ItemConflictResolver.INSTANCE );
+            this.queue = QueueFactory.createQueue(ItemConflictResolver.INSTANCE );
         }
 
         public String getName() {
@@ -162,7 +164,7 @@ public class BinaryHeapQueueTest {
         }
 
         public void add(final Item item) {
-            this.queue.enqueue( (Activation) item );
+            this.queue.enqueue(item);
         }
 
         public Item getNext() {
@@ -183,8 +185,8 @@ public class BinaryHeapQueueTest {
             return "AgendaGroup '" + this.name + "'";
         }
 
-        public boolean equal(final Object object) {
-            if ( (object == null) || !(object instanceof Group) ) {
+        public boolean equals(final Object object) {
+            if (!(object instanceof Group)) {
                 return false;
             }
 
@@ -203,52 +205,13 @@ public class BinaryHeapQueueTest {
             this.queue.dequeue( agendaItem );
         }
 
-        public Activation[] getQueue() {
-            return (Activation[]) this.queue.toArray(new Activation[size()] );
+        public Collection<Item> getQueue() {
+            return this.queue.getAll();
         }
     }
 
-    public static class IsTuple extends BaseMatcher<List<InternalFactHandle>> {
-        private final InternalFactHandle[] expected;
 
-        public IsTuple(List<InternalFactHandle> tupleAsList) {
-            expected = tupleAsList.toArray( new InternalFactHandle[tupleAsList.size()] );
-        }
-
-        public IsTuple(InternalFactHandle[] tuple) {
-            expected = tuple;
-        }
-
-        public boolean matches(Object arg) {
-            if ( arg == null || !(arg.getClass().isArray() && InternalFactHandle.class.isAssignableFrom( arg.getClass().getComponentType() )) ) {
-                return false;
-            }
-            InternalFactHandle[] actual = (InternalFactHandle[]) arg;
-            return Arrays.equals( expected,
-                                  actual );
-        }
-
-        public void describeTo(Description description) {
-            description.appendValue( expected );
-        }
-
-        /**
-         * Is the value equal to another value, as tested by the
-         * {@link java.lang.Object#equals} invokedMethod?
-         */
-        @Factory
-        public static Matcher<List<InternalFactHandle>> isTuple(List<InternalFactHandle> operand) {
-            return new IsTuple( operand );
-        }
-
-        public static Matcher< ? super List<InternalFactHandle>> isTuple(InternalFactHandle... operands) {
-            return new IsTuple( operands );
-        }
-    }
-
-    public static class Item<T extends ModedAssertion<T>>
-            implements
-            Activation<T> {
+    public static class Item implements InternalMatch {
 
         private static int actNo = 1;
 
@@ -287,9 +250,6 @@ public class BinaryHeapQueueTest {
             return activationNumber;
         }
 
-        public void addLogicalDependency(LogicalDependency<T> arg0) {
-        }
-
         public ActivationGroupNode getActivationGroupNode() {
             return null;
         }
@@ -306,10 +266,6 @@ public class BinaryHeapQueueTest {
             return null;
         }
 
-        public LinkedList<LogicalDependency<T>> getLogicalDependencies() {
-            return null;
-        }
-
         public PropagationContext getPropagationContext() {
             return null;
         }
@@ -323,11 +279,7 @@ public class BinaryHeapQueueTest {
             return null;
         }
 
-        public GroupElement getSubRule() {
-            return null;
-        }
-
-        public LeftTupleImpl getTuple() {
+        public TupleImpl getTuple() {
             return null;
         }
 
@@ -347,10 +299,6 @@ public class BinaryHeapQueueTest {
         public void setActivationNode(ActivationNode arg0) {
         }
 
-
-        public void setLogicalDependencies(LinkedList<LogicalDependency<T>> arg0) {
-        }
-
         public List<String> getDeclarationIds() {
             return null;
         }
@@ -359,7 +307,7 @@ public class BinaryHeapQueueTest {
             return null;
         }
 
-        public List<? extends FactHandle> getFactHandles() {
+        public List<FactHandle> getFactHandles() {
             return null;
         }
 
@@ -375,23 +323,6 @@ public class BinaryHeapQueueTest {
             return false;
         }
 
-        public void addBlocked(LogicalDependency node) {
-        }
-
-        public LinkedList<LogicalDependency<SimpleMode>> getBlocked() {
-            return null;
-        }
-
-        public void setBlocked(LinkedList<LogicalDependency<SimpleMode>> justified) {
-        }
-
-        public void addBlocked(LinkedListNode<SimpleMode> node) {
-        }
-
-        public LinkedList getBlockers() {
-            return null;
-        }
-
         public boolean isMatched() {
             return false;
         }
@@ -404,14 +335,40 @@ public class BinaryHeapQueueTest {
 
         public void setActive(boolean active) { }
 
-        public boolean isRuleAgendaItem() {
-            return false;
+        @Override
+        public RuleAgendaItem getRuleAgendaItem() {
+            return null;
+        }
+
+        @Override
+        public void setActivationFactHandle(InternalFactHandle factHandle) {
+
+        }
+
+        @Override
+        public TerminalNode getTerminalNode() {
+            return null;
+        }
+
+        @Override
+        public String toExternalForm() {
+            return null;
+        }
+
+        @Override
+        public Runnable getCallback() {
+            return null;
+        }
+
+        @Override
+        public void setCallback(Runnable callback) {
+
         }
     }
 
     public static class ItemConflictResolver
             implements
-            ConflictResolver {
+            ConflictResolver<Item> {
 
         private static final long                 serialVersionUID = 1L;
         public static final  ItemConflictResolver INSTANCE         = new ItemConflictResolver();
@@ -420,8 +377,8 @@ public class BinaryHeapQueueTest {
             return ItemConflictResolver.INSTANCE;
         }
 
-        public final int compare(final Activation existing,
-                                 final Activation adding) {
+        public final int compare(final Item existing,
+                                 final Item adding) {
             final int s1 = existing.getSalience();
             final int s2 = adding.getSalience();
 

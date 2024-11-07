@@ -1,24 +1,26 @@
-/*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-
 package org.drools.compiler.integrationtests.operators;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.drools.core.common.InternalFactHandle;
 import org.drools.testcoverage.common.model.Cheese;
@@ -30,36 +32,26 @@ import org.drools.testcoverage.common.model.Person;
 import org.drools.testcoverage.common.util.KieBaseTestConfiguration;
 import org.drools.testcoverage.common.util.KieBaseUtil;
 import org.drools.testcoverage.common.util.KieUtil;
-import org.drools.testcoverage.common.util.TestParametersUtil;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.drools.testcoverage.common.util.TestParametersUtil2;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.kie.api.KieBase;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.definition.type.FactType;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
 public class OrTest {
 
-    private final KieBaseTestConfiguration kieBaseTestConfiguration;
-
-    public OrTest(final KieBaseTestConfiguration kieBaseTestConfiguration) {
-        this.kieBaseTestConfiguration = kieBaseTestConfiguration;
+    public static Stream<KieBaseTestConfiguration> parameters() {
+        return TestParametersUtil2.getKieBaseCloudConfigurations(true).stream();
     }
 
-    @Parameterized.Parameters(name = "KieBase type={0}")
-    public static Collection<Object[]> getParameters() {
-        return TestParametersUtil.getKieBaseCloudConfigurations(true);
-    }
-
-    @Test
-    public void testOr() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testOr(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -86,27 +78,28 @@ public class OrTest {
             session.fireAllRules();
 
             // just one added
-            assertEquals("got cheese", list.get(0));
-            assertEquals(1, list.size());
+            assertThat(list.get(0)).isEqualTo("got cheese");
+            assertThat(list.size()).isEqualTo(1);
 
             session.delete(h);
             session.fireAllRules();
 
             // still just one
-            assertEquals(1, list.size());
+            assertThat(list.size()).isEqualTo(1);
 
             session.insert(new Cheese("stilton", 5));
             session.fireAllRules();
 
             // now have one more
-            assertEquals(2, ((List) session.getGlobal("list")).size());
+            assertThat(((List) session.getGlobal("list")).size()).isEqualTo(2);
         } finally {
             session.dispose();
         }
     }
 
-    @Test
-    public void testOrCE() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testOrCE(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -142,14 +135,15 @@ public class OrTest {
 
             ksession.fireAllRules();
 
-            assertEquals("should have fired once", 1, list.size());
+            assertThat(list.size()).as("should have fired once").isEqualTo(1);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testOrCEFollowedByEval() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testOrCEFollowedByEval(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + FactA.class.getCanonicalName() + ";\n" +
                 "import " + FactB.class.getCanonicalName() + ";\n" +
@@ -177,15 +171,16 @@ public class OrTest {
 
             ksession.fireAllRules();
 
-            assertEquals("should have fired", 2, list.size());
-            assertTrue(list.contains(b.getObject()));
+            assertThat(list.size()).as("should have fired").isEqualTo(2);
+            assertThat(list.contains(b.getObject())).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testOrWithAndUsingNestedBindings() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testOrWithAndUsingNestedBindings(KieBaseTestConfiguration kieBaseTestConfiguration) {
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
                 "global java.util.List mlist\n" +
@@ -233,8 +228,8 @@ public class OrTest {
             ksession.insert(a);
             ksession.insert(b1);
             ksession.fireAllRules();
-            assertEquals(b1, mlist.get(0));
-            assertEquals(b1, jlist.get(0));
+            assertThat(mlist.get(0)).isEqualTo(b1);
+            assertThat(jlist.get(0)).isEqualTo(b1);
         } finally {
             ksession.dispose();
         }
@@ -247,8 +242,8 @@ public class OrTest {
             ksession.insert(b2);
             ksession.insert(p2);
             ksession.fireAllRules();
-            assertEquals(b2, mlist.get(1));
-            assertEquals(b2, jlist.get(1));
+            assertThat(mlist.get(1)).isEqualTo(b2);
+            assertThat(jlist.get(1)).isEqualTo(b2);
         } finally {
             ksession.dispose();
         }
@@ -261,15 +256,16 @@ public class OrTest {
             ksession.insert(b3);
             ksession.insert(p3);
             ksession.fireAllRules();
-            assertEquals(b3, mlist.get(2));
-            assertEquals(b3, jlist.get(2));
+            assertThat(mlist.get(2)).isEqualTo(b3);
+            assertThat(jlist.get(2)).isEqualTo(b3);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testOrWithBinding() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testOrWithBinding(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl =  "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -300,22 +296,23 @@ public class OrTest {
 
             ksession.fireAllRules();
 
-            assertEquals(0, list.size());
+            assertThat(list.size()).isEqualTo(0);
             final Cheese brie = new Cheese("brie");
             ksession.insert(brie);
 
             ksession.fireAllRules();
 
-            assertEquals(2, list.size());
-            assertTrue(list.contains(hola));
-            assertTrue(list.contains(brie));
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list.contains(hola)).isTrue();
+            assertThat(list.contains(brie)).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testOrWithFrom() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testOrWithFrom(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-2274: Rule does not fire as expected using deep object model and nested 'or' clause
         final String drl = "package org.drools.compiler.integrationtests.operators;\n"
                 + "import " + Order.class.getCanonicalName() + ";\n"
@@ -348,14 +345,15 @@ public class OrTest {
             ksession.insert(item21);
 
             final int rules = ksession.fireAllRules();
-            assertEquals(2, rules);
+            assertThat(rules).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testOrWithReturnValueRestriction() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testOrWithReturnValueRestriction(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl =
                 "package org.drools.compiler.integrationtests.operators;\n" +
@@ -379,14 +377,15 @@ public class OrTest {
             ksession.insert(new Cheese("brie", 28));
 
             final int fired = ksession.fireAllRules();
-            assertEquals(2, fired);
+            assertThat(fired).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testBindingsWithOr() throws InstantiationException, IllegalAccessException {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testBindingsWithOr(KieBaseTestConfiguration kieBaseTestConfiguration) throws InstantiationException, IllegalAccessException {
         // JBRULES-2917: matching of field==v1 || field==v2 breaks when variable binding is added
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "declare Assignment\n" +
@@ -418,14 +417,15 @@ public class OrTest {
             ksession.insert(asg);
 
             final int rules = ksession.fireAllRules();
-            assertEquals(2, rules);
+            assertThat(rules).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testConstraintConnectorOr() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testConstraintConnectorOr(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Person.class.getCanonicalName() + ";\n" +
@@ -469,17 +469,18 @@ public class OrTest {
 
             ksession.fireAllRules();
 
-            assertEquals(3, results.size());
-            assertTrue(results.contains(mark));
-            assertTrue(results.contains(bush));
-            assertTrue(results.contains(conan));
+            assertThat(results.size()).isEqualTo(3);
+            assertThat(results.contains(mark)).isTrue();
+            assertThat(results.contains(bush)).isTrue();
+            assertThat(results.contains(conan)).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testVariableBindingWithOR() throws Exception{
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testVariableBindingWithOR(KieBaseTestConfiguration kieBaseTestConfiguration) throws Exception{
         // JBRULES-3390
         final String drl1 = "package org.drools.compiler.integrationtests.operators; \n" +
                 "declare A\n" +
@@ -499,7 +500,7 @@ public class OrTest {
                 "end\n";
 
         KieBuilder kbuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl1);
-        assertFalse(kbuilder.getResults().getMessages().isEmpty());
+        assertThat(kbuilder.getResults().getMessages().isEmpty()).isFalse();
 
         final String drl2 = "package org.drools.compiler.integrationtests.operators; \n" +
                 "global java.util.List results\n" +
@@ -520,7 +521,7 @@ public class OrTest {
                 "end\n";
 
         kbuilder = KieUtil.getKieBuilderFromDrls(kieBaseTestConfiguration, false, drl2);
-        assertTrue(kbuilder.getResults().getMessages().isEmpty());
+        assertThat(kbuilder.getResults().getMessages().isEmpty()).isTrue();
 
         final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("or-test",
                                                                          kieBaseTestConfiguration,
@@ -542,15 +543,16 @@ public class OrTest {
 
             ksession.fireAllRules();
 
-            assertEquals(1, results.size());
-            assertTrue(results.contains(5));
+            assertThat(results.size()).isEqualTo(1);
+            assertThat(results.contains(5)).isTrue();
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testRestrictionsWithOr() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testRestrictionsWithOr(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // JBRULES-2203: NullPointerException When Using Conditional Element "or" in LHS Together with a Return Value Restriction
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -571,14 +573,15 @@ public class OrTest {
             ksession.insert(new Cheese("Stilton", 2));
 
             final int rules = ksession.fireAllRules();
-            assertEquals(2, rules);
+            assertThat(rules).isEqualTo(2);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testEmptyIdentifier() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testEmptyIdentifier(KieBaseTestConfiguration kieBaseTestConfiguration) {
 
         final String drl = "package org.drools.compiler.integrationtests.operators;\n" +
                 "import " + Cheese.class.getCanonicalName() + ";\n" +
@@ -629,14 +632,15 @@ public class OrTest {
             ksession.insert(cheese);
 
             ksession.fireAllRules();
-            assertEquals(4, result.size());
+            assertThat(result.size()).isEqualTo(4);
         } finally {
             ksession.dispose();
         }
     }
 
-    @Test
-    public void testIndexAfterOr() {
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testIndexAfterOr(KieBaseTestConfiguration kieBaseTestConfiguration) {
         // DROOLS-1604
         final String drl =
                 "import " + Person.class.getCanonicalName() + ";" +
@@ -667,8 +671,44 @@ public class OrTest {
             ksession.setGlobal( "list", list );
 
             ksession.fireAllRules();
-            assertEquals( 1, list.size() );
-            assertEquals( "Mario", list.get(0) );
+            assertThat(list.size()).isEqualTo(1);
+            assertThat(list.get(0)).isEqualTo("Mario");
+        } finally {
+            ksession.dispose();
+        }
+    }
+
+    @ParameterizedTest(name = "KieBase type={0}")
+	@MethodSource("parameters")
+    public void testOrWithDifferenceOffsetsForConsequence(KieBaseTestConfiguration kieBaseTestConfiguration) {
+        // DROOLS-1604
+        final String drl =
+              "import " + Person.class.getCanonicalName() + ";" +
+              "global java.util.List list\n" +
+              "rule R dialect \"mvel\" when\n" +
+              "  ( $p : Person(name == \"Mark\")" +
+              "    or\n" +
+              "    $s : String() and $p : Person(name == $s) )\n" +
+              "then\n" +
+              "  list.add($p.getName());\n" +
+              "end";
+
+
+        final KieBase kbase = KieBaseUtil.getKieBaseFromKieModuleFromDrl("or-test",
+                                                                         kieBaseTestConfiguration,
+                                                                         drl);
+        final KieSession ksession = kbase.newKieSession();
+        try {
+            ksession.insert( "Mark" );
+            ksession.insert(new Person("Mark", 37));
+
+            final List<String> list = new ArrayList<>();
+            ksession.setGlobal( "list", list );
+
+            ksession.fireAllRules();
+            assertThat(list.size()).isEqualTo(2);
+            assertThat(list.get(0)).isEqualTo("Mark");
+            assertThat(list.get(1)).isEqualTo("Mark");
         } finally {
             ksession.dispose();
         }

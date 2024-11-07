@@ -1,41 +1,42 @@
-/*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.drools.beliefs.bayes;
 
-import org.drools.core.beliefsystem.BeliefSet;
-import org.drools.core.beliefsystem.BeliefSystem;
-import org.drools.core.beliefsystem.ModedAssertion;
-import org.drools.core.beliefsystem.simple.SimpleLogicalDependency;
-import org.drools.core.beliefsystem.simple.SimpleMode;
+import org.drools.core.rule.consequence.InternalMatch;
+import org.drools.tms.agenda.TruthMaintenanceSystemInternalMatch;
+import org.drools.tms.beliefsystem.BeliefSet;
 import org.drools.core.common.InternalFactHandle;
-import org.drools.core.common.LogicalDependency;
-import org.drools.core.common.NamedEntryPoint;
+import org.drools.kiesession.entrypoints.NamedEntryPoint;
 import org.drools.core.common.TruthMaintenanceSystem;
-import org.drools.core.definitions.rule.impl.RuleImpl;
+import org.drools.base.definitions.rule.impl.RuleImpl;
 import org.drools.core.reteoo.ObjectTypeConf;
-import org.drools.core.spi.Activation;
-import org.drools.core.spi.PropagationContext;
+import org.drools.core.common.PropagationContext;
+import org.drools.tms.LogicalDependency;
+import org.drools.tms.beliefsystem.BeliefSystem;
+import org.drools.tms.beliefsystem.simple.SimpleLogicalDependency;
 import org.kie.api.runtime.rule.FactHandle;
 
 public class BayesBeliefSystem<M extends BayesHardEvidence<M>> implements BeliefSystem<M> {
-    private NamedEntryPoint        ep;
-    private TruthMaintenanceSystem tms;
+    private final NamedEntryPoint ep;
+    private final TruthMaintenanceSystem tms;
 
-    public BayesBeliefSystem(NamedEntryPoint ep,
-                             TruthMaintenanceSystem tms) {
+    public BayesBeliefSystem(NamedEntryPoint ep, TruthMaintenanceSystem tms) {
         super();
         this.ep = ep;
         this.tms = tms;
@@ -53,8 +54,7 @@ public class BayesBeliefSystem<M extends BayesHardEvidence<M>> implements Belief
     }
 
     @Override
-    public BeliefSet<M> insert( M mode, RuleImpl rule, Activation activation, Object ldPayload, BeliefSet<M> beliefSet, PropagationContext context, ObjectTypeConf typeConf ) {
-        boolean wasEmpty = beliefSet.isEmpty();
+    public BeliefSet<M> insert(M mode, RuleImpl rule, TruthMaintenanceSystemInternalMatch activation, Object ldPayload, BeliefSet<M> beliefSet, PropagationContext context, ObjectTypeConf typeConf) {
         boolean wasDecided = beliefSet.isDecided();
 
         beliefSet.add( mode );
@@ -89,7 +89,7 @@ public class BayesBeliefSystem<M extends BayesHardEvidence<M>> implements Belief
     }
 
     @Override
-    public void delete( M mode, RuleImpl rule, Activation activation, Object payload, BeliefSet<M> beliefSet, PropagationContext context ) {
+    public void delete(M mode, RuleImpl rule, InternalMatch internalMatch, Object payload, BeliefSet<M> beliefSet, PropagationContext context) {
         boolean wasDecided = beliefSet.isDecided();
 
         beliefSet.remove( mode );
@@ -141,7 +141,7 @@ public class BayesBeliefSystem<M extends BayesHardEvidence<M>> implements Belief
     }
 
     @Override
-    public LogicalDependency<M> newLogicalDependency(Activation<M> activation, BeliefSet<M> beliefSet, Object object, Object value) {
+    public LogicalDependency<M> newLogicalDependency(TruthMaintenanceSystemInternalMatch<M> activation, BeliefSet<M> beliefSet, Object object, Object value) {
         BayesHardEvidence<M> mode = (M) value;
         SimpleLogicalDependency dep = new SimpleLogicalDependency( activation, beliefSet, object, (M) value );
         mode.setLogicalDependency( dep );
